@@ -1,0 +1,13 @@
+:root {
+    --drawer-height-bottom: 48px;
+    --drawer-height-bottom-opened: 300px;
+    --surface-alternative: #F8FAFC;
+}
+
+.text-primary {
+    color: var(--mud-palette-text-primary);
+}
+
+.text-secondary {
+    color: var(--mud-palette-text-secondary);
+}

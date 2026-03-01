@@ -1,0 +1,22 @@
+@page "/explorer"
+@using Messentra.Features.Explorer.Resources.Components
+@using Messentra.Features.Explorer.Resources.Components.Details
+
+<div class="mud-height-full">
+    <MudSplitPanel Class="mud-width-full mud-height-full"
+                   FirstPanelInitialSize="300"
+                   MinPanelSize="300"
+                   Elevation="1"
+                   PanelGap="2"
+                   ClassFirstPanel="explorer-left-panel"
+                   ClassSecondPanel="explorer-right-panel">
+        <FirstPanel>
+            <NamespaceTree Resources="@_resourceState.Value.Resources"
+                           Connections="@_connectionState.Value.Connections.ToList()"
+                           SelectedResource="@_resourceState.Value.SelectedResource"/>
+        </FirstPanel>
+        <SecondPanel>
+            <ResourceDetails SelectedResource="@_resourceState.Value.SelectedResource"/>
+        </SecondPanel>
+    </MudSplitPanel>
+</div>

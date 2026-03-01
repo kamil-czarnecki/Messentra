@@ -1,0 +1,36 @@
+.properties-scroll {
+    height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 1.5rem;
+    max-height: 400px;
+}
+
+::deep .section-paper {
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 8px;
+}
+
+::deep .null-value {
+    color: var(--mud-palette-text-disabled);
+    font-style: italic;
+}
+
+::deep .value-mono {
+    font-family: monospace;
+}
+
+::deep .props-table th {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--mud-palette-text-secondary);
+    padding: 6px 12px;
+}
+
+::deep .props-table td {
+    font-size: 0.8rem;
+    vertical-align: middle;
+    padding: 6px 12px;
+}
+

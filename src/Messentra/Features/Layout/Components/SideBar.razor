@@ -1,0 +1,26 @@
+<div>
+    <MudDrawer Open="true"
+               Variant="@DrawerVariant.Persistent"
+               Elevation="1"
+               ClipMode="DrawerClipMode.Always"
+               Class="overflow-hidden">
+        <MudDrawerContainer Class="mud-height-full pa-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3 logo-container">
+                <MudImage Src="@Assets["logo.svg"]" Fluid="true" Alt="Logo"/>
+            </MudStack>
+            <MudDivider />
+    
+            <MudNavMenu Color="Color.Primary"
+                        Class="pt-3">
+                @foreach (var link in _links)
+                {
+                    <MudNavLink Href="@link.Href"
+                                Icon="@(link.IsDisabled ? Icons.Material.Outlined.Block : link.Icon)"
+                                Disabled="@link.IsDisabled">
+                        <MudText>@link.Title</MudText>
+                    </MudNavLink>
+                }
+            </MudNavMenu>
+        </MudDrawerContainer>
+    </MudDrawer>
+</div>

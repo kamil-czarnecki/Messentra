@@ -1,0 +1,154 @@
+# ============================================================
+# .NET / ASP.NET Core
+# ============================================================
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio cache/options directory
+.vs/
+.vscode/
+.idea/
+
+## Rider
+.idea/
+
+## MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## Publish output
+**/publish/
+**/PublishOutput/
+
+## User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Backup & temp files
+*~
+*.bak
+*.tmp
+*.temp
+
+## OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+## dotnet tools
+.config/dotnet-tools.json.lock
+
+## Entity Framework Core Migrations (keep if you track migrations in source)
+# Migrations/
+
+## Coverage
+coverage/
+coverage.xml
+*.coverage
+*.coveragexml
+lcov.info
+TestResults/
+
+## Roslyn analyzers / source generators
+*.generated.cs
+
+# ============================================================
+# Blazor / WebAssembly
+# ============================================================
+
+## Blazor WASM publish artifacts
+**/wwwroot/_framework/
+**/wwwroot/service-worker-assets.js
+
+# ============================================================
+# Electron.NET
+# ============================================================
+
+## Electron build output
+/Messentra/bin/desktop/
+**/bin/desktop/
+/dist/
+/out/
+/build/
+*.AppImage
+*.snap
+*.deb
+*.rpm
+*.dmg
+*.pkg
+*.exe
+*.msi
+*.nsis
+
+## Electron node modules
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+## Electron cache
+.electron/
+electron-builder.env
+
+# ============================================================
+# Secrets / Environment
+# ============================================================
+
+## Local settings (keep appsettings.json, ignore secrets)
+appsettings.Local.json
+appsettings.*.local.json
+secrets.json
+*.pfx
+*.p12
+*.key
+*.pem
+.env
+.env.*
+!.env.example
+
+# ============================================================
+# JetBrains Rider
+# ============================================================
+
+.idea/
+*.sln.iml
+
+# ============================================================
+# Keep
+# ============================================================
+
+!.gitkeep
+

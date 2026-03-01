@@ -1,0 +1,123 @@
+.tab-scroll {
+    height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+::deep .section-label {
+    font-weight: 600;
+    margin-top: 12px;
+}
+
+::deep .section-paper {
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 8px;
+    padding: 20px 24px;
+    background-color: var(--surface-alternative);
+}
+
+/* Basic Information */
+
+::deep .basic-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr 2fr;
+    gap: 16px;
+    align-items: start;
+}
+
+::deep .basic-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+::deep .status-value {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Field label shared */
+
+::deep .field-label {
+    color: var(--mud-palette-text-secondary);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* Message Counts */
+
+::deep .counts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+}
+
+
+::deep .count-card {
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+::deep .count-card--total {
+    border: 2px solid var(--mud-palette-primary);
+    background-color: color-mix(in srgb, var(--mud-palette-primary) 6%, transparent);
+}
+
+::deep .field-label--total {
+    color: var(--mud-palette-primary);
+}
+
+::deep .count-value {
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* Storage & Quota */
+
+::deep .storage-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 40px;
+    align-items: center;
+}
+
+::deep .storage-sizes {
+    display: flex;
+    gap: 36px;
+}
+
+::deep .storage-size-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+::deep .storage-usage {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+::deep .storage-usage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+::deep .free-label {
+    color: var(--mud-palette-warning-darken);
+    font-weight: 600;
+}
+
+::deep .storage-hint {
+    color: var(--mud-palette-text-secondary);
+    font-style: italic;
+}
+

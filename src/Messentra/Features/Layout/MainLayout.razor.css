@@ -1,0 +1,7 @@
+div.main-layout{
+    height: 100vh;
+}
+
+::deep .mud-main-content{
+    padding-bottom: var(--mud-drawer-height-bottom);
+}

@@ -1,0 +1,58 @@
+@using Messentra.Features.Explorer.Messages
+<div>
+    <MudDialog>
+        <DialogContent>
+            <MudStack Justify="Justify.Center">
+                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                    MODE
+                </MudText>
+                <MudToggleGroup T="FetchMode" Color="Color.Primary" @bind-Value="@_mode">
+                    <MudToggleItem Value="@(FetchMode.Peek)"/>
+                    <MudToggleItem Value="@(FetchMode.Receive)"/>
+                </MudToggleGroup>
+                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                    RECEIVE MODE
+                </MudText>
+                <MudRadioGroup T="FetchReceiveMode" Required="true" Disabled="@(_mode == FetchMode.Peek)" @bind-Value="@_receiveMode">
+                    <MudRadio Value="@FetchReceiveMode.PeekLock" Color="Color.Primary" Ripple="false">@nameof(FetchReceiveMode.PeekLock)</MudRadio>
+                    <MudRadio Value="@FetchReceiveMode.ReceiveAndDelete" Color="Color.Primary" Ripple="false">@nameof(FetchReceiveMode.ReceiveAndDelete)</MudRadio>
+                </MudRadioGroup>
+                <MudGrid Class="mb-4">
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                            MESSAGE COUNT
+                        </MudText>
+                        <MudNumericField Min="1" @bind-Value="@_messageCount" Required="true" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense"/>
+                    </MudItem>
+                    @if (_mode == FetchMode.Peek)
+                    {
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                                START SEQUENCE
+                            </MudText>
+                            <MudNumericField Min="1" @bind-Value="@_startSequence" Variant="Variant.Outlined" Immediate="true" Margin="Margin.Dense" Placeholder="Optional"/>
+                        </MudItem>
+                    }
+                    else
+                    {
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                                WAIT TIME (seconds)
+                            </MudText>
+                            <MudNumericField Min="0" @bind-Value="@_waitTimeInSeconds" Variant="Variant.Outlined" Immediate="true" Margin="Margin.Dense"/>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudStack>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@Cancel">Cancel</MudButton>
+            <MudButton Color="Color.Primary" 
+                       Variant="Variant.Filled" 
+                       OnClick="@Submit"
+                       StartIcon="@Icons.Material.Filled.Download">
+                Fetch
+            </MudButton>
+        </DialogActions>
+    </MudDialog>    
+</div>

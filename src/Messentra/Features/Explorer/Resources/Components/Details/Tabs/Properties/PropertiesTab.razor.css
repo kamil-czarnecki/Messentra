@@ -1,0 +1,19 @@
+.tab-scroll {
+    height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+::deep .section-paper {
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: 8px;
+    padding: 20px 24px;
+}
+
+::deep .mud-readonly .mud-svg-icon {
+    color: var(--mud-palette-primary);
+}
+
+::deep .mud-input {
+    background-color: var(--surface-alternative) !important;
+}

@@ -1,0 +1,115 @@
+@using Messentra.Features.Explorer.Resources
+@using MudBlazor.Utilities
+
+<div class="namespace-tree">
+    <MudPaper Elevation="0" Class="d-flex align-center justify-space-between pa-2">
+        <MudText Typo="Typo.h6">Namespaces</MudText>
+        <MudMenu Icon="@Icons.Material.Filled.Add"
+                 Size="Size.Small"
+                 Color="Color.Primary"
+                 Dense="true"
+                 AnchorOrigin="Origin.BottomRight"
+                 TransformOrigin="Origin.TopRight"
+                 FullWidth="true">
+            <ChildContent>
+                @{
+                    var availableConnections = Connections
+                        .Where(x => Resources.All(r => r.Text != x.Name))
+                        .ToList();
+                }
+
+                <MudMenuItem Icon="@Icons.Material.Rounded.AddCircle" IconColor="Color.Primary" OnClick="@OpenConnections">
+                    <MudText Color="Color.Primary" Typo="Typo.body2"><b>Add connection</b></MudText>
+                </MudMenuItem>
+                @if (availableConnections.Count != 0)
+                {
+                    <MudDivider/>
+                    <MudText Typo="Typo.caption" Class="text-secondary ml-2"><b>SAVED CONNECTIONS</b></MudText>
+                }
+                @foreach (var connection in availableConnections)
+                {
+                    <MudMenuItem Icon="@Icons.Material.Filled.Dns" IconColor="Color.Default" OnClick="@(() => SelectConnection(connection))">
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.body2">@connection.Name</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Primary">@connection.ConnectionConfig.GetNamespace()</MudText>
+                        </MudStack>
+                    </MudMenuItem>
+                }
+            </ChildContent>
+        </MudMenu>
+    </MudPaper>
+    <MudDivider Class="border-2"/>
+    @if (Resources.Count == 0)
+    {
+        <MudStack AlignItems="AlignItems.Center" Class="ma-2 mud-height-full dashed-border" Justify="Justify.Center">
+            <MudIcon Icon="@Icons.Material.Rounded.CloudOff" Size="Size.Large" Color="Color.Default"/>
+            <MudText Typo="Typo.body2" Align="Align.Center" Class="text-secondary">
+                No connection selected
+            </MudText>
+            <MudText Typo="Typo.caption" Inline="true" Align="Align.Center" Class="text-secondary">
+                Click the <MudText Typo="Typo.caption" Color="Color.Primary">+</MudText> button to add a connection and start exploring your Azure Service Bus resources.
+            </MudText>
+        </MudStack>
+    }
+    else
+    {
+        <MudHotkey Key="JsKey.F5" OnHotkeyPressed="@(() => RefreshHotkeyClicked())"/>
+        <MudTreeView Ripple="false" Items="@Resources" Dense="true" Class="ma-0 pa-0 mud-height-full compact-tree"
+                     tabindex="0"
+                     @onfocusin="@(() => _isFocused = true)"
+                     @onfocusout="@(() => _isFocused = false)">
+            <ItemTemplate>
+                @{
+                    var presenter = (context as ResourceTreeItemData)!;
+                }
+                <MudTreeViewItem @bind-Expanded="@presenter.Expanded"
+                                 Items="@presenter.Children"
+                                 Value="@presenter.Value"
+                                 Icon="@presenter.Icon"
+                                 IconColor="@presenter.IconColor"
+                                 Selected="@presenter.Selected"
+                                 ReadOnly="@presenter.IsReadonly"
+                                 SelectedChanged="@(x => ItemSelected(presenter, x))">
+                    <BodyContent Context="node">
+                        <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mud-width-full tree-item-body">
+                            <MudText Typo="Typo.caption" Class="flex-grow-1 text-truncate">@presenter.Text</MudText>
+                            @if (presenter.Value is { IsLoading: false })
+                            {
+                                switch (presenter.Value)
+                                {
+                                    case NamespaceTreeNode:
+                                        <MudButton Variant="Variant.Text"
+                                                   Color="Color.Primary"
+                                                   Ripple="false"
+                                                   OnClick="@(_ => Disconnect(presenter))"
+                                                   Class="disconnect-button">
+                                            Disconnect
+                                        </MudButton>
+                                        break;
+                                    case QueuesTreeNode or TopicsTreeNode:
+                                        <MudIconButton
+                                            Icon="@Icons.Material.Filled.Refresh"
+                                            Color="Color.Primary"
+                                            Size="Size.Small"
+                                            Ripple="false"
+                                            OnClick="@(() => OnRefreshClicked(presenter.Value))"/>
+                                        break;
+                                    default:
+                                        <MudText Typo="Typo.caption">
+                                            @GetMessageCountText(presenter.Value)
+                                        </MudText>
+                                        break;
+                                }
+                            }
+                            else
+                            {
+                                <MudProgressCircular Class="namespace-loading-icon" Color="Color.Primary" Indeterminate="true"/>
+                            }
+                        </MudStack>
+                    </BodyContent>
+                </MudTreeViewItem>
+            </ItemTemplate>
+        </MudTreeView>
+    }
+</div>
+

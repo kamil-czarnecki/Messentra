@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/refs/heads/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.kczarnecki.messentra",
+  "productName": "Messentra",
+  "compression": "maximum",
+  "icon": "bin/wwwroot/icon",
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "kczarnecki",
+      "repo": "messentra"
+    }
+  ],
+  "linux": {
+    "icon": "bin/wwwroot/icon.png",
+    "target": [
+      "tar.xz"
+    ],
+    "executableArgs": [ "--no-sandbox" ],
+    "artifactName": "${name}-${arch}-${version}.${ext}"
+  },
+  "win": {
+    "icon": "bin/wwwroot/icon.ico",
+    "target": [
+      {
+        "target": "portable",
+        "arch": "x64"
+      }
+    ]
+  },
+  "mac": {
+    "icon": "bin/wwwroot/icon.icns",
+    "category": "test.test.test",
+    "target": [
+      "dmg"
+    ]
+  }
+}

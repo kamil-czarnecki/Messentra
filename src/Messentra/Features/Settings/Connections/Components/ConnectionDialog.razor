@@ -1,0 +1,86 @@
+@using Messentra.Domain
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_isValid">
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="_name"
+                              InputId="ConnectionName"
+                              Label="Connection Name"
+                              Required="true"
+                              RequiredError="Connection name is required"
+                              Immediate="true"
+                              MaxLength="100"
+                              Variant="Variant.Outlined" />
+
+                <MudSelect @bind-Value="_selectedConnectionType"
+                           InputId="ConnectionType"
+                           Label="Connection Type"
+                           Variant="Variant.Outlined"
+                           Immediate="true"
+                           Required="true"
+                           T="ConnectionType">
+                    <MudSelectItem Value="ConnectionType.ConnectionString">Connection String</MudSelectItem>
+                    <MudSelectItem Value="ConnectionType.EntraId">Entra ID</MudSelectItem>
+                </MudSelect>
+
+                @switch (_selectedConnectionType)
+                {
+                    case ConnectionType.ConnectionString:
+                        <MudTextField @bind-Value="_connectionString"
+                                      InputId="ConnectionString"
+                                      Label="Connection String"
+                                      Required="true"
+                                      RequiredError="Connection string is required"
+                                      Variant="Variant.Outlined"
+                                      MaxLength="5000"
+                                      Immediate="true"
+                                      Validation="@(new Func<string, string?>(ValidateConnectionString))"
+                                      OnlyValidateIfDirty="true"
+                                      Lines="3" />
+                        break;
+                    case ConnectionType.EntraId:
+                        <MudTextField @bind-Value="_namespace"
+                                      InputId="Namespace"
+                                      Label="Namespace"
+                                      Required="true"
+                                      RequiredError="Namespace is required"
+                                      Variant="Variant.Outlined"
+                                      Immediate="true"
+                                      MaxLength="100"
+                                      Placeholder="yournamespace.servicebus.windows.net" />
+
+                        <MudTextField @bind-Value="_tenantId"
+                                      InputId="TenantId"
+                                      Label="Tenant ID"
+                                      Required="true"
+                                      RequiredError="Tenant ID is required"
+                                      Variant="Variant.Outlined"
+                                      Immediate="true"
+                                      MaxLength="100"
+                                      Placeholder="00000000-0000-0000-0000-000000000000" />
+
+                        <MudTextField @bind-Value="_clientId"
+                                      InputId="ClientId"
+                                      Label="Client ID"
+                                      Required="true"
+                                      RequiredError="Client ID is required"
+                                      Variant="Variant.Outlined"
+                                      Immediate="true"
+                                      MaxLength="100"
+                                      Placeholder="00000000-0000-0000-0000-000000000000" />
+                        break;
+                }
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="@Submit"
+                   Disabled="@(!_isValid)">
+            @(IsEdit ? "Update" : "Add")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+

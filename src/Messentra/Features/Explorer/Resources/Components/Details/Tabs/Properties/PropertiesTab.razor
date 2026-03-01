@@ -1,0 +1,277 @@
+<div class="pa-6 tab-scroll">
+    <MudStack Class="justify-space-between">
+        <MudGrid>
+            <MudItem xs="12" lg="6">
+                <MudCard Class="pa-4 section-paper" Elevation="0" Outlined="true">
+                    <MudCardContent>
+                        <!-- Header -->
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Small" Color="Color.Primary"/>
+                            <MudText Typo="Typo.subtitle2" Class="text-uppercase font-weight-bold">
+                                General & Quotas
+                            </MudText>
+                        </MudStack>
+
+                        <MudDivider Class="my-3"/>
+
+                        <!-- Max Delivery Count -->
+                        <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                            MAX DELIVERY COUNT
+                        </MudText>
+
+                        <MudNumericField T="int?"
+                                         Value="@MaxDeliveryCount"
+                                         Variant="Variant.Outlined"
+                                         Class="mb-4"
+                                         Margin="Margin.Dense"
+                                         ReadOnly="true"/>
+
+                        <!-- Max Message Size -->
+                        <MudGrid Class="mb-4">
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                                    MAX MESSAGE SIZE (KB)
+                                </MudText>
+
+                                <MudNumericField T="long?"
+                                                 Value="@MaxMessageSizeInKilobytes"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                            </MudItem>
+
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                                    MAX SIZE (MB)
+                                </MudText>
+
+                                <MudNumericField T="long?"
+                                                 Value="@MaxSizeInMegabytes"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                            </MudItem>
+                        </MudGrid>
+
+                        <!-- Enable Partitioning -->
+                        <MudCheckBox Value="@EnablePartitioning" Label="Enable Partitioning"
+                                     Class="mb-2" Size="Size.Small" ReadOnly="true"/>
+
+                        <!-- Requires Session -->
+                        <MudCheckBox Label="Requires Session" Value="@RequiresSession" Size="Size.Small" ReadOnly="true"/>
+
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" lg="6">
+                <MudCard Class="pa-4 section-paper" Elevation="0" Outlined="true">
+                    <MudCardContent>
+                        <!-- Header -->
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Color="Color.Primary"/>
+                            <MudText Typo="Typo.subtitle2" Class="text-uppercase font-weight-bold">
+                                Time settings
+                            </MudText>
+                        </MudStack>
+
+                        <MudDivider Class="my-3"/>
+
+                        <!-- Max Message Size -->
+                        <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                            DEFAULT MESSAGE TTL
+                        </MudText>
+                        <MudGrid Class="mb-4">
+                            <MudItem xs="3" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@DefaultMessageTimeToLive?.Days"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    DAYS
+                                </MudText>
+                            </MudItem>
+
+                            <MudItem xs="3" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@DefaultMessageTimeToLive?.Hours"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    HRS
+                                </MudText>
+                            </MudItem>
+
+                            <MudItem xs="3" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@DefaultMessageTimeToLive?.Minutes"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    MIN
+                                </MudText>
+                            </MudItem>
+
+                            <MudItem xs="3" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@DefaultMessageTimeToLive?.Seconds"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    SEC
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                            LOCK DURATION
+                        </MudText>
+                        <MudGrid Class="mb-4">
+                            <MudItem xs="6" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@LockDuration?.Minutes"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    MIN
+                                </MudText>
+                            </MudItem>
+
+                            <MudItem xs="6" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@LockDuration?.Seconds"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    SEC
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                            AUTO DELETE ON IDLE
+                        </MudText>
+                        <MudGrid Class="mb-4">
+                            <MudItem xs="4" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@AutoDeleteOnIdle?.Days"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    DAYS
+                                </MudText>
+                            </MudItem>
+
+                            <MudItem xs="4" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@AutoDeleteOnIdle?.Hours"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    HRS
+                                </MudText>
+                            </MudItem>
+
+                            <MudItem xs="4" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@AutoDeleteOnIdle?.Minutes"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    MIN
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudCheckBox Value="@RequiresDuplicateDetection" Label="Requires duplicate detection"
+                                     Class="mb-2" Size="Size.Small" ReadOnly="true"/>
+                        <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                            DUPLICATE DETECTION WINDOW
+                        </MudText>
+                        <MudGrid Class="mb-4">
+                            <MudItem xs="6" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@DuplicateDetectionWindow?.Minutes"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    MIN
+                                </MudText>
+                            </MudItem>
+
+                            <MudItem xs="6" Class="mud-typography-align-center">
+                                <MudNumericField T="int?"
+                                                 Value="@DuplicateDetectionWindow?.Seconds"
+                                                 Variant="Variant.Outlined"
+                                                 Min="1"
+                                                 Margin="Margin.Dense"
+                                                 ReadOnly="true"/>
+                                <MudText Align="Align.Center" Typo="Typo.caption" Class="font-weight-bold mb-1 text-secondary">
+                                    SEC
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" lg="6">
+                <MudCard Class="pa-4 section-paper" Elevation="0" Outlined="true">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Small" Color="Color.Primary"/>
+                        <MudText Typo="Typo.subtitle2" Class="text-uppercase font-weight-bold">
+                            Routing & Metadata
+                        </MudText>
+                    </MudStack>
+
+                    <MudDivider Class="my-3"/>
+                    
+                    <MudCheckBox Value="@DeadLetteringOnExpiration" Label="Dead-lettering on message expiration"
+                                 Class="mb-2" Size="Size.Small" ReadOnly="true"/>
+                    
+                    <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                        FORWARD TO
+                    </MudText>
+
+                    <MudTextField Value="@ForwardTo"
+                                    Variant="Variant.Outlined"
+                                    Class="mb-4"
+                                    Margin="Margin.Dense"
+                                    ReadOnly="true"/>
+                    
+                    <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                        FORWARD DEAD-LETTERED MESSAGES TO
+                    </MudText>
+
+                    <MudTextField Value="@ForwardDeadLetteredMessagesTo"
+                                    Variant="Variant.Outlined"
+                                    Class="mb-4"
+                                    Margin="Margin.Dense"
+                                    ReadOnly="true"/>
+                    
+                    <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">
+                        USER METADATA
+                    </MudText>
+                    
+                    <MudTextField Value="@UserMetadata"
+                                    Variant="Variant.Outlined"
+                                    Class="mb-4"
+                                    Margin="Margin.Dense"
+                                    ReadOnly="true"/>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+        
+        
+    </MudStack>
+</div>
+

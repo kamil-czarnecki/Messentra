@@ -1,0 +1,200 @@
+@using Messentra.Features.Explorer.Messages
+
+<div class="properties-scroll">
+    <MudGrid Spacing="4">
+        <!-- Broker Properties -->
+        <MudItem xs="12" lg="6">
+            <MudCard Elevation="0" Outlined="true" Class="section-paper">
+                <MudCardContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                        <MudIcon Icon="@Icons.Custom.Brands.MicrosoftAzure" Size="Size.Small" Color="Color.Primary"/>
+                        <MudText Typo="Typo.subtitle2" Class="text-uppercase font-weight-bold">Broker Properties</MudText>
+                    </MudStack>
+
+                    <MudDivider Class="my-3"/>
+
+                    <MudSimpleTable Dense="true" Elevation="0" Hover="true" Class="props-table">
+                        <thead>
+                            <tr>
+                                <th>Key</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">MessageId</MudText></td>
+                                <td>
+                                    @if (Props.MessageId is null)
+                                    { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                    else
+                                    { <MudText Typo="Typo.body2">@Props.MessageId</MudText> }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">SequenceNumber</MudText></td>
+                                <td><MudText Typo="Typo.body2">@Props.SequenceNumber</MudText></td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">CorrelationId</MudText></td>
+                                <td>
+                                    @if (Props.CorrelationId is null)
+                                    { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                    else
+                                    { <MudText Typo="Typo.body2">@Props.CorrelationId</MudText> }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">SessionId</MudText></td>
+                                <td>
+                                    @if (Props.SessionId is null)
+                                    { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                    else
+                                    { <MudText Typo="Typo.body2">@Props.SessionId</MudText> }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">ReplyToSessionId</MudText></td>
+                                <td>
+                                    @if (Props.ReplyToSessionId is null)
+                                    { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                    else
+                                    { <MudText Typo="Typo.body2">@Props.ReplyToSessionId</MudText> }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">EnqueuedTimeUtc</MudText></td>
+                                <td><MudText Typo="Typo.body2">@FormatDateTime(Props.EnqueuedTimeUtc)</MudText></td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">ScheduledEnqueueTimeUtc</MudText></td>
+                                <td><MudText Typo="Typo.body2">@FormatDateTime(Props.ScheduledEnqueueTimeUtc)</MudText></td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">TimeToLive</MudText></td>
+                                <td><MudText Typo="Typo.body2">@FormatTimeSpan(Props.TimeToLive)</MudText></td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">LockedUntilUtc</MudText></td>
+                                <td><MudText Typo="Typo.body2">@FormatDateTime(Props.LockedUntilUtc)</MudText></td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">ExpiresAtUtc</MudText></td>
+                                <td><MudText Typo="Typo.body2">@FormatDateTime(Props.ExpiresAtUtc)</MudText></td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">DeliveryCount</MudText></td>
+                                <td><MudText Typo="Typo.body2">@Props.DeliveryCount</MudText></td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">Label</MudText></td>
+                                <td>
+                                    @if (Props.Label is null)
+                                    { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                    else
+                                    { <MudText Typo="Typo.body2">@Props.Label</MudText> }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">ContentType</MudText></td>
+                                <td>
+                                    @if (Props.ContentType is null)
+                                    { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                    else
+                                    { <MudText Typo="Typo.body2">@Props.ContentType</MudText> }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">To</MudText></td>
+                                <td>
+                                    @if (Props.To is null)
+                                    { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                    else
+                                    { <MudText Typo="Typo.body2">@Props.To</MudText> }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">ReplyTo</MudText></td>
+                                <td>
+                                    @if (Props.ReplyTo is null)
+                                    { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                    else
+                                    { <MudText Typo="Typo.body2">@Props.ReplyTo</MudText> }
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><MudText Typo="Typo.body2">PartitionKey</MudText></td>
+                                <td>
+                                    @if (Props.PartitionKey is null)
+                                    { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                    else
+                                    { <MudText Typo="Typo.body2">@Props.PartitionKey</MudText> }
+                                </td>
+                            </tr>
+                            @if (SubQueue == SubQueue.DeadLetter)
+                            {
+                                <tr>
+                                    <td><MudText Typo="Typo.body2">DeadLetterReason</MudText></td>
+                                    <td>
+                                        @if (Props.DeadLetterReason is null)
+                                        { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                        else
+                                        { <MudText Typo="Typo.body2">@Props.DeadLetterReason</MudText> }
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><MudText Typo="Typo.body2">DeadLetterErrorDescription</MudText></td>
+                                    <td>
+                                        @if (Props.DeadLetterErrorDescription is null)
+                                        { <MudText Typo="Typo.body2" Class="null-value">null</MudText> }
+                                        else
+                                        { <MudText Typo="Typo.body2">@Props.DeadLetterErrorDescription</MudText> }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Custom Properties -->
+        <MudItem xs="12" lg="6">
+            <MudCard Elevation="0" Outlined="true" Class="section-paper">
+                <MudCardContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                        <MudIcon Icon="@Icons.Material.Outlined.Tune" Size="Size.Small" Color="Color.Primary"/>
+                        <MudText Typo="Typo.subtitle2" Class="text-uppercase font-weight-bold">Custom Properties</MudText>
+                    </MudStack>
+
+                    <MudDivider Class="my-3"/>
+
+                    @if (!Message.Message.ApplicationProperties.Any())
+                    {
+                        <MudText Typo="Typo.body2" Class="null-value">No custom properties</MudText>
+                    }
+                    else
+                    {
+                        <MudSimpleTable Dense="true" Elevation="0" Hover="true" Class="props-table">
+                            <thead>
+                                <tr>
+                                    <th>Key</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var (key, value) in Message.Message.ApplicationProperties)
+                                {
+                                    <tr>
+                                        <td><MudText Typo="Typo.body2">@key</MudText></td>
+                                        <td><MudText Typo="Typo.body2" Color="Color.Primary" Class="value-mono">@value</MudText></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</div>
+

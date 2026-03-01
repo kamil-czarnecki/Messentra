@@ -1,0 +1,22 @@
+﻿
+@using Messentra.Features.Layout.Components
+@inherits LayoutComponentBase
+
+<Fluxor.Blazor.Web.StoreInitializer/>
+<MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<div class="main-layout">
+    <MudLayout>
+        <SideBar/>
+        <MudMainContent Class="mud-height-full">
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mud-height-full pa-0">
+                @Body
+            </MudContainer>
+            <ActivityLog/>
+        </MudMainContent>
+    </MudLayout>
+</div>
+

@@ -1,0 +1,87 @@
+@using Fluxor
+@using Messentra.Features.Layout.State
+@using Size = MudBlazor.Size
+@inject IState<ActivityLogState> ActivityLogState
+@inject IDispatcher Dispatcher
+
+<div>
+    <MudDrawer Open="true"
+               Anchor="Anchor.Bottom"
+               Variant="@DrawerVariant.Persistent"
+               ClipMode="DrawerClipMode.Never"
+               Height="@DrawerHeight"
+               Elevation="1">
+        
+        <MudDivider />
+        <MudPaper Class="d-flex align-center pa-2 mud-background-gray drawer-bottom-header"
+                  Elevation="0"
+                  Square="true">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mud-width-full">
+                <MudIcon Icon="@(_open ? Icons.Material.Filled.KeyboardArrowDown : Icons.Material.Filled.KeyboardArrowUp)"
+                         Size="Size.Small"
+                         @onclick="@ToggleDrawer"
+                         Class="cursor-pointer"/>
+                <MudText Typo="Typo.subtitle2" Class="ml-2">Activity Log</MudText>
+                <MudText Typo="Typo.caption">@ActivityLogState.Value.Logs.Count()</MudText>
+                <MudSpacer />
+                <MudSelect @bind-Value="@_selectedConnection"
+                           Variant="Variant.Outlined"
+                           Placeholder="Connection"
+                           Dense="true"
+                           Typo="Typo.subtitle2"
+                           Margin="Margin.Dense"
+                           FitContent="true">
+                    @foreach(var connection in Connections)
+                    {
+                        <MudSelectItem Value="@connection">@connection</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect @bind-Value="@_selectedLogLevel"
+                           Variant="Variant.Outlined"
+                           Placeholder="Log Level"
+                           Dense="true"
+                           Typo="Typo.subtitle2"
+                           Margin="Margin.Dense"
+                           FitContent="true">
+                    @foreach(var logLevel in _logLevels)
+                    {
+                        <MudSelectItem Value="@logLevel">@logLevel</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudIcon Icon="@Icons.Material.Outlined.Delete" Class="cursor-pointer" @onclick="@OnDeleteClicked"/>
+            </MudStack>
+        
+        </MudPaper>
+
+        @if (_open)
+        {
+            <MudDivider />
+            <MudPaper Square="true"
+                      Elevation="0"
+                      Class="drawer-bottom-content">
+                <MudStack Spacing="0" Class="overflow-auto mud-height-full">
+                    @foreach (var log in GetFilteredLogs())
+                    {
+                        <MudAlert Severity="@GetSeverity(log.Level)"
+                                  Dense="true"
+                                  Icon="@GetIcon(log.Level)"
+                                  Square="true">
+                            <MudStack Spacing="0">
+                                <MudStack Spacing="0" Row="true">
+                                    <MudText Typo="Typo.overline" Class="text-muted">
+                                        @($"{log.Timestamp:yyyy-MM-dd HH:mm:ss}")
+                                    </MudText>
+                                    <MudChip T="string" Variant="Variant.Text" Disabled="true" Size="Size.Small">
+                                        @log.Connection
+                                    </MudChip>
+                                </MudStack>
+                                
+                                <MudText Typo="Typo.caption">@log.Message</MudText>
+                            </MudStack>
+                        </MudAlert>
+                    }
+                </MudStack>
+            </MudPaper>
+        }
+    </MudDrawer>
+</div>

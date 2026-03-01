@@ -1,0 +1,148 @@
+@using Messentra.Features.Explorer.Messages
+@using MudBlazor.Utilities
+
+<div class="message-grid-container"
+     tabindex="0"
+     @onfocusin="@(() => _isGridFocused = true)"
+     @onfocusout="@(() => _isGridFocused = false)"
+     @ref="_gridContainer">
+    <MudHotkey Key="JsKey.ArrowUp" OnHotkeyPressed="OnKeyUpPressed"/>
+    <MudHotkey Key="JsKey.ArrowDown" OnHotkeyPressed="OnKeyDownPressed"/>
+    <MudDataGrid Loading="@_isGridLoading" @ref="_grid" T="ServiceBusMessage" Dense="true" Elevation="0" Virtualize="true"
+                 Square="true" Items="@FilteredMessages" @bind-SelectedItems="@SelectedItems" FixedHeader="true" Height="100%"
+                 Class="message-grid" MultiSelection="true" ColumnResizeMode="ResizeMode.Container" SortMode="SortMode.None"
+                 SelectOnRowClick="false" RowClassFunc="@((x, _) => GetRowClass(x))" ExpandSingleRow="true"
+                 RowClick="@(x => OnRowClick(x.Item))">
+        <ToolBarContent>
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mud-width-full">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudButton IconSize="Size.Small" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false"
+                               Size="Size.Small" Ripple="false" StartIcon="@Icons.Material.Filled.Download"
+                               OnClick="@OnFetchMessagesClicked" Disabled="@_isFetchOngoing">
+                        @if (!_isFetchOngoing)
+                        {
+                            <MudText Typo="Typo.body2">Fetch</MudText>
+                        }
+                        else
+                        {
+                            <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                    </MudButton>
+                    <MudButton IconSize="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.MoveUp" Ripple="false"
+                               OnClick="@OnResendClicked" Disabled="@(!SelectedItems.Any() || _isResendOngoing)">
+                        @if (!_isResendOngoing)
+                        {
+                            <MudText Typo="Typo.body2">Resend</MudText>
+                        }
+                        else
+                        {
+                            <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                    </MudButton>
+                    @if (_fetchMessagesOptions is { Mode: FetchMode.Receive })
+                    {
+                        <MudHidden Breakpoint="Breakpoint.MdAndDown">
+                            <MudButton IconSize="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Check" Ripple="false"
+                                       OnClick="@OnCompleteClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isCompleteOngoing)">
+                                @if (!_isCompleteOngoing)
+                                {
+                                    <MudText Typo="Typo.body2">Complete</MudText>
+                                }
+                                else
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                }
+                            </MudButton>
+                            <MudButton IconSize="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.LockOpen" Ripple="false"
+                                       OnClick="@OnAbandonClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isAbandonOngoing)">
+                                @if (!_isAbandonOngoing)
+                                {
+                                    <MudText Typo="Typo.body2">Abandon</MudText>
+                                }
+                                else
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                }
+                            </MudButton>
+                            <MudButton IconSize="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Delete" Ripple="false"
+                                       OnClick="@OnDeadLetterClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isDeadLetterOngoing)">
+                                @if (!_isDeadLetterOngoing)
+                                {
+                                    <MudText Typo="Typo.body2">DeadLetter</MudText>
+                                }
+                                else
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                }
+                            </MudButton>
+                        </MudHidden>
+                        <MudHidden Breakpoint="Breakpoint.LgAndUp">
+                            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Ripple="false" Dense="true">
+                                <MudMenuItem Icon="@Icons.Material.Filled.Check" OnClick="@OnCompleteClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isCompleteOngoing)">
+                                    @if (!_isCompleteOngoing)
+                                    {
+                                        <MudText Typo="Typo.body2">Complete</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    }
+                                </MudMenuItem>
+                                <MudMenuItem Icon="@Icons.Material.Filled.LockOpen" OnClick="@OnAbandonClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isAbandonOngoing)">
+                                    @if (!_isAbandonOngoing)
+                                    {
+                                        <MudText Typo="Typo.body2">Abandon</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    }
+                                </MudMenuItem>
+                                <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@OnDeadLetterClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isDeadLetterOngoing)">
+                                    @if (!_isDeadLetterOngoing)
+                                    {
+                                        <MudText Typo="Typo.body2">DeadLetter</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                    }
+                                </MudMenuItem>
+                            </MudMenu>
+                        </MudHidden>
+                    }
+                </MudStack>
+                <MudTextField Typo="Typo.body2" T="string" @bind-Value="_searchTerm" Placeholder="Search" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Class="search" Immediate="true" Clearable="true" DebounceInterval="200"/>
+            </MudStack>
+        </ToolBarContent>
+        <Columns>
+            <HierarchyColumn T="ServiceBusMessage" Hidden="true"/>
+            <SelectColumn T="ServiceBusMessage" Resizable="false"/>
+            <PropertyColumn Property="x => x.Message.BrokerProperties.SequenceNumber" Title="SEQ #"/>
+            <PropertyColumn Property="x => x.Message.BrokerProperties.MessageId" Title="MESSAGE ID"/>
+            <PropertyColumn Property="x => x.Message.BrokerProperties.Label" Title="LABEL"/>
+            <PropertyColumn Property="x => x.Message.BrokerProperties.EnqueuedTimeUtc" Title="ENQUEUED TIME"/>
+            <PropertyColumn Property="x => x.Message.BrokerProperties.DeliveryCount" Title="DELIVERY COUNT"/>
+            @if (SubQueue == SubQueue.DeadLetter)
+            {
+                <PropertyColumn Property="x => x.Message.BrokerProperties.DeadLetterReason" Title="REASON"/>
+                <PropertyColumn Property="x => x.Message.BrokerProperties.DeadLetterErrorDescription" Title="ERROR DESCRIPTION"/>
+            }
+        </Columns>
+        <ChildRowContent>
+            <MudTabs Class="message-tabs" Color="Color.Surface" MinimumTabWidth="100px" Ripple="false" Elevation="0"
+                     Rounded="false" ApplyEffectsToContainer="true" @bind-ActivePanelIndex="@_activePanelIndex">
+                <MudTabPanel Text="Body" Class="pa-0">
+                    <MudStack Justify="Justify.Center" Class="pa-6">
+                        <JsonViewer Json="@context.Item.Message.Body"/>
+                    </MudStack>
+                </MudTabPanel>
+                <MudTabPanel Text="Properties" Class="pa-0">
+                    <MessageProperties Message="@context.Item" SubQueue="@SubQueue"/>
+                </MudTabPanel>
+            </MudTabs>
+        </ChildRowContent>
+    </MudDataGrid>
+</div>
+

@@ -1,0 +1,55 @@
+@using Messentra.Features.Explorer.Resources.Components.Details.Tabs.Overview
+@using Messentra.Features.Explorer.Resources.Components.Details.Tabs.Properties
+@using Messentra.Features.Explorer.Resources.Components.Details.Tabs.Messages
+@using Messentra.Features.Explorer.Messages
+
+<div class="mud-height-full">
+    <MudPaper Elevation="0" Class="d-flex justify-space-between flex-column mud-height-full">
+        @if (SelectedResource == null)
+        {
+            <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="pa-8 mud-height-full">
+                <MudImage Src="@Assets["icon.svg"]" Fluid="true" Width="100"/>
+                <MudText Typo="Typo.h5" Class="text-primary"><b>Welcome to Messentra</b></MudText>
+                <MudText Typo="Typo.body2" Align="Align.Center" Class="text-secondary">
+                    Connect a namespace to start exploring resources, managing queues, and monitoring your Service Bus messages in real-time.
+                </MudText>
+            </MudStack>
+        }
+        else
+        {
+            <MudStack Spacing="0" Class="mud-height-full">
+                <MudStack Elevation="0" Row="true" Class="align-center justify-space-between pa-2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="text-truncate-container">
+                        <MudText Typo="Typo.body1" Class="text-truncate">@(SelectedResource.Text)</MudText>
+                        <MudChip T="string" Variant="Variant.Filled" Color="@StatusColor" Size="Size.Small">
+                            @StatusText
+                        </MudChip>
+                    </MudStack>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Send" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenSendMessageDialog">
+                            <MudText Typo="Typo.body2">Send</MudText>
+                        </MudButton>
+                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Ripple="false" Size="Size.Small"
+                                       Disabled="@(IsRefreshing || SelectedResource?.Value is NamespaceTreeNode or QueuesTreeNode or TopicsTreeNode)"
+                                       OnClick="@RefreshResource" />
+                    </MudStack>
+                </MudStack>
+                <MudDivider Class="border-2"/>
+                <MudTabs Class="small-tabs" Color="Color.Surface" MinimumTabWidth="100px" Ripple="false" Elevation="0" Rounded="false" ApplyEffectsToContainer="true">
+                    <MudTabPanel Text="Overview" Class="pa-0">
+                        <OverviewTab Resource="SelectedResource"/>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Properties" Class="pa-0">
+                        <PropertiesTab Resource="SelectedResource"/>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Messages" Class="pa-0">
+                        <MessagesTab ResourceTreeNode="@SelectedResource.Value" SubQueue="SubQueue.Active" OnRefresh="@RefreshResource"/>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Dead-letter" Class="pa-0">
+                        <MessagesTab ResourceTreeNode="@SelectedResource.Value" SubQueue="SubQueue.DeadLetter" OnRefresh="@RefreshResource"/>
+                    </MudTabPanel>
+                </MudTabs>
+            </MudStack>
+        }
+    </MudPaper>
+</div>

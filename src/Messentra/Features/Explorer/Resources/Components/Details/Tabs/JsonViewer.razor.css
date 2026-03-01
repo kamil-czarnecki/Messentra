@@ -1,0 +1,36 @@
+::deep .json-viewer {
+    max-height: 400px;
+    background-color: var(--mud-palette-tertiary);
+    color: var(--mud-palette-tertiary-text);
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+}
+
+::deep .json-container {
+    white-space: pre;
+}
+
+::deep .json-line {
+    display: flex;
+}
+
+::deep .json-ln {
+    width: 40px;
+    text-align: right;
+    padding-right: 12px;
+    color: #64748b;
+    user-select: none;
+}
+
+::deep .json-code {
+    flex: 1;
+}
+
+/* Syntax colors */
+::deep .json-key     { color: #38bdf8; }  /* light blue */
+::deep .json-string  { color: #22c55e; }  /* green */
+::deep .json-number  { color: #f59e0b; }  /* amber */
+::deep .json-boolean { color: #f43f5e; }  /* red */
+::deep .json-null    { color: #a78bfa; }  /* purple */

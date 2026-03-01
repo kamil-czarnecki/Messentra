@@ -1,0 +1,13 @@
+::deep .mud-drawer-content {
+    width: calc(100% - var(--mud-drawer-width-left));
+    overflow: hidden;
+}
+
+::deep .drawer-bottom-header {
+    height: var(--drawer-height-bottom);
+    min-height: var(--drawer-height-bottom);
+}
+
+::deep .drawer-bottom-content {
+    height: calc(100% - var(--drawer-height-bottom));
+}

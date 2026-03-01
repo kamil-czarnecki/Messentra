@@ -1,0 +1,47 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+
+    <!-- Background -->
+    <rect width="512" height="512" rx="110" fill="#0b1220"/>
+
+    <!-- Gradients -->
+    <defs>
+        <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#2DD4BF"/>
+            <stop offset="100%" stop-color="#3B82F6"/>
+        </linearGradient>
+    </defs>
+
+    <!-- Icon -->
+    <g transform="translate(256,256)">
+
+        <!-- Outer ring -->
+        <circle cx="0" cy="0" r="110"
+                stroke="url(#flowGradient)"
+                stroke-width="18"
+                fill="none"/>
+
+        <!-- Core -->
+        <circle cx="0" cy="0" r="40"
+                fill="url(#flowGradient)"/>
+
+        <!-- Orbit arcs -->
+        <path d="M -150 -20 A 180 180 0 0 1 -20 -150"
+              stroke="url(#flowGradient)"
+              stroke-width="18"
+              fill="none"
+              stroke-linecap="round"/>
+
+        <path d="M 20 150 A 180 180 0 0 1 150 20"
+              stroke="url(#flowGradient)"
+              stroke-width="18"
+              fill="none"
+              stroke-linecap="round"/>
+
+        <!-- Nodes -->
+        <circle cx="-160" cy="-25" r="22" fill="url(#flowGradient)"/>
+        <circle cx="160" cy="25" r="22" fill="url(#flowGradient)"/>
+        <circle cx="0" cy="-185" r="22" fill="url(#flowGradient)"/>
+
+    </g>
+
+</svg>

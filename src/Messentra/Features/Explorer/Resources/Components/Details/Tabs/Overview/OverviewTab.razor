@@ -1,0 +1,78 @@
+<div class="pa-6 tab-scroll">
+    <MudStack>
+        <MudText Typo="Typo.subtitle2" Class="section-label">Basic Information</MudText>
+    <MudPaper Elevation="0" Class="section-paper">
+        <div class="basic-info-grid">
+            <div class="basic-info-item">
+                <MudText Typo="Typo.overline" Class="field-label">Status</MudText>
+                <div class="status-value">
+                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Success" Size="Size.Small"/>
+                    <MudText Typo="Typo.body1">@OverviewData?.Status</MudText>
+                </div>
+            </div>
+            <div class="basic-info-item">
+                <MudText Typo="Typo.overline" Class="field-label">Created At</MudText>
+                <MudText Typo="Typo.body1">@OverviewData?.CreatedAt.ToString("dd-MM-yyyy, HH:mm:ss")</MudText>
+            </div>
+            <div class="basic-info-item">
+                <MudText Typo="Typo.overline" Class="field-label">Updated At</MudText>
+                <MudText Typo="Typo.body1">@OverviewData?.UpdatedAt.ToString("dd-MM-yyyy, HH:mm:ss")</MudText>
+            </div>
+        </div>
+    </MudPaper>
+
+    <MudText Typo="Typo.subtitle2" Class="section-label">Message Counts</MudText>
+    <MudPaper Elevation="0" Class="section-paper">
+        <div class="counts-grid">
+            <MudPaper Elevation="0" Class="count-card">
+                <MudText Typo="Typo.overline" Class="field-label">Active</MudText>
+                <MudText Typo="Typo.h5" Color="Color.Primary" Class="count-value">@OverviewData?.MessageInfo.Active.ToString("N0")</MudText>
+            </MudPaper>
+            <MudPaper Elevation="0" Class="count-card">
+                <MudText Typo="Typo.overline" Class="field-label">Dead Letter</MudText>
+                <MudText Typo="Typo.h5" Color="Color.Error" Class="count-value">@OverviewData?.MessageInfo.DeadLetter.ToString("N0")</MudText>
+            </MudPaper>
+            <MudPaper Elevation="0" Class="count-card">
+                <MudText Typo="Typo.overline" Class="field-label">Scheduled</MudText>
+                <MudText Typo="Typo.h5" Class="count-value">@OverviewData?.MessageInfo.Scheduled.ToString("N0")</MudText>
+            </MudPaper>
+            <MudPaper Elevation="0" Class="count-card">
+                <MudText Typo="Typo.overline" Class="field-label">Transfer</MudText>
+                <MudText Typo="Typo.h5" Class="count-value">@OverviewData?.MessageInfo.Transfer.ToString("N0")</MudText>
+            </MudPaper>
+            <MudPaper Elevation="0" Class="count-card">
+                <MudText Typo="Typo.overline" Class="field-label">Transfer DLQ</MudText>
+                <MudText Typo="Typo.h5" Class="count-value">@OverviewData?.MessageInfo.TransferDeadLetter.ToString("N0")</MudText>
+            </MudPaper>
+            <MudPaper Elevation="0" Class="count-card count-card--total">
+                <MudText Typo="Typo.overline" Class="field-label field-label--total">Total</MudText>
+                <MudText Typo="Typo.h5" Color="Color.Primary" Class="count-value">@OverviewData?.MessageInfo.Total.ToString("N0")</MudText>
+            </MudPaper>
+        </div>
+    </MudPaper>
+
+    <MudText Typo="Typo.subtitle2" Class="section-label">Storage &amp; Quota</MudText>
+    <MudPaper Elevation="0" Class="section-paper">
+        <div class="storage-grid">
+            <div class="storage-sizes">
+                <div class="storage-size-item">
+                    <MudText Typo="Typo.overline" Class="field-label">Current Size</MudText>
+                    <MudText Typo="Typo.body1">@FormatBytes(OverviewData?.SizeInfo.CurrentSizeInBytes)</MudText>
+                </div>
+                <div class="storage-size-item">
+                    <MudText Typo="Typo.overline" Class="field-label">Max Size (MB)</MudText>
+                    <MudText Typo="Typo.body1">@(OverviewData?.SizeInfo.MaxSizeInMegabytes.ToString("N0")) MB</MudText>
+                </div>
+            </div>
+            <div class="storage-usage">
+                <div class="storage-usage-header">
+                    <MudText Typo="Typo.overline" Class="field-label">Storage Used</MudText>
+                    <MudText Typo="Typo.body2" Class="free-label">@(OverviewData?.SizeInfo.FreeSpacePercentage.ToString("F1"))% Free</MudText>
+                </div>
+                <MudProgressLinear Value="@(100 - (OverviewData?.SizeInfo.FreeSpacePercentage ?? 0))" Color="Color.Secondary" Rounded="true" Size="Size.Medium"/>
+            </div>
+        </div>
+    </MudPaper>
+    </MudStack>
+</div>
+

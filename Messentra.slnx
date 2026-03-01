@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Messentra/Messentra.csproj">
+      <Deploy />
+    </Project>
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Messentra.ComponentTests/Messentra.ComponentTests.csproj" />
+    <Project Path="tests/Messentra.UnitTests/Messentra.UnitTests.csproj" />
+  </Folder>
+</Solution>

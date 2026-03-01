@@ -1,0 +1,75 @@
+@using Messentra.Domain
+<div>
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudStack Spacing="4">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h5">Connections</MudText>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@OpenAddConnectionDialog">
+                    Add Connection
+                </MudButton>
+            </MudStack>
+
+            @if (_connectionsState.Value.IsLoading)
+            {
+                <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Loading connections...</MudText>
+                </MudStack>
+            }
+            else if (!_connectionsState.Value.Connections.Any())
+            {
+                <MudPaper Elevation="0" Class="pa-8 text-center border-dashed border-2">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Cable" Size="Size.Large" />
+                        <MudText Typo="Typo.h6">No connections found</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Get started by adding your first connection</MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                <MudTable Items="@_connectionsState.Value.Connections" 
+                          Hover="true" 
+                          Striped="true"
+                          Elevation="0"
+                          Dense="true"
+                          Class="mt-4">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Type</MudTh>
+                        <MudTh Class="text-right">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">
+                            <MudText Typo="Typo.body1">@context.Name</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Type">
+                            <MudTooltip Text="@GetConnectionDetails(context)">
+                                <MudText Color="Color.Primary" Typo="Typo.body2">
+                                    @context.ConnectionConfig.ConnectionType.ToString()
+                                </MudText>
+                            </MudTooltip>
+                        </MudTd>
+                        <MudTd DataLabel="Actions" Class="text-right">
+                            <MudStack Row="true" Spacing="1">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="@(() => OpenEditConnectionDialog(context))"
+                                               title="Edit"/>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="@(() => DeleteConnection(context))"
+                                               title="Delete"/>
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudStack>
+    </MudPaper>
+</div>

@@ -1,0 +1,63 @@
+::deep .dashed-border {
+    border: 2px dashed var(--mud-palette-divider);
+    border-radius: var(--mud-default-borderradius);
+}
+
+::deep .compact-tree {
+    outline: none;
+}
+
+::deep .compact-tree .mud-treeview-item-icon .mud-icon-root,
+::deep .compact-tree .mud-treeview-item-expand-button .mud-icon-root {
+    font-size: 1.25rem;
+}
+
+::deep .compact-tree .mud-treeview-group {
+    margin-left: 12px;
+}
+
+::deep .compact-tree .mud-treeview-item-content {
+    min-width: 0;
+    padding: 0 4px 0 0;
+    overflow: hidden;
+}
+
+::deep .compact-tree .mud-collapse-entered .mud-collapse-wrapper {
+    overflow: hidden;
+}
+
+::deep .compact-tree .mud-treeview-item-arrow {
+    margin: 0;
+}
+
+::deep .compact-tree .mud-treeview-item-arrow .mud-icon-button {
+    padding: 0;
+}
+
+::deep .disconnect-button {
+    font-size: 0.65rem;
+    padding: 0;
+}
+
+::deep .namespace-loading-icon {
+    width: 12px;
+    height: 12px;
+    padding: 0;
+}
+
+::deep .tree-item-body {
+    overflow: hidden;
+}
+
+::deep .text-truncate {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.namespace-tree {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
