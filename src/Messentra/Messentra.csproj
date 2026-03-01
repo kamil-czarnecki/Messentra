@@ -11,12 +11,23 @@
         <Version>0.1.0</Version>
         <ElectronVersion>40.0.0</ElectronVersion>
         <ElectronBuilderVersion>26.3.5</ElectronBuilderVersion>
-        <RuntimeIdentifier>osx-arm64</RuntimeIdentifier>
         <ElectronSingleInstance>true</ElectronSingleInstance>
         <ElectronPackageId>$(MSBuildProjectName.Replace(".", "-").ToLower())</ElectronPackageId>
         <PackageId>$(MSBuildProjectName.Replace(".", "-").ToLower())</PackageId>
         <ElectronBuilderJson>electron-builder.json</ElectronBuilderJson>
         <Title>$(MSBuildProjectName)</Title>
+    </PropertyGroup>
+    
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+        <RuntimeIdentifier>osx-arm64</RuntimeIdentifier>
     </PropertyGroup>
 
     <ItemGroup>
