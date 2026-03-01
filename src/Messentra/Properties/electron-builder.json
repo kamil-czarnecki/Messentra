@@ -7,8 +7,8 @@
   "publish": [
     {
       "provider": "github",
-      "owner": "kczarnecki",
-      "repo": "messentra"
+      "owner": "kamil-czarnecki",
+      "repo": "Messentra"
     }
   ],
   "linux": {
