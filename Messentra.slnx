@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Solution files/">
+    <File Path="README.md" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Messentra/Messentra.csproj">
       <Deploy />

@@ -1,0 +1,59 @@
+<svg width="900" height="240" viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg">
+
+    <!-- Background -->
+    <rect width="900" height="240" fill="#0b1220"/>
+
+    <!-- Gradients -->
+    <defs>
+        <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#2DD4BF"/>
+            <stop offset="100%" stop-color="#3B82F6"/>
+        </linearGradient>
+
+        <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#38BDF8"/>
+            <stop offset="100%" stop-color="#2563EB"/>
+        </linearGradient>
+    </defs>
+
+    <!-- Icon Group -->
+    <g transform="translate(120,120)">
+
+        <!-- Outer orbit -->
+        <circle cx="0" cy="0" r="48" stroke="url(#iconGradient)" stroke-width="6" fill="none"/>
+
+        <!-- Inner core -->
+        <circle cx="0" cy="0" r="18" fill="url(#iconGradient)"/>
+
+        <!-- Orbit arcs -->
+        <path d="M -60 -10 A 70 70 0 0 1 -10 -60"
+              stroke="url(#iconGradient)" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+        <path d="M 10 60 A 70 70 0 0 1 60 10"
+              stroke="url(#iconGradient)" stroke-width="6" fill="none" stroke-linecap="round"/>
+
+        <!-- Nodes -->
+        <circle cx="-65" cy="-15" r="10" fill="url(#iconGradient)"/>
+        <circle cx="65" cy="15" r="10" fill="url(#iconGradient)"/>
+        <circle cx="0" cy="-75" r="10" fill="url(#iconGradient)"/>
+
+    </g>
+
+    <!-- Text -->
+    <text x="240" y="140"
+          font-family="Inter, Manrope, Arial, sans-serif"
+          font-size="72"
+          font-weight="600"
+          fill="#E5E7EB">
+        Mess
+    </text>
+
+    <text x="420" y="140"
+          font-family="Inter, Manrope, Arial, sans-serif"
+          font-size="72"
+          font-weight="600"
+          fill="url(#textGradient)">
+        entra
+    </text>
+
+</svg>
