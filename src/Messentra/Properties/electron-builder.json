@@ -33,6 +33,9 @@
     "category": "test.test.test",
     "target": [
       "dmg"
-    ]
+    ],
+    "hardenedRuntime": true,
+    "entitlements": "entitlements.mac.plist",
+    "entitlementsInherit": "entitlements.mac.plist"
   }
 }
