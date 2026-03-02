@@ -36,9 +36,11 @@ builder.Services.AddDbContext<MessentraDbContext>();
 builder.Services.AddInfrastructure();
 builder.UseElectron(args, async () =>
 {
+    var version = typeof(Program).Assembly.GetName().Version;
+    var versionString = version is not null ? $" v{version.Major}.{version.Minor}.{version.Build}" : string.Empty;
     var options = new BrowserWindowOptions 
     {
-        Title = "Messentra",
+        Title = $"Messentra {versionString}",
         Show = false,
         IsRunningBlazor = true,
         MinHeight = 768,
