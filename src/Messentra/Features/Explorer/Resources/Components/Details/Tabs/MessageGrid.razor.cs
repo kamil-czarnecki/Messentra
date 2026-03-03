@@ -57,6 +57,7 @@ public partial class MessageGrid
     private ElementReference _gridContainer;
     private readonly IDialogService _dialogService;
     private readonly IMediator _mediator;
+    private readonly IScrollManager _scrollManager;
 
     private List<ServiceBusMessage> _messages = [];
     private FetchMessagesOptions? _fetchMessagesOptions;
@@ -95,14 +96,17 @@ public partial class MessageGrid
                 (kv.Value.ToString() ?? string.Empty).Contains(t, StringComparison.OrdinalIgnoreCase));
     }
 
-    public MessageGrid(IDialogService dialogService, IMediator mediator)
+    public MessageGrid(IDialogService dialogService, IMediator mediator, IScrollManager scrollManager)
     {
         _dialogService = dialogService;
         _mediator = mediator;
+        _scrollManager = scrollManager;
     }
 
     private string GetRowClass(ServiceBusMessage msg) =>
-        SelectedItems.Contains(msg) ? "mud-table-row-selected" : string.Empty;
+        SelectedItems.Contains(msg)
+            ? $"mud-table-row-selected row-seq-{msg.Message.BrokerProperties.SequenceNumber}"
+            : $"row-seq-{msg.Message.BrokerProperties.SequenceNumber}";
 
     private async Task OnKeyUpPressed()
     {
@@ -114,13 +118,12 @@ public partial class MessageGrid
         if (_lastSelected is null)
         {
             SelectedItems = [_messages[0]];
-            await _grid.ToggleHierarchyVisibilityAsync(_messages[0]);
             return;
         }
 
-        var index = Math.Max(0, _messages.IndexOf(_lastSelected) - 1);
-        SelectedItems = [_messages[index]];
-        await _grid.ToggleHierarchyVisibilityAsync(_messages[index]);
+        var index = Math.Max(0, FilteredMessages.IndexOf(_lastSelected) - 1);
+        SelectedItems = [FilteredMessages[index]];
+        await _scrollManager.ScrollIntoViewAsync($".row-seq-{FilteredMessages[index].Message.BrokerProperties.SequenceNumber}", ScrollBehavior.Smooth);
     }
 
     private async Task OnKeyDownPressed()
@@ -133,13 +136,12 @@ public partial class MessageGrid
         if (_lastSelected is null)
         {
             SelectedItems = [_messages[0]];
-            await _grid.ToggleHierarchyVisibilityAsync(_messages[0]);
             return;
         }
 
-        var index = Math.Min(_messages.Count - 1, _messages.IndexOf(_lastSelected) + 1);
-        SelectedItems = [_messages[index]];
-        await _grid.ToggleHierarchyVisibilityAsync(_messages[index]);
+        var index = Math.Min(FilteredMessages.Count - 1, FilteredMessages.IndexOf(_lastSelected) + 1);
+        SelectedItems = [FilteredMessages[index]];
+        await _scrollManager.ScrollIntoViewAsync($".row-seq-{FilteredMessages[index].Message.BrokerProperties.SequenceNumber}", ScrollBehavior.Smooth);
     }
 
     private async Task OnFetchMessagesClicked()
