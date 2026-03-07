@@ -2,11 +2,26 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 
 namespace Messentra.Features.Explorer.Resources.Components.Details.Tabs;
 
 public partial class JsonViewer
 {
+    [Inject] private IJSRuntime Js { get; set; } = null!;
+
+    // ...existing code...
+
+    private bool _copied;
+
+    private async Task CopyToClipboard()
+    {
+        await Js.InvokeVoidAsync("navigator.clipboard.writeText", Json);
+        _copied = true;
+        StateHasChanged();
+        await Task.Delay(2000);
+        _copied = false;
+    }
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,

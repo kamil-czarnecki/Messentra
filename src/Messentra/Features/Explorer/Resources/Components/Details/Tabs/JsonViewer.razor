@@ -1,5 +1,13 @@
-<div>
+<div class="json-wrapper">
     <MudPaper Class="json-viewer" Elevation="1">
+        <MudTooltip Text="@(_copied ? "Copied!" : "Copy to clipboard")" Placement="Placement.Right">
+            <MudIconButton Icon="@(_copied ? Icons.Material.Filled.Check : Icons.Material.Filled.ContentCopy)"
+                           Size="Size.Small"
+                           Ripple="false"
+                           Color="@(_copied ? Color.Success : Color.Secondary)"
+                           Class="json-copy-btn"
+                           OnClick="@CopyToClipboard"/>
+        </MudTooltip>
         <div class="json-container">
             @((MarkupString)FormattedJson)
         </div>
