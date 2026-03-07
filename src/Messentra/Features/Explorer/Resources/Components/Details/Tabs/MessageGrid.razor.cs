@@ -1,7 +1,9 @@
+using Fluxor;
 using Mediator;
 using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Messages.FetchQueueMessages;
 using Messentra.Features.Explorer.Messages.FetchSubscriptionMessages;
+using Messentra.Features.Layout.State;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 
@@ -58,6 +60,21 @@ public partial class MessageGrid
     private readonly IDialogService _dialogService;
     private readonly IMediator _mediator;
     private readonly IScrollManager _scrollManager;
+    private readonly IDispatcher _dispatcher;
+
+    private string ConnectionName => ResourceTreeNode switch
+    {
+        QueueTreeNode q => q.ConnectionName,
+        SubscriptionTreeNode s => s.ConnectionName,
+        _ => string.Empty
+    };
+
+    private string ResourceName => ResourceTreeNode switch
+    {
+        QueueTreeNode q => q.Resource.Name,
+        SubscriptionTreeNode s => $"{s.Resource.TopicName}/{s.Resource.Name}",
+        _ => ResourceTreeNode.GetType().Name
+    };
 
     private List<ServiceBusMessage> _messages = [];
     private FetchMessagesOptions? _fetchMessagesOptions;
@@ -96,11 +113,12 @@ public partial class MessageGrid
                 (kv.Value.ToString() ?? string.Empty).Contains(t, StringComparison.OrdinalIgnoreCase));
     }
 
-    public MessageGrid(IDialogService dialogService, IMediator mediator, IScrollManager scrollManager)
+    public MessageGrid(IDialogService dialogService, IMediator mediator, IScrollManager scrollManager, IDispatcher dispatcher)
     {
         _dialogService = dialogService;
         _mediator = mediator;
         _scrollManager = scrollManager;
+        _dispatcher = dispatcher;
     }
 
     private ResourceTreeNode? _previousResourceTreeNode;
@@ -178,24 +196,44 @@ public partial class MessageGrid
 
             var optionsWithSubQueue = optionsData with { SubQueue = SubQueue };
 
-            _messages = SubQueue switch
+            try
             {
-                _ when ResourceTreeNode is QueueTreeNode queue =>
-                    (await _mediator.Send(new FetchQueueMessagesQuery(
-                        QueueName: queue.Resource.Name,
-                        ConnectionConfig: queue.ConnectionConfig,
-                        Options: optionsWithSubQueue))).ToList(),
+                _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                    ConnectionName, "Debug",
+                    $"Fetching messages from '{ResourceName}'...",
+                    DateTime.Now)));
 
-                _ when ResourceTreeNode is SubscriptionTreeNode subscription =>
-                    (await _mediator.Send(new FetchSubscriptionMessagesQuery(
-                        TopicName: subscription.Resource.TopicName,
-                        SubscriptionName: subscription.Resource.Name,
-                        ConnectionConfig: subscription.ConnectionConfig,
-                        Options: optionsWithSubQueue))).ToList(),
+                _messages = SubQueue switch
+                {
+                    _ when ResourceTreeNode is QueueTreeNode queue =>
+                        (await _mediator.Send(new FetchQueueMessagesQuery(
+                            QueueName: queue.Resource.Name,
+                            ConnectionConfig: queue.ConnectionConfig,
+                            Options: optionsWithSubQueue))).ToList(),
 
-                _ => throw new InvalidOperationException(
-                    $"Unsupported resource type: {ResourceTreeNode.GetType().Name}")
-            };
+                    _ when ResourceTreeNode is SubscriptionTreeNode subscription =>
+                        (await _mediator.Send(new FetchSubscriptionMessagesQuery(
+                            TopicName: subscription.Resource.TopicName,
+                            SubscriptionName: subscription.Resource.Name,
+                            ConnectionConfig: subscription.ConnectionConfig,
+                            Options: optionsWithSubQueue))).ToList(),
+
+                    _ => throw new InvalidOperationException(
+                        $"Unsupported resource type: {ResourceTreeNode.GetType().Name}")
+                };
+
+                _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                    ConnectionName, "Info",
+                    $"Fetched {_messages.Count} message(s) from '{ResourceName}'.",
+                    DateTime.Now)));
+            }
+            catch (Exception ex)
+            {
+                _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                    ConnectionName, "Error",
+                    $"Fetching messages from '{ResourceName}' failed: {ex.Message}",
+                    DateTime.Now)));
+            }
 
             _fetchMessagesOptions = optionsWithSubQueue;
             _isGridLoading = false;
@@ -214,13 +252,32 @@ public partial class MessageGrid
     private async Task OnAbandonClicked()
     {
         _isAbandonOngoing = true;
-        await Parallel.ForEachAsync(
-            SelectedItems,
-            new ParallelOptions { MaxDegreeOfParallelism = 100 },
-            async (message, ct) => await message.MessageContext.Abandon(ct));
+        var count = SelectedItems.Count;
+        _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+            ConnectionName, "Debug",
+            $"Abandoning {count} message(s) from '{ResourceName}'...",
+            DateTime.Now)));
+        try
+        {
+            await Parallel.ForEachAsync(
+                SelectedItems,
+                new ParallelOptions { MaxDegreeOfParallelism = 100 },
+                async (message, ct) => await message.MessageContext.Abandon(ct));
 
-        _messages = _messages.Except(SelectedItems).ToList();
-        SelectedItems = [];
+            _messages = _messages.Except(SelectedItems).ToList();
+            SelectedItems = [];
+            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                ConnectionName, "Info",
+                $"Abandoned {count} message(s) from '{ResourceName}'.",
+                DateTime.Now)));
+        }
+        catch (Exception ex)
+        {
+            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                ConnectionName, "Error",
+                $"Abandoning messages from '{ResourceName}' failed: {ex.Message}",
+                DateTime.Now)));
+        }
         _isAbandonOngoing = false;
         await OnRefresh.InvokeAsync();
     }
@@ -228,13 +285,32 @@ public partial class MessageGrid
     private async Task OnCompleteClicked()
     {
         _isCompleteOngoing = true;
-        await Parallel.ForEachAsync(
-            SelectedItems,
-            new ParallelOptions { MaxDegreeOfParallelism = 100 },
-            async (message, ct) => await message.MessageContext.Complete(ct));
+        var count = SelectedItems.Count;
+        _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+            ConnectionName, "Debug",
+            $"Completing {count} message(s) from '{ResourceName}'...",
+            DateTime.Now)));
+        try
+        {
+            await Parallel.ForEachAsync(
+                SelectedItems,
+                new ParallelOptions { MaxDegreeOfParallelism = 100 },
+                async (message, ct) => await message.MessageContext.Complete(ct));
 
-        _messages = _messages.Except(SelectedItems).ToList();
-        SelectedItems = [];
+            _messages = _messages.Except(SelectedItems).ToList();
+            SelectedItems = [];
+            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                ConnectionName, "Info",
+                $"Completed {count} message(s) from '{ResourceName}'.",
+                DateTime.Now)));
+        }
+        catch (Exception ex)
+        {
+            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                ConnectionName, "Error",
+                $"Completing messages from '{ResourceName}' failed: {ex.Message}",
+                DateTime.Now)));
+        }
         _isCompleteOngoing = false;
         await OnRefresh.InvokeAsync();
     }
@@ -242,13 +318,32 @@ public partial class MessageGrid
     private async Task OnDeadLetterClicked()
     {
         _isDeadLetterOngoing = true;
-        await Parallel.ForEachAsync(
-            SelectedItems,
-            new ParallelOptions { MaxDegreeOfParallelism = 100 },
-            async (message, ct) => await message.MessageContext.DeadLetter(ct));
+        var count = SelectedItems.Count;
+        _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+            ConnectionName, "Debug",
+            $"Dead-lettering {count} message(s) from '{ResourceName}'...",
+            DateTime.Now)));
+        try
+        {
+            await Parallel.ForEachAsync(
+                SelectedItems,
+                new ParallelOptions { MaxDegreeOfParallelism = 100 },
+                async (message, ct) => await message.MessageContext.DeadLetter(ct));
 
-        _messages = _messages.Except(SelectedItems).ToList();
-        SelectedItems = [];
+            _messages = _messages.Except(SelectedItems).ToList();
+            SelectedItems = [];
+            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                ConnectionName, "Info",
+                $"Dead-lettered {count} message(s) from '{ResourceName}'.",
+                DateTime.Now)));
+        }
+        catch (Exception ex)
+        {
+            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                ConnectionName, "Error",
+                $"Dead-lettering messages from '{ResourceName}' failed: {ex.Message}",
+                DateTime.Now)));
+        }
         _isDeadLetterOngoing = false;
         await OnRefresh.InvokeAsync();
     }
@@ -256,10 +351,30 @@ public partial class MessageGrid
     private async Task OnResendClicked()
     {
         _isResendOngoing = true;
-        await Parallel.ForEachAsync(
-            SelectedItems,
-            new ParallelOptions { MaxDegreeOfParallelism = 100 },
-            async (message, ct) => await message.MessageContext.Resend(ct));
+        var count = SelectedItems.Count;
+        _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+            ConnectionName, "Debug",
+            $"Resending {count} message(s) from '{ResourceName}'...",
+            DateTime.Now)));
+        try
+        {
+            await Parallel.ForEachAsync(
+                SelectedItems,
+                new ParallelOptions { MaxDegreeOfParallelism = 100 },
+                async (message, ct) => await message.MessageContext.Resend(ct));
+
+            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                ConnectionName, "Info",
+                $"Resent {count} message(s) from '{ResourceName}'.",
+                DateTime.Now)));
+        }
+        catch (Exception ex)
+        {
+            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                ConnectionName, "Error",
+                $"Resending messages from '{ResourceName}' failed: {ex.Message}",
+                DateTime.Now)));
+        }
         _isResendOngoing = false;
         await OnRefresh.InvokeAsync();
     }

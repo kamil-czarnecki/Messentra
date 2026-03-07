@@ -25,7 +25,7 @@ public sealed class ResourceEffects
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.ConnectionName,
-                "Info",
+                "Debug",
                 "Fetching resources...",
                 DateTime.Now)));
             var getQueues = _mediator.Send(new GetAllQueueResourcesQuery(action.ConnectionConfig)).AsTask();
@@ -45,7 +45,7 @@ public sealed class ResourceEffects
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.ConnectionName,
                 "Error",
-                "Fetching resources failed: " + ex.Message,
+                $"Fetching resources failed: {ex.Message}",
                 DateTime.Now)));
             dispatcher.Dispatch(new FetchResourcesFailureAction(ex.Message));
         }
@@ -58,7 +58,7 @@ public sealed class ResourceEffects
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
-                "Info",
+                "Debug",
                 $"Refreshing '{action.Node.Resource.Name}' queue...",
                 DateTime.Now)));
 
@@ -92,7 +92,7 @@ public sealed class ResourceEffects
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
                 "Error",
-                $"Refreshing '{action.Node.Resource.Name}' queue failed: " + ex.Message,
+                $"Refreshing '{action.Node.Resource.Name}' queue failed: {ex.Message}",
                 DateTime.Now)));
             dispatcher.Dispatch(new RefreshQueueFailureAction(action.Node, ex.Message));
         }
@@ -105,7 +105,7 @@ public sealed class ResourceEffects
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
-                "Info",
+                "Debug",
                 $"Refreshing '{action.Node.Resource.Name}' topic...",
                 DateTime.Now)));
 
@@ -139,7 +139,7 @@ public sealed class ResourceEffects
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
                 "Error",
-                $"Refreshing '{action.Node.Resource.Name}' topic failed: " + ex.Message,
+                $"Refreshing '{action.Node.Resource.Name}' topic failed: {ex.Message}",
                 DateTime.Now)));
             dispatcher.Dispatch(new RefreshTopicFailureAction(action.Node, ex.Message));
         }
@@ -152,7 +152,7 @@ public sealed class ResourceEffects
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
-                "Info",
+                "Debug",
                 $"Refreshing '{action.Node.Resource.TopicName}/{action.Node.Resource.Name}' subscription...",
                 DateTime.Now)));
 
@@ -189,7 +189,7 @@ public sealed class ResourceEffects
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
                 "Error",
-                $"Refreshing '{action.Node.Resource.TopicName}/{action.Node.Resource.Name}' subscription failed: " + ex.Message,
+                $"Refreshing '{action.Node.Resource.TopicName}/{action.Node.Resource.Name}' subscription failed: {ex.Message}",
                 DateTime.Now)));
             dispatcher.Dispatch(new RefreshSubscriptionFailureAction(action.Node, ex.Message));
         }
@@ -201,7 +201,7 @@ public sealed class ResourceEffects
         try
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-                action.Node.ConnectionName, "Info", "Refreshing all queues...", DateTime.Now)));
+                action.Node.ConnectionName, "Debug", "Refreshing all queues...", DateTime.Now)));
 
             var queues = await _mediator.Send(new GetAllQueueResourcesQuery(action.Node.ConnectionConfig));
 
@@ -216,7 +216,7 @@ public sealed class ResourceEffects
         catch (Exception ex)
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-                action.Node.ConnectionName, "Error", "Refreshing queues failed: " + ex.Message, DateTime.Now)));
+                action.Node.ConnectionName, "Error", $"Refreshing queues failed: {ex.Message}", DateTime.Now)));
             dispatcher.Dispatch(new RefreshQueuesFailureAction(action.Node, ex.Message));
         }
     }
@@ -227,7 +227,7 @@ public sealed class ResourceEffects
         try
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-                action.Node.ConnectionName, "Info", "Refreshing all topics...", DateTime.Now)));
+                action.Node.ConnectionName, "Debug", "Refreshing all topics...", DateTime.Now)));
 
             var topics = await _mediator.Send(new GetAllTopicResourcesQuery(action.Node.ConnectionConfig));
 
@@ -242,7 +242,7 @@ public sealed class ResourceEffects
         catch (Exception ex)
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-                action.Node.ConnectionName, "Error", "Refreshing topics failed: " + ex.Message, DateTime.Now)));
+                action.Node.ConnectionName, "Error", $"Refreshing topics failed: {ex.Message}", DateTime.Now)));
             dispatcher.Dispatch(new RefreshTopicsFailureAction(action.Node, ex.Message));
         }
     }
