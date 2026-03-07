@@ -71,6 +71,75 @@ public sealed class UpdateConnectionCommandHandlerShould : InMemoryDbTestBase
     }
     
     [Fact]
+    public async Task AllowUpdatingConnectionToKeepItsOwnName()
+    {
+        // Arrange
+        var connection = await GivenConnection();
+        var command = new UpdateConnectionCommand(
+            connection.Id,
+            connection.Name,
+            new ConnectionConfigDto(
+                connection.ConnectionConfig.ConnectionType,
+                connection.ConnectionConfig.ConnectionStringConfig?.ConnectionString,
+                connection.ConnectionConfig.EntraIdConfig?.Namespace,
+                connection.ConnectionConfig.EntraIdConfig?.TenantId,
+                connection.ConnectionConfig.EntraIdConfig?.ClientId));
+
+        // Act & Assert — should not throw when name is unchanged
+        await _sut.Handle(command, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ThrowWhenConnectionNameAlreadyTakenByAnotherConnection()
+    {
+        // Arrange
+        var existing = await GivenConnection();
+        var target = await GivenConnection();
+
+        var command = new UpdateConnectionCommand(
+            target.Id,
+            existing.Name,
+            new ConnectionConfigDto(
+                target.ConnectionConfig.ConnectionType,
+                target.ConnectionConfig.ConnectionStringConfig?.ConnectionString,
+                target.ConnectionConfig.EntraIdConfig?.Namespace,
+                target.ConnectionConfig.EntraIdConfig?.TenantId,
+                target.ConnectionConfig.EntraIdConfig?.ClientId));
+
+        // Act
+        var func = async () => await _sut.Handle(command, CancellationToken.None);
+
+        // Assert
+        var ex = await func.ShouldThrowAsync<ValidationException>();
+        ex.Message.ShouldContain(existing.Name);
+    }
+
+    [Fact]
+    public async Task ThrowWhenConnectionNameExistsWithDifferentCasing()
+    {
+        // Arrange
+        var existing = await GivenConnection();
+        var target = await GivenConnection();
+
+        var command = new UpdateConnectionCommand(
+            target.Id,
+            existing.Name.ToUpper(),
+            new ConnectionConfigDto(
+                target.ConnectionConfig.ConnectionType,
+                target.ConnectionConfig.ConnectionStringConfig?.ConnectionString,
+                target.ConnectionConfig.EntraIdConfig?.Namespace,
+                target.ConnectionConfig.EntraIdConfig?.TenantId,
+                target.ConnectionConfig.EntraIdConfig?.ClientId));
+
+        // Act
+        var func = async () => await _sut.Handle(command, CancellationToken.None);
+
+        // Assert
+        var ex = await func.ShouldThrowAsync<ValidationException>();
+        ex.Message.ShouldContain(existing.Name.ToUpper());
+    }
+
+    [Fact]
     public async Task ThrowWhenValidationFails()
     {
         // Arrange

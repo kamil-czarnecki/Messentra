@@ -40,7 +40,8 @@ public partial class ConnectionsComponent
     {
         var parameters = new DialogParameters
         {
-            ["IsEdit"] = false
+            ["IsEdit"] = false,
+            ["ExistingConnections"] = _connectionsState.Value.Connections
         };
 
         var options = new DialogOptions
@@ -65,7 +66,8 @@ public partial class ConnectionsComponent
         var parameters = new DialogParameters
         {
             ["IsEdit"] = true,
-            ["ExistingConnection"] = connection
+            ["ExistingConnection"] = connection,
+            ["ExistingConnections"] = _connectionsState.Value.Connections
         };
 
         var options = new DialogOptions

@@ -10,6 +10,7 @@
                               RequiredError="Connection name is required"
                               Immediate="true"
                               MaxLength="100"
+                              Validation="@(new Func<string, string?>(ValidateName))"
                               Variant="Variant.Outlined" />
 
                 <MudSelect @bind-Value="_selectedConnectionType"

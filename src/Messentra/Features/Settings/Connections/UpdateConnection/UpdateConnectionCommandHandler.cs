@@ -1,7 +1,6 @@
 using FluentValidation;
 using Mediator;
 using Messentra.Domain;
-using Messentra.Infrastructure;
 using Messentra.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +20,13 @@ public sealed class UpdateConnectionCommandHandler : ICommandHandler<UpdateConne
     public async ValueTask<Unit> Handle(UpdateConnectionCommand command, CancellationToken cancellationToken)
     {
         await _validator.ValidateAndThrowAsync(command, cancellationToken);
-        
+
+        var nameExists = await _dbContext.Set<Connection>()
+            .AnyAsync(x => x.Name.ToLower() == command.Name.ToLower() && x.Id != command.Id, cancellationToken);
+
+        if (nameExists)
+            throw new ValidationException($"A connection with the name '{command.Name}' already exists.");
+
         var connection = await _dbContext
             .Set<Connection>()
             .FirstOrDefaultAsync(x => x.Id == command.Id, cancellationToken);

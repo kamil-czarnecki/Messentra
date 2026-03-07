@@ -73,6 +73,64 @@ public sealed class CreateConnectionCommandHandlerShould : InMemoryDbTestBase
     }
     
     [Fact]
+    public async Task ThrowWhenConnectionNameAlreadyExists()
+    {
+        // Arrange
+        var command = _fixture
+            .Build<CreateConnectionCommand>()
+            .With(x => x.ConnectionConfig, new ConnectionConfigDto(
+                ConnectionType.ConnectionString,
+                "Endpoint=test",
+                null, null, null))
+            .Create();
+
+        await _sut.Handle(command, CancellationToken.None);
+
+        var duplicateCommand = _fixture
+            .Build<CreateConnectionCommand>()
+            .With(x => x.Name, command.Name)
+            .With(x => x.ConnectionConfig, new ConnectionConfigDto(
+                ConnectionType.ConnectionString,
+                "Endpoint=other",
+                null, null, null))
+            .Create();
+
+        // Act
+        var func = async () => await _sut.Handle(duplicateCommand, CancellationToken.None);
+
+        // Assert
+        var ex = await func.ShouldThrowAsync<ValidationException>();
+        ex.Message.ShouldContain(command.Name);
+    }
+
+    [Fact]
+    public async Task ThrowWhenConnectionNameExistsWithDifferentCasing()
+    {
+        // Arrange
+        var command = _fixture
+            .Build<CreateConnectionCommand>()
+            .With(x => x.ConnectionConfig, new ConnectionConfigDto(
+                ConnectionType.ConnectionString, "Endpoint=test", null, null, null))
+            .With(x => x.Name, "My Connection")
+            .Create();
+        await _sut.Handle(command, CancellationToken.None);
+
+        var differentCasingCommand = _fixture
+            .Build<CreateConnectionCommand>()
+            .With(x => x.ConnectionConfig, new ConnectionConfigDto(
+                ConnectionType.ConnectionString, "Endpoint=other", null, null, null))
+            .With(x => x.Name, "MY CONNECTION")
+            .Create();
+
+        // Act
+        var func = async () => await _sut.Handle(differentCasingCommand, CancellationToken.None);
+
+        // Assert
+        var ex = await func.ShouldThrowAsync<ValidationException>();
+        ex.Message.ShouldContain("MY CONNECTION");
+    }
+
+    [Fact]
     public async Task ThrowWhenValidationFails()
     {
         // Arrange

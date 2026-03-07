@@ -6,6 +6,7 @@ using Fluxor.Blazor.Web.ReduxDevTools;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Infrastructure;
 using Messentra.Infrastructure.Database;
+using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using App = Messentra.Features.App;
 
@@ -79,7 +80,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<MessentraDbContext>();
-    dbContext.Database.EnsureCreated();
+    await dbContext.Database.MigrateAsync();
 }
 
 if (!app.Environment.IsDevelopment())

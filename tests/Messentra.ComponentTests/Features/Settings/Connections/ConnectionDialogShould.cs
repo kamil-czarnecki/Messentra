@@ -314,6 +314,81 @@ public sealed class ConnectionDialogShould : ComponentTestBase
     }
 
     [Fact]
+    public void ShowErrorWhenConnectionNameIsDuplicate()
+    {
+        // Arrange
+        var existing = new ConnectionDto(1, "My Connection", new ConnectionConfigDto(ConnectionType.ConnectionString, null, null, null, null));
+        var cut = RenderDialog<ConnectionDialog>(p => p["ExistingConnections"] = new[] { existing });
+        var nameField = cut.Find("input[id='ConnectionName']");
+
+        // Act
+        nameField.Input("My Connection");
+        nameField.Blur();
+
+        // Assert
+        cut.WaitForAssertion(() => cut.Markup.ShouldContain("already exists"));
+    }
+
+    [Fact]
+    public void ShowErrorWhenConnectionNameIsDuplicateCaseInsensitive()
+    {
+        // Arrange
+        var existing = new ConnectionDto(1, "My Connection", new ConnectionConfigDto(ConnectionType.ConnectionString, null, null, null, null));
+        var cut = RenderDialog<ConnectionDialog>(p => p["ExistingConnections"] = new[] { existing });
+        var nameField = cut.Find("input[id='ConnectionName']");
+
+        // Act
+        nameField.Input("MY CONNECTION");
+        nameField.Blur();
+
+        // Assert
+        cut.WaitForAssertion(() => cut.Markup.ShouldContain("already exists"));
+    }
+
+    [Fact]
+    public void AllowEditConnectionToKeepItsOwnName()
+    {
+        // Arrange
+        var connection = new ConnectionDto(1, "My Connection", new ConnectionConfigDto(ConnectionType.ConnectionString, null, null, null, null));
+        var cut = RenderDialog<ConnectionDialog>(p =>
+        {
+            p["IsEdit"] = true;
+            p["ExistingConnection"] = connection;
+            p["ExistingConnections"] = new[] { connection };
+        });
+        var nameField = cut.Find("input[id='ConnectionName']");
+
+        // Act
+        nameField.Input("My Connection");
+        nameField.Blur();
+
+        // Assert — no duplicate error shown
+        cut.WaitForAssertion(() => cut.Markup.ShouldNotContain("already exists"));
+    }
+
+    [Fact]
+    public void ShowErrorWhenEditConnectionTakesAnotherConnectionsName()
+    {
+        // Arrange
+        var connectionA = new ConnectionDto(1, "Connection A", new ConnectionConfigDto(ConnectionType.ConnectionString, null, null, null, null));
+        var connectionB = new ConnectionDto(2, "Connection B", new ConnectionConfigDto(ConnectionType.ConnectionString, null, null, null, null));
+        var cut = RenderDialog<ConnectionDialog>(p =>
+        {
+            p["IsEdit"] = true;
+            p["ExistingConnection"] = connectionB;
+            p["ExistingConnections"] = new[] { connectionA, connectionB };
+        });
+        var nameField = cut.Find("input[id='ConnectionName']");
+
+        // Act — try to rename B to A's name
+        nameField.Input("Connection A");
+        nameField.Blur();
+
+        // Assert
+        cut.WaitForAssertion(() => cut.Markup.ShouldContain("already exists"));
+    }
+
+    [Fact]
     public async Task SubmitValidConnectionStringConnection()
     {
         // Arrange

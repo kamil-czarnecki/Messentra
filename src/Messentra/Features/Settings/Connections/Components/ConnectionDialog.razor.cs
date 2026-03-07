@@ -14,6 +14,20 @@ public partial class ConnectionDialog
     public bool IsEdit { get; set; }
     [Parameter]
     public ConnectionDto? ExistingConnection { get; set; }
+    [Parameter]
+    public IEnumerable<ConnectionDto> ExistingConnections { get; set; } = [];
+
+    private string? ValidateName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var isDuplicate = ExistingConnections.Any(c =>
+            c.Name.Equals(value, StringComparison.OrdinalIgnoreCase) &&
+            (!IsEdit || ExistingConnection == null || c.Id != ExistingConnection.Id));
+
+        return isDuplicate ? $"A connection named '{value}' already exists." : null;
+    }
 
     private MudForm _form = null!;
     private bool _isValid;
