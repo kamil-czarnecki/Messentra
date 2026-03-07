@@ -1,0 +1,117 @@
+using Fluxor;
+using MudBlazor;
+
+namespace Messentra.Features.Explorer.Resources;
+
+public sealed class ResourceSelector
+{
+    public IStateSelection<ResourceState, List<ResourceTreeItemData>> TreeItems { get; }
+    public IStateSelection<ResourceState, ResourceTreeNode?> SelectedResource { get; }
+
+    public ResourceSelector(IFeature<ResourceState> feature)
+    {
+        TreeItems = new StateSelection<ResourceState, List<ResourceTreeItemData>>(feature);
+        SelectedResource = new StateSelection<ResourceState, ResourceTreeNode?>(feature);
+        
+        TreeItems.Select(
+            state => BuildTreeItems(state.Namespaces, state.SelectedResource, state.ExpandedKeys));
+        SelectedResource.Select(
+            state => state.SelectedResource,
+            ReferenceEquals);
+    }
+
+    private static List<ResourceTreeItemData> BuildTreeItems(
+        List<NamespaceEntry> namespaces,
+        ResourceTreeNode? selected,
+        HashSet<string> expandedKeys) =>
+        namespaces.Select(ns => BuildNamespaceItem(ns, selected, expandedKeys)).ToList();
+
+    private static ResourceTreeItemData BuildNamespaceItem(NamespaceEntry ns, ResourceTreeNode? selected, HashSet<string> expandedKeys)
+    {
+        var queueGroupItem = new ResourceTreeItemData
+        {
+            Text = "Queues",
+            IsReadonly = true,
+            Value = new QueuesTreeNode(ns.ConnectionName, ns.ConnectionConfig),
+            Icon = Icons.Material.Filled.ViewList,
+            IconColor = Color.Secondary,
+            Expandable = true,
+            Expanded = expandedKeys.Contains($"queues:{ns.ConnectionName}"),
+            Children = ns.Queues.Values
+                .Select(q => BuildQueueItem(q, selected))
+                .ToList<TreeItemData<ResourceTreeNode>>()
+        };
+
+        var topicGroupItem = new ResourceTreeItemData
+        {
+            Text = "Topics",
+            IsReadonly = true,
+            Value = new TopicsTreeNode(ns.ConnectionName, ns.ConnectionConfig),
+            Icon = Icons.Material.Filled.DynamicFeed,
+            IconColor = Color.Secondary,
+            Expandable = true,
+            Expanded = expandedKeys.Contains($"topics:{ns.ConnectionName}"),
+            Children = ns.Topics.Values
+                .Select(t => BuildTopicItem(t, selected, expandedKeys))
+                .ToList<TreeItemData<ResourceTreeNode>>()
+        };
+
+        return new ResourceTreeItemData
+        {
+            Text = ns.ConnectionName,
+            Value = new NamespaceTreeNode(ns.ConnectionName, ns.ConnectionConfig, ns.IsLoading),
+            Icon = Icons.Material.Filled.Cloud,
+            IconColor = Color.Primary,
+            Expandable = true,
+            Expanded = expandedKeys.Contains($"ns:{ns.ConnectionName}"),
+            IsReadonly = true,
+            Children = ns.IsLoading
+                ? null
+                : [queueGroupItem, topicGroupItem]
+        };
+    }
+
+    private static ResourceTreeItemData BuildQueueItem(QueueEntry entry, ResourceTreeNode? selected)
+    {
+        var node = entry.Node with { IsLoading = entry.IsLoading };
+        return new ResourceTreeItemData
+        {
+            Text = node.Resource.Name,
+            Value = node,
+            Expandable = false,
+            Selected = selected is QueueTreeNode s && s.Resource.Url == node.Resource.Url
+        };
+    }
+
+    private static ResourceTreeItemData BuildTopicItem(TopicEntry entry, ResourceTreeNode? selected, HashSet<string> expandedKeys)
+    {
+        var node = entry.Node with { IsLoading = entry.IsLoading };
+        var subscriptionItems = entry.Subscriptions.Values
+            .Select(s => BuildSubscriptionItem(s, selected))
+            .ToList<TreeItemData<ResourceTreeNode>>();
+
+        return new ResourceTreeItemData
+        {
+            Text = node.Resource.Name,
+            Value = node,
+            Icon = Icons.Material.Filled.Topic,
+            IconColor = Color.Secondary,
+            Expandable = subscriptionItems.Count > 0,
+            Expanded = expandedKeys.Contains($"topic:{node.Resource.Url}"),
+            Children = subscriptionItems.Count > 0 ? subscriptionItems : null,
+            Selected = selected is TopicTreeNode t && t.Resource.Url == node.Resource.Url
+        };
+    }
+
+    private static ResourceTreeItemData BuildSubscriptionItem(SubscriptionEntry entry, ResourceTreeNode? selected)
+    {
+        var node = entry.Node with { IsLoading = entry.IsLoading };
+        return new ResourceTreeItemData
+        {
+            Text = node.Resource.Name,
+            Value = node,
+            Expandable = false,
+            Selected = selected is SubscriptionTreeNode s && s.Resource.Url == node.Resource.Url
+        };
+    }
+}

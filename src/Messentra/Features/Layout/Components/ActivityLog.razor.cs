@@ -12,7 +12,7 @@ public partial class ActivityLog
     private readonly IReadOnlyCollection<string> _logLevels = new List<string> { "All Levels", "Debug", "Info", "Warning", "Error" };
 
     private List<string> Connections =>
-        ["All Connections", .._resourceState.Value.Resources.Select(x => x.Text!).ToList()];
+        ["All Connections", .._resourceState.Value.Namespaces.Select(x => x.ConnectionName).ToList()];
     private string _selectedLogLevel = "";
     private string _selectedConnection = "";
     private readonly IState<ResourceState> _resourceState;

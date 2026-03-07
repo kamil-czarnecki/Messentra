@@ -15,7 +15,7 @@ public partial class NamespaceTree
     [Parameter, EditorRequired]
     public List<ConnectionDto> Connections { get; init; } = [];
     [Parameter]
-    public ResourceTreeItemData? SelectedResource { get; init; }
+    public ResourceTreeNode? SelectedResource { get; init; }
 
     private readonly NavigationManager _navigationManager;
     private readonly IDispatcher _dispatcher;
@@ -26,6 +26,20 @@ public partial class NamespaceTree
         _dispatcher = dispatcher;
     }
 
+    private void OnExpandedChanged(ResourceTreeItemData item, bool expanded) =>
+        _dispatcher.Dispatch(new ToggleExpandedAction(GetNodeKey(item.Value), expanded));
+
+    private static string GetNodeKey(ResourceTreeNode? node) => node switch
+    {
+        NamespaceTreeNode n => $"ns:{n.ConnectionName}",
+        QueuesTreeNode n => $"queues:{n.ConnectionName}",
+        TopicsTreeNode n => $"topics:{n.ConnectionName}",
+        QueueTreeNode n => $"queue:{n.Resource.Url}",
+        TopicTreeNode n => $"topic:{n.Resource.Url}",
+        SubscriptionTreeNode n => $"sub:{n.Resource.Url}",
+        _ => string.Empty
+    };
+
     private void OpenConnections()
     {
         _navigationManager.NavigateTo("/options");
@@ -33,9 +47,10 @@ public partial class NamespaceTree
 
     private void Disconnect(ResourceTreeItemData node)
     {
-        _dispatcher.Dispatch(new DisconnectResourceAction(node));
+        var connectionName = (node.Value as NamespaceTreeNode)!.ConnectionName;
+        _dispatcher.Dispatch(new DisconnectResourceAction(connectionName));
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-            node.Text!,
+            connectionName,
             "Info",
             "Namespace disconnected.",
             DateTime.Now)));
@@ -46,7 +61,7 @@ public partial class NamespaceTree
         if (!selected)
             return;
 
-        _dispatcher.Dispatch(new SelectResourceAction(presenter));
+        _dispatcher.Dispatch(new SelectResourceAction(presenter.Value!));
     }
 
     private void SelectConnection(ConnectionDto connection)
@@ -93,7 +108,7 @@ public partial class NamespaceTree
         if (!_isFocused)
             return;
 
-        switch (SelectedResource?.Value)
+        switch (SelectedResource)
         {
             case QueueTreeNode q:
                 _dispatcher.Dispatch(new RefreshQueueAction(q));

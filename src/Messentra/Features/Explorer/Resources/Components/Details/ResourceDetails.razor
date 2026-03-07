@@ -20,7 +20,7 @@
             <MudStack Spacing="0" Class="mud-height-full">
                 <MudStack Elevation="0" Row="true" Class="align-center justify-space-between pa-2">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="text-truncate-container">
-                        <MudText Typo="Typo.body1" Class="text-truncate">@(SelectedResource.Text)</MudText>
+                        <MudText Typo="Typo.body1" Class="text-truncate">@ResourceName</MudText>
                         <MudChip T="string" Variant="Variant.Filled" Color="@StatusColor" Size="Size.Small">
                             @StatusText
                         </MudChip>
@@ -30,7 +30,7 @@
                             <MudText Typo="Typo.body2">Send</MudText>
                         </MudButton>
                         <MudIconButton Icon="@Icons.Material.Filled.Refresh" Ripple="false" Size="Size.Small"
-                                       Disabled="@(IsRefreshing || SelectedResource?.Value is NamespaceTreeNode or QueuesTreeNode or TopicsTreeNode)"
+                                       Disabled="@(IsRefreshing || SelectedResource is NamespaceTreeNode or QueuesTreeNode or TopicsTreeNode)"
                                        OnClick="@RefreshResource" />
                     </MudStack>
                 </MudStack>
@@ -43,10 +43,10 @@
                         <PropertiesTab Resource="SelectedResource"/>
                     </MudTabPanel>
                     <MudTabPanel Text="Messages" Class="pa-0">
-                        <MessagesTab ResourceTreeNode="@SelectedResource.Value" SubQueue="SubQueue.Active" OnRefresh="@RefreshResource"/>
+                        <MessagesTab ResourceTreeNode="@SelectedResource" SubQueue="SubQueue.Active" OnRefresh="@RefreshResource"/>
                     </MudTabPanel>
                     <MudTabPanel Text="Dead-letter" Class="pa-0">
-                        <MessagesTab ResourceTreeNode="@SelectedResource.Value" SubQueue="SubQueue.DeadLetter" OnRefresh="@RefreshResource"/>
+                        <MessagesTab ResourceTreeNode="@SelectedResource" SubQueue="SubQueue.DeadLetter" OnRefresh="@RefreshResource"/>
                     </MudTabPanel>
                 </MudTabs>
             </MudStack>

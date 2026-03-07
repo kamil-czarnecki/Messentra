@@ -9,7 +9,7 @@ namespace Messentra.Features.Explorer.Resources.Components.Details;
 public partial class ResourceDetails
 {
     [Parameter]
-    public ResourceTreeItemData SelectedResource { get; init; }
+    public ResourceTreeNode? SelectedResource { get; init; }
 
     private readonly IDialogService _dialogService;
     private readonly IMediator _mediator;
@@ -22,13 +22,22 @@ public partial class ResourceDetails
         _dispatcher = dispatcher;
     }
 
-    private bool IsRefreshing => SelectedResource.Value!.IsLoading;
+    private bool IsRefreshing => SelectedResource is { IsLoading: true };
+
+    private string ResourceName => SelectedResource switch
+    {
+        QueueTreeNode q => q.Resource.Name,
+        TopicTreeNode t => t.Resource.Name,
+        SubscriptionTreeNode s => s.Resource.Name,
+        NamespaceTreeNode n => n.ConnectionName,
+        _ => string.Empty
+    };
 
     private string StatusText => GetStatusText();
     private Color StatusColor => GetStatusColor();
 
     private string GetStatusText() =>
-        SelectedResource.Value switch
+        SelectedResource switch
         {
             QueueTreeNode q => q.Resource.Overview.Status,
             TopicTreeNode t => t.Resource.Overview.Status,
@@ -48,7 +57,7 @@ public partial class ResourceDetails
 
     private void RefreshResource()
     {
-        switch (SelectedResource.Value)
+        switch (SelectedResource)
         {
             case QueueTreeNode queueNode:
                 _dispatcher.Dispatch(new RefreshQueueAction(queueNode));
@@ -64,12 +73,12 @@ public partial class ResourceDetails
 
     private async Task OpenSendMessageDialog()
     {
-        if (SelectedResource.Value is null)
+        if (SelectedResource is null)
             return;
 
         var parameters = new DialogParameters
         {
-            [nameof(SendMessageDialog.ResourceTreeNode)] = SelectedResource.Value
+            [nameof(SendMessageDialog.ResourceTreeNode)] = SelectedResource
         };
 
         var options = new DialogOptions

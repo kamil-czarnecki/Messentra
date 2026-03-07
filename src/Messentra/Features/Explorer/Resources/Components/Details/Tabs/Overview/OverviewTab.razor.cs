@@ -6,9 +6,9 @@ namespace Messentra.Features.Explorer.Resources.Components.Details.Tabs.Overview
 public partial class OverviewTab
 {
     [Parameter]
-    public required ResourceTreeItemData Resource { get; init; }
+    public required ResourceTreeNode Resource { get; init; }
 
-    private ResourceOverview? OverviewData => Resource.Value switch
+    private ResourceOverview? OverviewData => Resource switch
     {
         QueueTreeNode q => q.Resource.Overview,
         TopicTreeNode t => t.Resource.Overview,
@@ -28,4 +28,3 @@ public partial class OverviewTab
         };
     }
 }
-

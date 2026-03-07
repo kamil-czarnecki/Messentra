@@ -3,6 +3,7 @@ using ElectronNET.API.Entities;
 using FluentValidation;
 using Fluxor;
 using Fluxor.Blazor.Web.ReduxDevTools;
+using Messentra.Features.Explorer.Resources;
 using Messentra.Infrastructure;
 using Messentra.Infrastructure.Database;
 using MudBlazor.Services;
@@ -34,6 +35,7 @@ builder.Services.AddDbContext<MessentraDbContext>();
 
 // Services
 builder.Services.AddInfrastructure();
+builder.Services.AddScoped<ResourceSelector>();
 builder.UseElectron(args, async () =>
 {
     var version = typeof(Program).Assembly.GetName().Version;

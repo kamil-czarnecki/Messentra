@@ -1,4 +1,3 @@
-using Bunit;
 using Messentra.Domain;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components.Details.Tabs.Overview;
@@ -21,49 +20,37 @@ public sealed class OverviewTabShould : ComponentTestBase
     private static ConnectionConfig BuildConnectionConfig() =>
         ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "tenant", "client");
 
-    private static ResourceTreeItemData BuildQueueItem(string status = "Active")
+    private static QueueTreeNode BuildQueueNode(string status = "Active")
     {
         var props = new QueueProperties(
             TimeSpan.FromDays(14), TimeSpan.FromMinutes(5), TimeSpan.MaxValue,
             10, false, null, null, false, false, TimeSpan.Zero, false, null, "");
         var queue = new Resource.Queue("my-queue", "sb://test/queues/my-queue", BuildOverview(status), props);
-        return new ResourceTreeItemData
-        {
-            Text = "my-queue",
-            Value = new QueueTreeNode("TestNS", queue, BuildConnectionConfig())
-        };
+        return new QueueTreeNode("TestNS", queue, BuildConnectionConfig());
     }
 
-    private static ResourceTreeItemData BuildTopicItem()
+    private static TopicTreeNode BuildTopicNode()
     {
         var props = new TopicProperties(
             TimeSpan.FromDays(14), TimeSpan.MaxValue, false, false, TimeSpan.Zero, null, "");
         var topic = new Resource.Topic("my-topic", "sb://test/topics/my-topic", BuildOverview(), props, []);
-        return new ResourceTreeItemData
-        {
-            Text = "my-topic",
-            Value = new TopicTreeNode("TestNS", topic, BuildConnectionConfig())
-        };
+        return new TopicTreeNode("TestNS", topic, BuildConnectionConfig());
     }
 
-    private static ResourceTreeItemData BuildSubscriptionItem()
+    private static SubscriptionTreeNode BuildSubscriptionNode()
     {
         var props = new SubscriptionProperties(
             TimeSpan.FromDays(14), TimeSpan.FromMinutes(5), TimeSpan.MaxValue,
             10, false, null, null, false, "");
         var sub = new Resource.Subscription("my-sub", "my-topic", "sb://test/topics/my-topic/subscriptions/my-sub", BuildOverview(), props);
-        return new ResourceTreeItemData
-        {
-            Text = "my-sub",
-            Value = new SubscriptionTreeNode("TestNS", sub, BuildConnectionConfig())
-        };
+        return new SubscriptionTreeNode("TestNS", sub, BuildConnectionConfig());
     }
 
     [Fact]
     public void RenderStatusForQueueResource()
     {
         // Arrange & Act
-        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, BuildQueueItem()));
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, (ResourceTreeNode)BuildQueueNode()));
 
         // Assert
         cut.Markup.ShouldContain("Active");
@@ -73,7 +60,7 @@ public sealed class OverviewTabShould : ComponentTestBase
     public void RenderMessageCountsForQueueResource()
     {
         // Arrange & Act
-        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, BuildQueueItem()));
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, (ResourceTreeNode)BuildQueueNode()));
 
         // Assert
         cut.Markup.ShouldContain("10");
@@ -83,7 +70,7 @@ public sealed class OverviewTabShould : ComponentTestBase
     public void RenderStatusForTopicResource()
     {
         // Arrange & Act
-        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, BuildTopicItem()));
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, (ResourceTreeNode)BuildTopicNode()));
 
         // Assert
         cut.Markup.ShouldContain("Active");
@@ -93,7 +80,7 @@ public sealed class OverviewTabShould : ComponentTestBase
     public void RenderStatusForSubscriptionResource()
     {
         // Arrange & Act
-        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, BuildSubscriptionItem()));
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, (ResourceTreeNode)BuildSubscriptionNode()));
 
         // Assert
         cut.Markup.ShouldContain("Active");
@@ -104,17 +91,12 @@ public sealed class OverviewTabShould : ComponentTestBase
     {
         // Arrange
         var connectionConfig = BuildConnectionConfig();
-        var item = new ResourceTreeItemData
-        {
-            Text = "my-namespace",
-            Value = new NamespaceTreeNode("TestNS", connectionConfig)
-        };
+        var node = new NamespaceTreeNode("TestNS", connectionConfig);
 
         // Act
-        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, item));
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, (ResourceTreeNode)node));
 
         // Assert
         cut.Markup.ShouldNotBeEmpty();
     }
 }
-

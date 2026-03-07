@@ -4,14 +4,29 @@ using Messentra.Features.Settings.Connections;
 
 namespace Messentra.Features.Explorer;
 
-public partial class ExplorerPage
+public partial class ExplorerPage : IDisposable
 {
-    private readonly IState<ResourceState> _resourceState;
+    private readonly ResourceSelector _resourceSelector;
     private readonly IState<ConnectionState> _connectionState;
 
-    public ExplorerPage(IState<ResourceState> resourceState, IState<ConnectionState> connectionState)
+    public ExplorerPage(ResourceSelector resourceSelector, IState<ConnectionState> connectionState)
     {
-        _resourceState = resourceState;
+        _resourceSelector = resourceSelector;
         _connectionState = connectionState;
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _resourceSelector.TreeItems.SelectedValueChanged += OnStateChanged;
+        _resourceSelector.SelectedResource.SelectedValueChanged += OnStateChanged;
+    }
+
+    private void OnStateChanged<T>(object? sender, T _) => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        _resourceSelector.TreeItems.SelectedValueChanged -= OnStateChanged;
+        _resourceSelector.SelectedResource.SelectedValueChanged -= OnStateChanged;
     }
 }

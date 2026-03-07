@@ -3,9 +3,9 @@ using AutoFixture;
 using Bunit;
 using Fluxor;
 using Mediator;
+using Messentra.Features.Explorer.Resources;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.VisualStudio.TestPlatform.TestHost;
 using Moq;
 using MudBlazor;
 using MudBlazor.Services;
@@ -30,6 +30,7 @@ public class ComponentTestBase : BunitContext
         Services.AddSingleton(MockMediator.Object);
         JSInterop.Mode = JSRuntimeMode.Loose;
         RegisterStateTypes();
+        RegisterResourceSelector();
 
         if (!RenderMudProviders) 
             return;
@@ -86,4 +87,11 @@ public class ComponentTestBase : BunitContext
             .GetTypes()
             .Where(t => t.GetCustomAttributes(typeof(FeatureStateAttribute), false).Length > 0)
             .ToArray();
+
+    private void RegisterResourceSelector()
+    {
+        var mockFeature = new Mock<IFeature<ResourceState>>();
+        mockFeature.Setup(f => f.State).Returns(new ResourceState([], null, []));
+        Services.AddScoped<ResourceSelector>(_ => new ResourceSelector(mockFeature.Object));
+    }
 }

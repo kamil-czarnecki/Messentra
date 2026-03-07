@@ -12,7 +12,7 @@ namespace Messentra.ComponentTests.Features.Explorer.Resources.Components.Detail
 
 public sealed class ResourceDetailsShould : ComponentTestBase
 {
-    private static ResourceTreeItemData BuildQueueResource(string name = "my-queue", string status = "Active")
+    private static QueueTreeNode BuildQueueNode(string name = "my-queue", string status = "Active")
     {
         var overview = new ResourceOverview(
             status,
@@ -36,16 +36,14 @@ public sealed class ResourceDetailsShould : ComponentTestBase
             "");
         var queue = new Resource.Queue(name, $"sb://test/queues/{name}", overview, props);
         var connectionConfig = ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "tenant", "client");
-        var node = new QueueTreeNode("TestNS", queue, connectionConfig);
-        return new ResourceTreeItemData { Text = name, Value = node };
+        return new QueueTreeNode("TestNS", queue, connectionConfig);
     }
 
     [Fact]
     public void ShowWelcomeMessageWhenNoResourceSelected()
     {
         // Arrange & Act
-        var cut = Render<ResourceDetails>(p => p
-            .Add(x => x.SelectedResource, null));
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, null));
 
         // Assert
         cut.Markup.ShouldContain("Welcome to Messentra");
@@ -55,11 +53,10 @@ public sealed class ResourceDetailsShould : ComponentTestBase
     public void ShowResourceNameWhenResourceIsSelected()
     {
         // Arrange
-        var resource = BuildQueueResource();
-
+        var node = BuildQueueNode();
+        
         // Act
-        var cut = Render<ResourceDetails>(p => p
-            .Add(x => x.SelectedResource, resource));
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
 
         // Assert
         cut.Markup.ShouldContain("my-queue");
@@ -69,11 +66,10 @@ public sealed class ResourceDetailsShould : ComponentTestBase
     public void ShowActiveStatusChipForActiveQueue()
     {
         // Arrange
-        var resource = BuildQueueResource(status: "Active");
-
+        var node = BuildQueueNode(status: "Active");
+        
         // Act
-        var cut = Render<ResourceDetails>(p => p
-            .Add(x => x.SelectedResource, resource));
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
 
         // Assert
         cut.Markup.ShouldContain("Active");
@@ -83,9 +79,8 @@ public sealed class ResourceDetailsShould : ComponentTestBase
     public void DispatchRefreshQueueActionOnRefreshClick()
     {
         // Arrange
-        var resource = BuildQueueResource();
-        var cut = Render<ResourceDetails>(p => p
-            .Add(x => x.SelectedResource, resource));
+        var node = BuildQueueNode();
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
 
         // Act
         cut.FindComponent<MudIconButton>().Find("button").Click();

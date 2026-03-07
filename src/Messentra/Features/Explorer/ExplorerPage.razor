@@ -11,12 +11,12 @@
                    ClassFirstPanel="explorer-left-panel"
                    ClassSecondPanel="explorer-right-panel">
         <FirstPanel>
-            <NamespaceTree Resources="@_resourceState.Value.Resources"
+            <NamespaceTree Resources="@_resourceSelector.TreeItems.Value"
                            Connections="@_connectionState.Value.Connections.ToList()"
-                           SelectedResource="@_resourceState.Value.SelectedResource"/>
+                           SelectedResource="@_resourceSelector.SelectedResource.Value"/>
         </FirstPanel>
         <SecondPanel>
-            <ResourceDetails SelectedResource="@_resourceState.Value.SelectedResource"/>
+            <ResourceDetails SelectedResource="@_resourceSelector.SelectedResource.Value"/>
         </SecondPanel>
     </MudSplitPanel>
 </div>

@@ -1,7 +1,6 @@
 using Messentra.Domain;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Infrastructure.AzureServiceBus;
-using MudBlazor;
 using Shouldly;
 using Xunit;
 
@@ -10,28 +9,19 @@ namespace Messentra.UnitTests.Features.Explorer.Resources;
 public sealed class ResourceReducersShould
 {
     private const string ConnectionName = "test-connection";
-    
+
     private static ResourceState BuildStateWithQueue(
         ConnectionConfig config, Resource.Queue queue, bool queueSelected = false)
     {
         var queueNode = new QueueTreeNode(ConnectionName, queue, config);
-        var queueItem = new ResourceTreeItemData { Text = queue.Name, Value = queueNode };
-        var queuesNode = new QueuesTreeNode(ConnectionName, config);
-        var queuesItem = new ResourceTreeItemData
-        {
-            Text = "Queues",
-            Value = queuesNode,
-            Children = [queueItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName,
-            Value = new NamespaceTreeNode(ConnectionName, config),
-            Children = [queuesItem]
-        };
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false,
+            Queues: new Dictionary<string, QueueEntry> { [queue.Url] = new(queueNode, false) },
+            Topics: []);
         return new ResourceState(
-            Resources: [namespaceItem],
-            SelectedResource: queueSelected ? new ResourceTreeItemData { Text = queue.Name, Value = queueNode } : null);
+            Namespaces: [entry],
+            SelectedResource: queueSelected ? queueNode : null,
+            ExpandedKeys: []);
     }
 
     private static ResourceState BuildStateWithTopic(
@@ -41,122 +31,74 @@ public sealed class ResourceReducersShould
         bool subscriptionSelected = false)
     {
         var topicNode = new TopicTreeNode(ConnectionName, topic, config);
-        var subscriptionItems = topic.Subscriptions
-            .Select(s => new ResourceTreeItemData
-            {
-                Text = s.Name,
-                Value = new SubscriptionTreeNode(ConnectionName, s, config)
-            })
-            .ToList();
+        var subs = topic.Subscriptions.ToDictionary(
+            s => s.Url,
+            s => new SubscriptionEntry(new SubscriptionTreeNode(ConnectionName, s, config), false));
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false,
+            Queues: [],
+            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(topicNode, false, subs) });
 
-        var topicItem = new ResourceTreeItemData
-        {
-            Text = topic.Name,
-            Value = topicNode,
-            Children = subscriptionItems.Cast<TreeItemData<ResourceTreeNode>>().ToList()
-        };
-        var topicsItem = new ResourceTreeItemData
-        {
-            Text = "Topics",
-            Value = new TopicsTreeNode(ConnectionName, config),
-            Children = [topicItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName,
-            Value = new NamespaceTreeNode(ConnectionName, config),
-            Children = [topicsItem]
-        };
+        ResourceTreeNode? selected = null;
+        if (topicSelected) selected = topicNode;
+        else if (subscriptionSelected && topic.Subscriptions.Count > 0)
+            selected = new SubscriptionTreeNode(ConnectionName, topic.Subscriptions.First(), config);
 
-        ResourceTreeItemData? selected = null;
-        if (topicSelected)
-            selected = new ResourceTreeItemData { Text = topic.Name, Value = topicNode };
-        else if (subscriptionSelected && subscriptionItems.Count > 0)
-            selected = subscriptionItems[0];
-
-        return new ResourceState(Resources: [namespaceItem], SelectedResource: selected);
+        return new ResourceState(Namespaces: [entry], SelectedResource: selected, ExpandedKeys: []);
     }
-
-    private static ResourceTreeItemData GetQueueItem(ResourceState state) =>
-        state.Resources[0]
-            .Children!.OfType<ResourceTreeItemData>().First()
-            .Children!.OfType<ResourceTreeItemData>().First();
-
-    private static ResourceTreeItemData GetTopicItem(ResourceState state) =>
-        state.Resources[0]
-            .Children!.OfType<ResourceTreeItemData>().First()
-            .Children!.OfType<ResourceTreeItemData>().First();
-
-    private static ResourceTreeItemData GetSubscriptionItem(ResourceState state) =>
-        GetTopicItem(state)
-            .Children!.OfType<ResourceTreeItemData>().First();
 
     [Fact]
     public void FetchResourcesAction_AppendsNamespaceNodeInLoadingState()
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var state = new ResourceState(Resources: [], SelectedResource: null);
+        var state = new ResourceState(Namespaces: [], SelectedResource: null, ExpandedKeys: []);
         var action = new FetchResourcesAction(ConnectionName, config);
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        newState.Resources.Count.ShouldBe(1);
-        var node = newState.Resources[0].Value as NamespaceTreeNode;
-        node.ShouldNotBeNull();
-        node.ConnectionName.ShouldBe(ConnectionName);
-        node.IsLoading.ShouldBeTrue();
+        newState.Namespaces.Count.ShouldBe(1);
+        newState.Namespaces[0].ConnectionName.ShouldBe(ConnectionName);
+        newState.Namespaces[0].IsLoading.ShouldBeTrue();
     }
 
     [Fact]
-    public void FetchResourcesSuccessAction_ReplacesLoadingNodeWithRealNode()
+    public void FetchResourcesSuccessAction_ReplacesLoadingNamespaceWithPopulatedEntry()
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var loadingItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName,
-            Value = new NamespaceTreeNode(ConnectionName, config, IsLoading: true)
-        };
-        var state = new ResourceState(Resources: [loadingItem], SelectedResource: null);
-
-        var realItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName,
-            Value = new NamespaceTreeNode(ConnectionName, config)
-        };
-        var action = new FetchResourcesSuccessAction(realItem);
+        var loadingEntry = new NamespaceEntry(ConnectionName, config, IsLoading: true, Queues: [], Topics: []);
+        var state = new ResourceState(Namespaces: [loadingEntry], SelectedResource: null, ExpandedKeys: []);
+        var queue = ResourceTestData.CreateQueue("queue-1");
+        var action = new FetchResourcesSuccessAction(ConnectionName, config, [queue], []);
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        newState.Resources.Count.ShouldBe(1);
-        newState.Resources[0].ShouldBe(realItem);
+        newState.Namespaces.Count.ShouldBe(1);
+        newState.Namespaces[0].IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Queues.ShouldContainKey(queue.Url);
     }
-    
+
     [Fact]
     public void FetchResourcesFailureAction_StateUnchanged()
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var item = new ResourceTreeItemData
-        {
-            Text = ConnectionName,
-            Value = new NamespaceTreeNode(ConnectionName, config)
-        };
-        var state = new ResourceState(Resources: [item], SelectedResource: null);
+        var entry = new NamespaceEntry(ConnectionName, config, false, [], []);
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var action = new FetchResourcesFailureAction("some error");
 
         // Act
         var newState = ResourceReducers.OnFetchResourcesFailure(state, action);
 
         // Assert
-        newState.Resources.ShouldBe(state.Resources);
+        newState.ShouldBe(state);
     }
-    
+
     [Fact]
     public void SelectResourceAction_SetsSelectedResource()
     {
@@ -164,38 +106,67 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var queue = ResourceTestData.CreateQueue("queue-1");
         var state = BuildStateWithQueue(config, queue);
-        var queueItem = GetQueueItem(state);
-        var action = new SelectResourceAction(queueItem);
+        var queueNode = new QueueTreeNode(ConnectionName, queue, config);
+        var action = new SelectResourceAction(queueNode);
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
         newState.SelectedResource.ShouldNotBeNull();
-        newState.SelectedResource.Value.ShouldBe(queueItem.Value);
+        newState.SelectedResource.ShouldBe(queueNode);
     }
-    
+
     [Fact]
-    public void DisconnectResourceAction_RemovesNamespaceNodeAndClearsSelection()
+    public void ToggleExpandedAction_AddsKeyWhenExpanded()
     {
         // Arrange
-        var config = ResourceTestData.CreateConnectionConfig();
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName,
-            Value = new NamespaceTreeNode(ConnectionName, config)
-        };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: namespaceItem);
-        var action = new DisconnectResourceAction(namespaceItem);
+        var state = new ResourceState(Namespaces: [], SelectedResource: null, ExpandedKeys: []);
+        var action = new ToggleExpandedAction("queues:test-connection", Expanded: true);
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        newState.Resources.ShouldBeEmpty();
+        newState.ExpandedKeys.ShouldContain("queues:test-connection");
+    }
+
+    [Fact]
+    public void ToggleExpandedAction_RemovesKeyWhenCollapsed()
+    {
+        // Arrange
+        var state = new ResourceState(Namespaces: [], SelectedResource: null,
+            ExpandedKeys: ["queues:test-connection", "topics:test-connection"]);
+        var action = new ToggleExpandedAction("queues:test-connection", Expanded: false);
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
+        newState.ExpandedKeys.ShouldNotContain("queues:test-connection");
+        newState.ExpandedKeys.ShouldContain("topics:test-connection");
+    }
+
+    [Fact]
+    public void DisconnectResourceAction_RemovesNamespaceAndClearsSelection()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var entry = new NamespaceEntry(ConnectionName, config, false, [], []);
+        var state = new ResourceState(
+            Namespaces: [entry],
+            SelectedResource: new NamespaceTreeNode(ConnectionName, config),
+            ExpandedKeys: [$"ns:{ConnectionName}"]);
+        var action = new DisconnectResourceAction(ConnectionName);
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
+        newState.Namespaces.ShouldBeEmpty();
         newState.SelectedResource.ShouldBeNull();
     }
-    
+
     [Fact]
     public void RefreshQueueAction_SetsQueueNodeLoading()
     {
@@ -210,8 +181,7 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var updatedNode = GetQueueItem(newState).Value as QueueTreeNode;
-        updatedNode!.IsLoading.ShouldBeTrue();
+        newState.Namespaces[0].Queues[queue.Url].IsLoading.ShouldBeTrue();
     }
 
     [Fact]
@@ -228,10 +198,10 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as QueueTreeNode;
+        var selectedNode = newState.SelectedResource as QueueTreeNode;
         selectedNode!.IsLoading.ShouldBeTrue();
     }
-    
+
     [Fact]
     public void RefreshQueueSuccessAction_ReplacesQueueNode()
     {
@@ -239,7 +209,7 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var queue = ResourceTestData.CreateQueue("queue-1");
         var state = BuildStateWithQueue(config, queue);
-        var updatedQueue = ResourceTestData.CreateQueue("queue-1"); // same URL
+        var updatedQueue = ResourceTestData.CreateQueue("queue-1");
         var updatedNode = new QueueTreeNode(ConnectionName, updatedQueue, config);
         var action = new RefreshQueueSuccessAction(updatedNode);
 
@@ -247,9 +217,8 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var resultNode = GetQueueItem(newState).Value as QueueTreeNode;
-        resultNode!.Resource.Name.ShouldBe("queue-1");
-        resultNode.IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Queues[queue.Url].Node.Resource.Name.ShouldBe("queue-1");
+        newState.Namespaces[0].Queues[queue.Url].IsLoading.ShouldBeFalse();
     }
 
     [Fact]
@@ -267,11 +236,11 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as QueueTreeNode;
+        var selectedNode = newState.SelectedResource as QueueTreeNode;
         selectedNode!.Resource.Name.ShouldBe("queue-1");
         selectedNode.IsLoading.ShouldBeFalse();
     }
-    
+
     [Fact]
     public void RefreshQueueFailureAction_ClearsQueueNodeLoading()
     {
@@ -279,28 +248,18 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var queue = ResourceTestData.CreateQueue("queue-1");
         var loadingNode = new QueueTreeNode(ConnectionName, queue, config, IsLoading: true);
-        var queueItem = new ResourceTreeItemData { Text = queue.Name, Value = loadingNode };
-        var queuesItem = new ResourceTreeItemData
-        {
-            Text = "Queues",
-            Value = new QueuesTreeNode(ConnectionName, config),
-            Children = [queueItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName,
-            Value = new NamespaceTreeNode(ConnectionName, config),
-            Children = [queuesItem]
-        };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: null);
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false,
+            Queues: new Dictionary<string, QueueEntry> { [queue.Url] = new(loadingNode, true) },
+            Topics: []);
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var action = new RefreshQueueFailureAction(loadingNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var resultNode = GetQueueItem(newState).Value as QueueTreeNode;
-        resultNode!.IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Queues[queue.Url].IsLoading.ShouldBeFalse();
     }
 
     [Fact]
@@ -310,27 +269,21 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var queue = ResourceTestData.CreateQueue("queue-1");
         var loadingNode = new QueueTreeNode(ConnectionName, queue, config, IsLoading: true);
-        var queueItem = new ResourceTreeItemData { Text = queue.Name, Value = loadingNode };
-        var queuesItem = new ResourceTreeItemData
-        {
-            Text = "Queues", Value = new QueuesTreeNode(ConnectionName, config), Children = [queueItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName, Value = new NamespaceTreeNode(ConnectionName, config), Children = [queuesItem]
-        };
-        var selectedItem = new ResourceTreeItemData { Text = queue.Name, Value = loadingNode };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: selectedItem);
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false,
+            Queues: new Dictionary<string, QueueEntry> { [queue.Url] = new(loadingNode, true) },
+            Topics: []);
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingNode, ExpandedKeys: []);
         var action = new RefreshQueueFailureAction(loadingNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as QueueTreeNode;
+        var selectedNode = newState.SelectedResource as QueueTreeNode;
         selectedNode!.IsLoading.ShouldBeFalse();
     }
-    
+
     [Fact]
     public void RefreshTopicAction_SetsTopicNodeLoading()
     {
@@ -345,8 +298,7 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var updatedNode = GetTopicItem(newState).Value as TopicTreeNode;
-        updatedNode!.IsLoading.ShouldBeTrue();
+        newState.Namespaces[0].Topics[topic.Url].IsLoading.ShouldBeTrue();
     }
 
     [Fact]
@@ -363,10 +315,10 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as TopicTreeNode;
+        var selectedNode = newState.SelectedResource as TopicTreeNode;
         selectedNode!.IsLoading.ShouldBeTrue();
     }
-    
+
     [Fact]
     public void RefreshTopicSuccessAction_ReplacesTopicNode()
     {
@@ -374,7 +326,7 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var topic = ResourceTestData.CreateTopic("topic-1");
         var state = BuildStateWithTopic(config, topic);
-        var updatedTopic = ResourceTestData.CreateTopic("topic-1"); // same URL
+        var updatedTopic = ResourceTestData.CreateTopic("topic-1");
         var updatedNode = new TopicTreeNode(ConnectionName, updatedTopic, config);
         var action = new RefreshTopicSuccessAction(updatedNode);
 
@@ -382,9 +334,8 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var resultNode = GetTopicItem(newState).Value as TopicTreeNode;
-        resultNode!.Resource.Name.ShouldBe("topic-1");
-        resultNode.IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Topics[topic.Url].Node.Resource.Name.ShouldBe("topic-1");
+        newState.Namespaces[0].Topics[topic.Url].IsLoading.ShouldBeFalse();
     }
 
     [Fact]
@@ -402,11 +353,11 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as TopicTreeNode;
+        var selectedNode = newState.SelectedResource as TopicTreeNode;
         selectedNode!.Resource.Name.ShouldBe("topic-1");
         selectedNode.IsLoading.ShouldBeFalse();
     }
-    
+
     [Fact]
     public void RefreshTopicFailureAction_ClearsTopicNodeLoading()
     {
@@ -414,24 +365,17 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var topic = ResourceTestData.CreateTopic("topic-1");
         var loadingNode = new TopicTreeNode(ConnectionName, topic, config, IsLoading: true);
-        var topicItem = new ResourceTreeItemData { Text = topic.Name, Value = loadingNode };
-        var topicsItem = new ResourceTreeItemData
-        {
-            Text = "Topics", Value = new TopicsTreeNode(ConnectionName, config), Children = [topicItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName, Value = new NamespaceTreeNode(ConnectionName, config), Children = [topicsItem]
-        };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: null);
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false, Queues: [],
+            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingNode, true, []) });
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var action = new RefreshTopicFailureAction(loadingNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var resultNode = GetTopicItem(newState).Value as TopicTreeNode;
-        resultNode!.IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Topics[topic.Url].IsLoading.ShouldBeFalse();
     }
 
     [Fact]
@@ -441,27 +385,20 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var topic = ResourceTestData.CreateTopic("topic-1");
         var loadingNode = new TopicTreeNode(ConnectionName, topic, config, IsLoading: true);
-        var topicItem = new ResourceTreeItemData { Text = topic.Name, Value = loadingNode };
-        var topicsItem = new ResourceTreeItemData
-        {
-            Text = "Topics", Value = new TopicsTreeNode(ConnectionName, config), Children = [topicItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName, Value = new NamespaceTreeNode(ConnectionName, config), Children = [topicsItem]
-        };
-        var selectedItem = new ResourceTreeItemData { Text = topic.Name, Value = loadingNode };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: selectedItem);
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false, Queues: [],
+            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingNode, true, []) });
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingNode, ExpandedKeys: []);
         var action = new RefreshTopicFailureAction(loadingNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as TopicTreeNode;
+        var selectedNode = newState.SelectedResource as TopicTreeNode;
         selectedNode!.IsLoading.ShouldBeFalse();
     }
-    
+
     [Fact]
     public void RefreshSubscriptionAction_SetsSubscriptionNodeLoading()
     {
@@ -477,8 +414,7 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var updatedNode = GetSubscriptionItem(newState).Value as SubscriptionTreeNode;
-        updatedNode!.IsLoading.ShouldBeTrue();
+        newState.Namespaces[0].Topics[topic.Url].Subscriptions[sub.Url].IsLoading.ShouldBeTrue();
     }
 
     [Fact]
@@ -496,10 +432,10 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as SubscriptionTreeNode;
+        var selectedNode = newState.SelectedResource as SubscriptionTreeNode;
         selectedNode!.IsLoading.ShouldBeTrue();
     }
-    
+
     [Fact]
     public void RefreshSubscriptionSuccessAction_ReplacesSubscriptionNode()
     {
@@ -508,7 +444,7 @@ public sealed class ResourceReducersShould
         var sub = ResourceTestData.CreateSubscription("sub-1", "topic-1");
         var topic = ResourceTestData.CreateTopic("topic-1", [sub]);
         var state = BuildStateWithTopic(config, topic);
-        var updatedSub = ResourceTestData.CreateSubscription("sub-1", "topic-1"); // same URL
+        var updatedSub = ResourceTestData.CreateSubscription("sub-1", "topic-1");
         var updatedNode = new SubscriptionTreeNode(ConnectionName, updatedSub, config);
         var action = new RefreshSubscriptionSuccessAction(updatedNode);
 
@@ -516,9 +452,8 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var resultNode = GetSubscriptionItem(newState).Value as SubscriptionTreeNode;
-        resultNode!.Resource.Name.ShouldBe("sub-1");
-        resultNode.IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Topics[topic.Url].Subscriptions[sub.Url].Node.Resource.Name.ShouldBe("sub-1");
+        newState.Namespaces[0].Topics[topic.Url].Subscriptions[sub.Url].IsLoading.ShouldBeFalse();
     }
 
     [Fact]
@@ -537,11 +472,11 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as SubscriptionTreeNode;
+        var selectedNode = newState.SelectedResource as SubscriptionTreeNode;
         selectedNode!.Resource.Name.ShouldBe("sub-1");
         selectedNode.IsLoading.ShouldBeFalse();
     }
-    
+
     [Fact]
     public void RefreshSubscriptionFailureAction_ClearsSubscriptionNodeLoading()
     {
@@ -550,26 +485,22 @@ public sealed class ResourceReducersShould
         var sub = ResourceTestData.CreateSubscription("sub-1", "topic-1");
         var topic = ResourceTestData.CreateTopic("topic-1", [sub]);
         var loadingSubNode = new SubscriptionTreeNode(ConnectionName, sub, config, IsLoading: true);
-        var subItem = new ResourceTreeItemData { Text = sub.Name, Value = loadingSubNode };
         var topicNode = new TopicTreeNode(ConnectionName, topic, config);
-        var topicItem = new ResourceTreeItemData { Text = topic.Name, Value = topicNode, Children = [subItem] };
-        var topicsItem = new ResourceTreeItemData
-        {
-            Text = "Topics", Value = new TopicsTreeNode(ConnectionName, config), Children = [topicItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName, Value = new NamespaceTreeNode(ConnectionName, config), Children = [topicsItem]
-        };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: null);
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false, Queues: [],
+            Topics: new Dictionary<string, TopicEntry>
+            {
+                [topic.Url] = new(topicNode, false,
+                    new Dictionary<string, SubscriptionEntry> { [sub.Url] = new(loadingSubNode, true) })
+            });
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var action = new RefreshSubscriptionFailureAction(loadingSubNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var resultNode = GetSubscriptionItem(newState).Value as SubscriptionTreeNode;
-        resultNode!.IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Topics[topic.Url].Subscriptions[sub.Url].IsLoading.ShouldBeFalse();
     }
 
     [Fact]
@@ -580,29 +511,25 @@ public sealed class ResourceReducersShould
         var sub = ResourceTestData.CreateSubscription("sub-1", "topic-1");
         var topic = ResourceTestData.CreateTopic("topic-1", [sub]);
         var loadingSubNode = new SubscriptionTreeNode(ConnectionName, sub, config, IsLoading: true);
-        var subItem = new ResourceTreeItemData { Text = sub.Name, Value = loadingSubNode };
         var topicNode = new TopicTreeNode(ConnectionName, topic, config);
-        var topicItem = new ResourceTreeItemData { Text = topic.Name, Value = topicNode, Children = [subItem] };
-        var topicsItem = new ResourceTreeItemData
-        {
-            Text = "Topics", Value = new TopicsTreeNode(ConnectionName, config), Children = [topicItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName, Value = new NamespaceTreeNode(ConnectionName, config), Children = [topicsItem]
-        };
-        var selectedItem = new ResourceTreeItemData { Text = sub.Name, Value = loadingSubNode };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: selectedItem);
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false, Queues: [],
+            Topics: new Dictionary<string, TopicEntry>
+            {
+                [topic.Url] = new(topicNode, false,
+                    new Dictionary<string, SubscriptionEntry> { [sub.Url] = new(loadingSubNode, true) })
+            });
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingSubNode, ExpandedKeys: []);
         var action = new RefreshSubscriptionFailureAction(loadingSubNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as SubscriptionTreeNode;
+        var selectedNode = newState.SelectedResource as SubscriptionTreeNode;
         selectedNode!.IsLoading.ShouldBeFalse();
     }
-    
+
     [Fact]
     public void RefreshQueuesAction_SetsAllQueuesLoading()
     {
@@ -617,8 +544,7 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var queueNode = GetQueueItem(newState).Value as QueueTreeNode;
-        queueNode!.IsLoading.ShouldBeTrue();
+        newState.Namespaces[0].Queues[queue.Url].IsLoading.ShouldBeTrue();
     }
 
     [Fact]
@@ -635,10 +561,10 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as QueueTreeNode;
+        var selectedNode = newState.SelectedResource as QueueTreeNode;
         selectedNode!.IsLoading.ShouldBeTrue();
     }
-    
+
     [Fact]
     public void RefreshQueuesSuccessAction_ReplacesAllQueueNodes()
     {
@@ -655,9 +581,8 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var resultNode = GetQueueItem(newState).Value as QueueTreeNode;
-        resultNode!.Resource.Name.ShouldBe("queue-1");
-        resultNode.IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Queues[queue.Url].Node.Resource.Name.ShouldBe("queue-1");
+        newState.Namespaces[0].Queues[queue.Url].IsLoading.ShouldBeFalse();
     }
 
     [Fact]
@@ -676,11 +601,11 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as QueueTreeNode;
+        var selectedNode = newState.SelectedResource as QueueTreeNode;
         selectedNode!.Resource.Name.ShouldBe("queue-1");
         selectedNode.IsLoading.ShouldBeFalse();
     }
-    
+
     [Fact]
     public void RefreshQueuesFailureAction_ClearsAllQueuesLoading()
     {
@@ -688,25 +613,19 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var queue = ResourceTestData.CreateQueue("queue-1");
         var loadingQueueNode = new QueueTreeNode(ConnectionName, queue, config, IsLoading: true);
-        var queueItem = new ResourceTreeItemData { Text = queue.Name, Value = loadingQueueNode };
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false,
+            Queues: new Dictionary<string, QueueEntry> { [queue.Url] = new(loadingQueueNode, true) },
+            Topics: []);
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var queuesNode = new QueuesTreeNode(ConnectionName, config);
-        var queuesItem = new ResourceTreeItemData
-        {
-            Text = "Queues", Value = queuesNode, Children = [queueItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName, Value = new NamespaceTreeNode(ConnectionName, config), Children = [queuesItem]
-        };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: null);
         var action = new RefreshQueuesFailureAction(queuesNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var resultNode = GetQueueItem(newState).Value as QueueTreeNode;
-        resultNode!.IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Queues[queue.Url].IsLoading.ShouldBeFalse();
     }
 
     [Fact]
@@ -716,28 +635,22 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var queue = ResourceTestData.CreateQueue("queue-1");
         var loadingQueueNode = new QueueTreeNode(ConnectionName, queue, config, IsLoading: true);
-        var queueItem = new ResourceTreeItemData { Text = queue.Name, Value = loadingQueueNode };
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false,
+            Queues: new Dictionary<string, QueueEntry> { [queue.Url] = new(loadingQueueNode, true) },
+            Topics: []);
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingQueueNode, ExpandedKeys: []);
         var queuesNode = new QueuesTreeNode(ConnectionName, config);
-        var queuesItem = new ResourceTreeItemData
-        {
-            Text = "Queues", Value = queuesNode, Children = [queueItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName, Value = new NamespaceTreeNode(ConnectionName, config), Children = [queuesItem]
-        };
-        var selectedItem = new ResourceTreeItemData { Text = queue.Name, Value = loadingQueueNode };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: selectedItem);
         var action = new RefreshQueuesFailureAction(queuesNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as QueueTreeNode;
+        var selectedNode = newState.SelectedResource as QueueTreeNode;
         selectedNode!.IsLoading.ShouldBeFalse();
     }
-    
+
     [Fact]
     public void RefreshTopicsAction_SetsAllTopicsLoading()
     {
@@ -752,8 +665,7 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var topicNode = GetTopicItem(newState).Value as TopicTreeNode;
-        topicNode!.IsLoading.ShouldBeTrue();
+        newState.Namespaces[0].Topics[topic.Url].IsLoading.ShouldBeTrue();
     }
 
     [Fact]
@@ -770,10 +682,10 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as TopicTreeNode;
+        var selectedNode = newState.SelectedResource as TopicTreeNode;
         selectedNode!.IsLoading.ShouldBeTrue();
     }
-    
+
     [Fact]
     public void RefreshTopicsSuccessAction_ReplacesAllTopicNodes()
     {
@@ -790,9 +702,8 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var resultNode = GetTopicItem(newState).Value as TopicTreeNode;
-        resultNode!.Resource.Name.ShouldBe("topic-1");
-        resultNode.IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Topics[topic.Url].Node.Resource.Name.ShouldBe("topic-1");
+        newState.Namespaces[0].Topics[topic.Url].IsLoading.ShouldBeFalse();
     }
 
     [Fact]
@@ -811,11 +722,11 @@ public sealed class ResourceReducersShould
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as TopicTreeNode;
+        var selectedNode = newState.SelectedResource as TopicTreeNode;
         selectedNode!.Resource.Name.ShouldBe("topic-1");
         selectedNode.IsLoading.ShouldBeFalse();
     }
-    
+
     [Fact]
     public void RefreshTopicsFailureAction_ClearsAllTopicsLoading()
     {
@@ -823,25 +734,18 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var topic = ResourceTestData.CreateTopic("topic-1");
         var loadingTopicNode = new TopicTreeNode(ConnectionName, topic, config, IsLoading: true);
-        var topicItem = new ResourceTreeItemData { Text = topic.Name, Value = loadingTopicNode };
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false, Queues: [],
+            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingTopicNode, true, []) });
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var topicsNode = new TopicsTreeNode(ConnectionName, config);
-        var topicsItem = new ResourceTreeItemData
-        {
-            Text = "Topics", Value = topicsNode, Children = [topicItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName, Value = new NamespaceTreeNode(ConnectionName, config), Children = [topicsItem]
-        };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: null);
         var action = new RefreshTopicsFailureAction(topicsNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var resultNode = GetTopicItem(newState).Value as TopicTreeNode;
-        resultNode!.IsLoading.ShouldBeFalse();
+        newState.Namespaces[0].Topics[topic.Url].IsLoading.ShouldBeFalse();
     }
 
     [Fact]
@@ -851,25 +755,18 @@ public sealed class ResourceReducersShould
         var config = ResourceTestData.CreateConnectionConfig();
         var topic = ResourceTestData.CreateTopic("topic-1");
         var loadingTopicNode = new TopicTreeNode(ConnectionName, topic, config, IsLoading: true);
-        var topicItem = new ResourceTreeItemData { Text = topic.Name, Value = loadingTopicNode };
+        var entry = new NamespaceEntry(
+            ConnectionName, config, false, Queues: [],
+            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingTopicNode, true, []) });
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingTopicNode, ExpandedKeys: []);
         var topicsNode = new TopicsTreeNode(ConnectionName, config);
-        var topicsItem = new ResourceTreeItemData
-        {
-            Text = "Topics", Value = topicsNode, Children = [topicItem]
-        };
-        var namespaceItem = new ResourceTreeItemData
-        {
-            Text = ConnectionName, Value = new NamespaceTreeNode(ConnectionName, config), Children = [topicsItem]
-        };
-        var selectedItem = new ResourceTreeItemData { Text = topic.Name, Value = loadingTopicNode };
-        var state = new ResourceState(Resources: [namespaceItem], SelectedResource: selectedItem);
         var action = new RefreshTopicsFailureAction(topicsNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
 
         // Assert
-        var selectedNode = newState.SelectedResource!.Value as TopicTreeNode;
+        var selectedNode = newState.SelectedResource as TopicTreeNode;
         selectedNode!.IsLoading.ShouldBeFalse();
     }
 }

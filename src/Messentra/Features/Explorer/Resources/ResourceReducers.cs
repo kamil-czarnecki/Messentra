@@ -1,5 +1,4 @@
 using Fluxor;
-using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources;
 
@@ -7,778 +6,471 @@ public static class ResourceReducers
 {
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, FetchResourcesAction action)
-        => state with
-        {
-            Resources =
-            [
-                ..state.Resources,
-                new ResourceTreeItemData
-                {
-                    Text = action.ConnectionName,
-                    Value = new NamespaceTreeNode(action.ConnectionName, action.ConnectionConfig, IsLoading: true),
-                    Icon = Icons.Material.Filled.Cloud,
-                    IconColor = Color.Primary,
-                    Expandable = true,
-                    IsReadonly = true
-                }
-            ]
-        };
+    {
+        var entry = new NamespaceEntry(action.ConnectionName, action.ConnectionConfig, IsLoading: true, Queues: [], Topics: []);
+        var expandedKeys = new HashSet<string>(state.ExpandedKeys) { $"ns:{action.ConnectionName}" };
+        return state with { Namespaces = [..state.Namespaces, entry], ExpandedKeys = expandedKeys };
+    }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, FetchResourcesSuccessAction action)
     {
-       var node = action.Resource.Value as NamespaceTreeNode;
-       var updatedResources = state.Resources
-           .Where(r => ((NamespaceTreeNode)r.Value!).ConnectionName != node!.ConnectionName)
-           .ToList();
+        var queues = action.Queues.ToDictionary(
+            q => q.Url,
+            q => new QueueEntry(new QueueTreeNode(action.ConnectionName, q, action.ConnectionConfig), false));
 
-        updatedResources.Add(action.Resource);
-        
-        return state with { Resources = updatedResources };
+        var topics = action.Topics.ToDictionary(
+            t => t.Url,
+            t =>
+            {
+                var subs = t.Subscriptions.ToDictionary(
+                    s => s.Url,
+                    s => new SubscriptionEntry(new SubscriptionTreeNode(action.ConnectionName, s, action.ConnectionConfig), false));
+                return new TopicEntry(new TopicTreeNode(action.ConnectionName, t, action.ConnectionConfig), false, subs);
+            });
+
+        var updated = new NamespaceEntry(action.ConnectionName, action.ConnectionConfig, false, queues, topics);
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(n => n.ConnectionName == action.ConnectionName ? updated : n)
+                .ToList()
+        };
     }
 
     [ReducerMethod]
-    public static ResourceState OnFetchResourcesFailure(ResourceState state, FetchResourcesFailureAction _)
-        => state;
+    public static ResourceState OnFetchResourcesFailure(ResourceState state, FetchResourcesFailureAction _) => state;
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, SelectResourceAction action)
-    {
-        var updatedResources = state.Resources
-            .Select(r => SetSelected(r, action.Resource.Value))
-            .ToList();
-        
-        return new ResourceState(Resources: updatedResources, action.Resource);
-    }
-    
+        => state with { SelectedResource = action.Node };
+
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, DisconnectResourceAction action)
     {
-        var node = action.Resource.Value as NamespaceTreeNode;
-        var updatedResources = state.Resources
-            .Where(r => r.Value != node)
-            .ToList();
-        
-        return new ResourceState(Resources: updatedResources, SelectedResource: null);
-    }
-    
-    private static ResourceTreeItemData SetSelected(ResourceTreeItemData node, ResourceTreeNode? selectedValue) =>
-        new()
+        var updatedSelected = state.SelectedResource switch
         {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text,
-            Value = node.Value,
-            Icon = node.Icon,
-            IconColor = node.IconColor,
-            EndIcon =  node.EndIcon,
-            EndIconColor = node.EndIconColor,
-            Expanded = node.Expanded,
-            Expandable = node.Expandable,
-            Selected = node.Value == selectedValue,
-            Children = node.Children?
-                .OfType<ResourceTreeItemData>()
-                .Select(child => SetSelected(child, selectedValue))
-                .ToList()
+            NamespaceTreeNode n when n.ConnectionName == action.ConnectionName => null,
+            QueuesTreeNode n when n.ConnectionName == action.ConnectionName => null,
+            TopicsTreeNode n when n.ConnectionName == action.ConnectionName => null,
+            QueueTreeNode n when n.ConnectionName == action.ConnectionName => null,
+            TopicTreeNode n when n.ConnectionName == action.ConnectionName => null,
+            SubscriptionTreeNode n when n.ConnectionName == action.ConnectionName => null,
+            _ => state.SelectedResource
         };
+
+        return new ResourceState(
+            state.Namespaces.Where(n => n.ConnectionName != action.ConnectionName).ToList(),
+            updatedSelected,
+            []);
+    }
+
+    [ReducerMethod]
+    public static ResourceState Reduce(ResourceState state, ToggleExpandedAction action)
+    {
+        var keys = new HashSet<string>(state.ExpandedKeys);
+        
+        if (action.Expanded) 
+            keys.Add(action.NodeKey);
+        else
+            keys.Remove(action.NodeKey);
+        
+        return state with { ExpandedKeys = keys };
+    }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshQueueAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => SetQueueNodeLoading(r, action.Node))
-            .ToList();
+        var url = action.Node.Resource.Url;
 
-        var updatedSelected = state.SelectedResource?.Value is QueueTreeNode q &&
-                              q.Resource.Url == action.Node.Resource.Url
-            ? SetLoadingOnItem(state.SelectedResource, true)
-            : state.SelectedResource;
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.Queues.ContainsKey(url)
+                    ? ns with { Queues = ns.Queues.With(url, e => e with { IsLoading = true }) }
+                    : ns)
+                .ToList(),
+            SelectedResource = state.SelectedResource is QueueTreeNode q && q.Resource.Url == url
+                ? q with { IsLoading = true }
+                : state.SelectedResource
+        };
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshQueueSuccessAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => ReplaceQueueNode(r, action.UpdatedNode))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value is QueueTreeNode q &&
-                              q.Resource.Url == action.UpdatedNode.Resource.Url
-            ? ReplaceQueueNodeInItem(state.SelectedResource, action.UpdatedNode)
-            : state.SelectedResource;
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
+        var url = action.UpdatedNode.Resource.Url;
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.Queues.ContainsKey(url)
+                    ? ns with { Queues = ns.Queues.With(url, _ => new QueueEntry(action.UpdatedNode, false)) }
+                    : ns)
+                .ToList(),
+            SelectedResource = state.SelectedResource is QueueTreeNode q && q.Resource.Url == url
+                ? action.UpdatedNode with { IsLoading = false }
+                : state.SelectedResource
+        };
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshQueueFailureAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => ClearQueueNodeLoading(r, action.Node))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value is QueueTreeNode q &&
-                              q.Resource.Url == action.Node.Resource.Url
-            ? SetLoadingOnItem(state.SelectedResource, false)
-            : state.SelectedResource;
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
+        var url = action.Node.Resource.Url;
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.Queues.ContainsKey(url)
+                    ? ns with { Queues = ns.Queues.With(url, e => e with { IsLoading = false }) }
+                    : ns)
+                .ToList(),
+            SelectedResource = state.SelectedResource is QueueTreeNode q && q.Resource.Url == url
+                ? q with { IsLoading = false }
+                : state.SelectedResource
+        };
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshTopicAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => SetTopicNodeLoading(r, action.Node))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value switch
+        var url = action.Node.Resource.Url;
+        return state with
         {
-            TopicTreeNode t when t.Resource.Url == action.Node.Resource.Url
-                => SetLoadingOnItem(state.SelectedResource, true),
-            SubscriptionTreeNode s when s.ConnectionConfig == action.Node.ConnectionConfig &&
-                                        action.Node.Resource.Subscriptions.Any(sub => sub.Url == s.Resource.Url)
-                => SetLoadingOnItem(state.SelectedResource, true),
-            _ => state.SelectedResource
+            Namespaces = state.Namespaces
+                .Select(ns => ns.Topics.ContainsKey(url)
+                    ? ns with
+                    {
+                        Topics = ns.Topics.With(url, e =>
+                            e with
+                            {
+                                IsLoading = true,
+                                Subscriptions = e.Subscriptions.ToDictionary(kv => kv.Key,
+                                    kv => kv.Value with { IsLoading = true })
+                            })
+                    }
+                    : ns)
+                .ToList(),
+            SelectedResource = state.SelectedResource switch
+            {
+                TopicTreeNode t when t.Resource.Url == url => t with { IsLoading = true },
+                SubscriptionTreeNode s when action.Node.Resource.Subscriptions.Any(sub => sub.Url == s.Resource.Url)
+                    => s with { IsLoading = true },
+                _ => state.SelectedResource
+            }
         };
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshTopicSuccessAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => ReplaceTopicNode(r, action.UpdatedNode))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value is TopicTreeNode t &&
-                              t.Resource.Url == action.UpdatedNode.Resource.Url
-            ? ReplaceTopicNodeInItem(state.SelectedResource, action.UpdatedNode)
-            : state.SelectedResource;
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
+        var url = action.UpdatedNode.Resource.Url;
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.Topics.ContainsKey(url)
+                    ? ns with
+                    {
+                        Topics = ns.Topics.With(url, _ =>
+                        {
+                            var subs = action.UpdatedNode.Resource.Subscriptions.ToDictionary(
+                                s => s.Url,
+                                s => new SubscriptionEntry(
+                                    new SubscriptionTreeNode(action.UpdatedNode.ConnectionName, s,
+                                        action.UpdatedNode.ConnectionConfig), false));
+                            return new TopicEntry(action.UpdatedNode with { IsLoading = false }, false, subs);
+                        })
+                    }
+                    : ns)
+                .ToList(),
+            SelectedResource = state.SelectedResource is TopicTreeNode t && t.Resource.Url == url
+                ? action.UpdatedNode with { IsLoading = false }
+                : state.SelectedResource
+        };
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshTopicFailureAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => ClearTopicNodeLoading(r, action.Node))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value switch
+        var url = action.Node.Resource.Url;
+        return state with
         {
-            TopicTreeNode t when t.Resource.Url == action.Node.Resource.Url
-                => SetLoadingOnItem(state.SelectedResource, false),
-            SubscriptionTreeNode s when s.ConnectionConfig == action.Node.ConnectionConfig &&
-                                        action.Node.Resource.Subscriptions.Any(sub => sub.Url == s.Resource.Url)
-                => SetLoadingOnItem(state.SelectedResource, false),
-            _ => state.SelectedResource
+            Namespaces = state.Namespaces
+                .Select(ns => ns.Topics.ContainsKey(url)
+                    ? ns with
+                    {
+                        Topics = ns.Topics.With(url, e =>
+                            e with
+                            {
+                                IsLoading = false,
+                                Subscriptions = e.Subscriptions.ToDictionary(kv => kv.Key,
+                                    kv => kv.Value with { IsLoading = false })
+                            })
+                    }
+                    : ns)
+                .ToList(),
+            SelectedResource = state.SelectedResource switch
+            {
+                TopicTreeNode t when t.Resource.Url == url => t with { IsLoading = false },
+                SubscriptionTreeNode s when action.Node.Resource.Subscriptions.Any(sub => sub.Url == s.Resource.Url)
+                    => s with { IsLoading = false },
+                _ => state.SelectedResource
+            }
         };
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshSubscriptionAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => SetSubscriptionNodeLoading(r, action.Node))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value is SubscriptionTreeNode s &&
-                              s.Resource.Url == action.Node.Resource.Url
-            ? SetLoadingOnItem(state.SelectedResource, true)
-            : state.SelectedResource;
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
+        var url = action.Node.Resource.Url;
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns =>
+                {
+                    var topicEntry = ns.Topics.Values.FirstOrDefault(t => t.Subscriptions.ContainsKey(url));
+                    if (topicEntry is null) return ns;
+                    return ns with
+                    {
+                        Topics = ns.Topics.With(topicEntry.Node.Resource.Url,
+                            e => e with { Subscriptions = e.Subscriptions.With(url, sub => sub with { IsLoading = true }) })
+                    };
+                })
+                .ToList(),
+            SelectedResource = state.SelectedResource is SubscriptionTreeNode s && s.Resource.Url == url
+                ? s with { IsLoading = true }
+                : state.SelectedResource
+        };
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshSubscriptionSuccessAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => ReplaceSubscriptionNode(r, action.UpdatedNode))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value is SubscriptionTreeNode s &&
-                              s.Resource.Url == action.UpdatedNode.Resource.Url
-            ? ReplaceSubscriptionNodeInItem(state.SelectedResource, action.UpdatedNode)
-            : state.SelectedResource;
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
+        var url = action.UpdatedNode.Resource.Url;
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns =>
+                {
+                    var topicEntry = ns.Topics.Values.FirstOrDefault(t => t.Subscriptions.ContainsKey(url));
+                    if (topicEntry is null) return ns;
+                    return ns with
+                    {
+                        Topics = ns.Topics.With(topicEntry.Node.Resource.Url,
+                            e => e with
+                            {
+                                Subscriptions = e.Subscriptions.With(url,
+                                    _ => new SubscriptionEntry(action.UpdatedNode with { IsLoading = false },
+                                        false))
+                            })
+                    };
+                })
+                .ToList(),
+            SelectedResource = state.SelectedResource is SubscriptionTreeNode s && s.Resource.Url == url
+                ? action.UpdatedNode with { IsLoading = false }
+                : state.SelectedResource
+        };
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshSubscriptionFailureAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => ClearSubscriptionNodeLoading(r, action.Node))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value is SubscriptionTreeNode s &&
-                              s.Resource.Url == action.Node.Resource.Url
-            ? SetLoadingOnItem(state.SelectedResource, false)
-            : state.SelectedResource;
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
+        var url = action.Node.Resource.Url;
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns =>
+                {
+                    var topicEntry = ns.Topics.Values.FirstOrDefault(t => t.Subscriptions.ContainsKey(url));
+                    if (topicEntry is null) return ns;
+                    return ns with
+                    {
+                        Topics = ns.Topics.With(topicEntry.Node.Resource.Url,
+                            e => e with
+                            {
+                                Subscriptions = e.Subscriptions.With(url, sub => sub with { IsLoading = false })
+                            })
+                    };
+                })
+                .ToList(),
+            SelectedResource = state.SelectedResource is SubscriptionTreeNode s && s.Resource.Url == url
+                ? s with { IsLoading = false }
+                : state.SelectedResource
+        };
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshQueuesAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => SetAllQueuesLoading(r, action.Node, true))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value is QueueTreeNode q &&
-                              q.ConnectionConfig == action.Node.ConnectionConfig
-            ? SetLoadingOnItem(state.SelectedResource, true)
-            : state.SelectedResource;
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
+        var connName = action.Node.ConnectionName;
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != connName
+                    ? ns
+                    : ns with
+                    {
+                        Queues = ns.Queues.ToDictionary(kv => kv.Key, kv => kv.Value with { IsLoading = true })
+                    })
+                .ToList(),
+            SelectedResource = state.SelectedResource is QueueTreeNode q && q.ConnectionName == connName
+                ? q with { IsLoading = true }
+                : state.SelectedResource
+        };
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshQueuesSuccessAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => ReplaceAllQueueNodes(r, action.Node, action.UpdatedNodes))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value is QueueTreeNode q &&
-                              q.ConnectionConfig == action.Node.ConnectionConfig
-            ? ReplaceQueueNodeInItem(state.SelectedResource,
-                action.UpdatedNodes.FirstOrDefault(n => n.Resource.Url == q.Resource.Url)
-                ?? q with { IsLoading = false })
-            : state.SelectedResource;
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
+        var connName = action.Node.ConnectionName;
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != connName
+                    ? ns
+                    : ns with
+                    {
+                        Queues = action.UpdatedNodes.ToDictionary(n => n.Resource.Url,
+                            n => new QueueEntry(n with { IsLoading = false }, false))
+                    })
+                .ToList(),
+            SelectedResource = state.SelectedResource is QueueTreeNode q && q.ConnectionName == connName
+                ? (action.UpdatedNodes.FirstOrDefault(n => n.Resource.Url == q.Resource.Url) ?? q) with
+                {
+                    IsLoading = false
+                }
+                : state.SelectedResource
+        };
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshQueuesFailureAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => SetAllQueuesLoading(r, action.Node, false))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value is QueueTreeNode q &&
-                              q.ConnectionConfig == action.Node.ConnectionConfig
-            ? SetLoadingOnItem(state.SelectedResource, false)
-            : state.SelectedResource;
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
+        var connName = action.Node.ConnectionName;
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != connName
+                    ? ns
+                    : ns with
+                    {
+                        Queues = ns.Queues.ToDictionary(kv => kv.Key, kv => kv.Value with { IsLoading = false })
+                    })
+                .ToList(),
+            SelectedResource = state.SelectedResource is QueueTreeNode q && q.ConnectionName == connName
+                ? q with { IsLoading = false }
+                : state.SelectedResource
+        };
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshTopicsAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => SetAllTopicsLoading(r, action.Node, true))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value switch
+        var connName = action.Node.ConnectionName;
+        return state with
         {
-            TopicTreeNode t when t.ConnectionConfig == action.Node.ConnectionConfig
-                => SetLoadingOnItem(state.SelectedResource, true),
-            SubscriptionTreeNode s when s.ConnectionConfig == action.Node.ConnectionConfig
-                => SetLoadingOnItem(state.SelectedResource, true),
-            _ => state.SelectedResource
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != connName
+                    ? ns
+                    : ns with
+                    {
+                        Topics = ns.Topics.ToDictionary(kv => kv.Key, kv =>
+                            kv.Value with
+                            {
+                                IsLoading = true,
+                                Subscriptions = kv.Value.Subscriptions.ToDictionary(s => s.Key,
+                                    s => s.Value with { IsLoading = true })
+                            })
+                    })
+                .ToList(),
+            SelectedResource = state.SelectedResource switch
+            {
+                TopicTreeNode t when t.ConnectionName == connName => t with { IsLoading = true },
+                SubscriptionTreeNode s when s.ConnectionName == connName => s with { IsLoading = true },
+                _ => state.SelectedResource
+            }
         };
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshTopicsSuccessAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => ReplaceAllTopicNodes(r, action.Node, action.UpdatedNodes))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value switch
+        var connName = action.Node.ConnectionName;
+        return state with
         {
-            TopicTreeNode t when t.ConnectionConfig == action.Node.ConnectionConfig =>
-                ReplaceTopicNodeInItem(state.SelectedResource,
-                    action.UpdatedNodes.FirstOrDefault(n => n.Resource.Url == t.Resource.Url)
-                    ?? t with { IsLoading = false }),
-            SubscriptionTreeNode s when s.ConnectionConfig == action.Node.ConnectionConfig =>
-                ReplaceSubscriptionNodeInItem(state.SelectedResource,
-                    action.UpdatedNodes
-                        .SelectMany(t => t.Resource.Subscriptions
-                            .Select(sub => new SubscriptionTreeNode(t.ConnectionName, sub, t.ConnectionConfig)))
-                        .FirstOrDefault(n => n.Resource.Url == s.Resource.Url)
-                    ?? s with { IsLoading = false }),
-            _ => state.SelectedResource
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != connName
+                    ? ns
+                    : ns with
+                    {
+                        Topics = action.UpdatedNodes.ToDictionary(t => t.Resource.Url, t =>
+                        {
+                            var subs = t.Resource.Subscriptions.ToDictionary(
+                                s => s.Url,
+                                s => new SubscriptionEntry(new SubscriptionTreeNode(connName, s, t.ConnectionConfig),
+                                    false));
+                            return new TopicEntry(t with { IsLoading = false }, false, subs);
+                        })
+                    })
+                .ToList(),
+            SelectedResource = state.SelectedResource switch
+            {
+                TopicTreeNode t when t.ConnectionName == connName =>
+                    (action.UpdatedNodes.FirstOrDefault(n => n.Resource.Url == t.Resource.Url) ?? t) with
+                    {
+                        IsLoading = false
+                    },
+                SubscriptionTreeNode s when s.ConnectionName == connName =>
+                    (action.UpdatedNodes
+                            .SelectMany(t => t.Resource.Subscriptions
+                                .Select(sub => new SubscriptionTreeNode(t.ConnectionName, sub, t.ConnectionConfig)))
+                            .FirstOrDefault(n => n.Resource.Url == s.Resource.Url) ?? s) with
+                        {
+                            IsLoading = false
+                        },
+                _ => state.SelectedResource
+            }
         };
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
     }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, RefreshTopicsFailureAction action)
     {
-        var updatedResources = state.Resources
-            .Select(r => SetAllTopicsLoading(r, action.Node, false))
-            .ToList();
-
-        var updatedSelected = state.SelectedResource?.Value switch
+        var connName = action.Node.ConnectionName;
+        return state with
         {
-            TopicTreeNode t when t.ConnectionConfig == action.Node.ConnectionConfig
-                => SetLoadingOnItem(state.SelectedResource, false),
-            SubscriptionTreeNode s when s.ConnectionConfig == action.Node.ConnectionConfig
-                => SetLoadingOnItem(state.SelectedResource, false),
-            _ => state.SelectedResource
-        };
-
-        return new ResourceState(Resources: updatedResources, SelectedResource: updatedSelected);
-    }
-    
-    private static ResourceTreeItemData SetQueueNodeLoading(ResourceTreeItemData node, QueueTreeNode target)
-    {
-        if (node.Value is QueueTreeNode q && q.Resource.Url == target.Resource.Url)
-            return SetLoadingOnItem(node, true);
-
-        if (node.Children is null)
-            return node;
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text, Value = node.Value, Icon = node.Icon, IconColor = node.IconColor,
-            EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-            Expandable = node.Expandable, Selected = node.Selected,
-            Children = node.Children.OfType<ResourceTreeItemData>()
-                .Select(child => SetQueueNodeLoading(child, target))
-                .ToList<TreeItemData<ResourceTreeNode>>()
-        };
-    }
-
-    private static ResourceTreeItemData ClearQueueNodeLoading(ResourceTreeItemData node, QueueTreeNode target)
-    {
-        if (node.Value is QueueTreeNode q && q.Resource.Url == target.Resource.Url)
-            return SetLoadingOnItem(node, false);
-
-        if (node.Children is null)
-            return node;
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text, Value = node.Value, Icon = node.Icon, IconColor = node.IconColor,
-            EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-            Expandable = node.Expandable, Selected = node.Selected,
-            Children = node.Children.OfType<ResourceTreeItemData>()
-                .Select(child => ClearQueueNodeLoading(child, target))
-                .ToList<TreeItemData<ResourceTreeNode>>()
-        };
-    }
-
-    private static ResourceTreeItemData SetTopicNodeLoading(ResourceTreeItemData node, TopicTreeNode target)
-    {
-        if (node.Value is TopicTreeNode t && t.Resource.Url == target.Resource.Url)
-            return SetLoadingOnTopicItem(node, true);
-
-        if (node.Children is null)
-            return node;
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text, Value = node.Value, Icon = node.Icon, IconColor = node.IconColor,
-            EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-            Expandable = node.Expandable, Selected = node.Selected,
-            Children = node.Children.OfType<ResourceTreeItemData>()
-                .Select(child => SetTopicNodeLoading(child, target))
-                .ToList<TreeItemData<ResourceTreeNode>>()
-        };
-    }
-
-    private static ResourceTreeItemData ClearTopicNodeLoading(ResourceTreeItemData node, TopicTreeNode target)
-    {
-        if (node.Value is TopicTreeNode t && t.Resource.Url == target.Resource.Url)
-            return SetLoadingOnTopicItem(node, false);
-
-        if (node.Children is null)
-            return node;
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text, Value = node.Value, Icon = node.Icon, IconColor = node.IconColor,
-            EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-            Expandable = node.Expandable, Selected = node.Selected,
-            Children = node.Children.OfType<ResourceTreeItemData>()
-                .Select(child => ClearTopicNodeLoading(child, target))
-                .ToList<TreeItemData<ResourceTreeNode>>()
-        };
-    }
-
-    // Sets IsLoading on the topic node itself AND all its subscription children
-    private static ResourceTreeItemData SetLoadingOnTopicItem(ResourceTreeItemData node, bool isLoading) =>
-        new()
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text,
-            Value = node.Value is TopicTreeNode t ? t with { IsLoading = isLoading } : node.Value,
-            Icon = node.Icon,
-            IconColor = node.IconColor,
-            EndIcon = node.EndIcon,
-            EndIconColor = node.EndIconColor,
-            Expanded = node.Expanded,
-            Expandable = node.Expandable,
-            Selected = node.Selected,
-            Children = node.Children?
-                .OfType<ResourceTreeItemData>()
-                .Select(child => child.Value is SubscriptionTreeNode
-                    ? SetLoadingOnItem(child, isLoading)
-                    : child)
-                .ToList<TreeItemData<ResourceTreeNode>>()
-        };
-    
-    private static ResourceTreeItemData SetAllQueuesLoading(ResourceTreeItemData node, QueuesTreeNode target, bool isLoading)
-    {
-        if (node.Value is QueuesTreeNode q && q.ConnectionConfig == target.ConnectionConfig)
-            return new ResourceTreeItemData
-            {
-                Text = node.Text, Value = q with { IsLoading = isLoading }, Icon = node.Icon, IconColor = node.IconColor,
-                EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-                Expandable = node.Expandable, Selected = node.Selected,
-                IsReadonly =  node.IsReadonly,
-                Children = node.Children?
-                    .OfType<ResourceTreeItemData>()
-                    .Select(child => child.Value is QueueTreeNode ? SetLoadingOnItem(child, isLoading) : child)
-                    .ToList<TreeItemData<ResourceTreeNode>>()
-            };
-
-        if (node.Children is null)
-            return node;
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text, Value = node.Value, Icon = node.Icon, IconColor = node.IconColor,
-            EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-            Expandable = node.Expandable, Selected = node.Selected,
-            Children = node.Children.OfType<ResourceTreeItemData>()
-                .Select(child => SetAllQueuesLoading(child, target, isLoading))
-                .ToList<TreeItemData<ResourceTreeNode>>()
-        };
-    }
-
-    private static ResourceTreeItemData ReplaceAllQueueNodes(
-        ResourceTreeItemData node, QueuesTreeNode target, IReadOnlyCollection<QueueTreeNode> updatedNodes)
-    {
-        if (node.Value is QueuesTreeNode q && q.ConnectionConfig == target.ConnectionConfig)
-            return new ResourceTreeItemData
-            {
-                Text = node.Text, Value = q with { IsLoading = false }, Icon = node.Icon, IconColor = node.IconColor,
-                EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-                Expandable = node.Expandable, Selected = node.Selected,
-                IsReadonly = node.IsReadonly,
-                Children = updatedNodes
-                    .Select(qn =>
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != connName
+                    ? ns
+                    : ns with
                     {
-                        var existing = node.Children?.OfType<ResourceTreeItemData>()
-                            .FirstOrDefault(c => c.Value is QueueTreeNode eq && eq.Resource.Url == qn.Resource.Url);
-                        return ReplaceQueueNodeInItem(existing ?? new ResourceTreeItemData { Expandable = false }, qn);
+                        Topics = ns.Topics.ToDictionary(kv => kv.Key, kv =>
+                            kv.Value with
+                            {
+                                IsLoading = false,
+                                Subscriptions = kv.Value.Subscriptions.ToDictionary(s => s.Key,
+                                    s => s.Value with { IsLoading = false })
+                            })
                     })
-                    .ToList<TreeItemData<ResourceTreeNode>>()
-            };
-
-        if (node.Children is null)
-            return node;
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text, Value = node.Value, Icon = node.Icon, IconColor = node.IconColor,
-            EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-            Expandable = node.Expandable, Selected = node.Selected,
-            Children = node.Children.OfType<ResourceTreeItemData>()
-                .Select(child => ReplaceAllQueueNodes(child, target, updatedNodes))
-                .ToList<TreeItemData<ResourceTreeNode>>()
-        };
-    }
-
-    private static ResourceTreeItemData SetAllTopicsLoading(ResourceTreeItemData node, TopicsTreeNode target, bool isLoading)
-    {
-        if (node.Value is TopicsTreeNode t && t.ConnectionConfig == target.ConnectionConfig)
-            return new ResourceTreeItemData
+                .ToList(),
+            SelectedResource = state.SelectedResource switch
             {
-                Text = node.Text, Value = t with { IsLoading = isLoading }, Icon = node.Icon, IconColor = node.IconColor,
-                EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-                Expandable = node.Expandable, Selected = node.Selected,
-                IsReadonly =  node.IsReadonly,
-                Children = node.Children?
-                    .OfType<ResourceTreeItemData>()
-                    .Select(child => child.Value is TopicTreeNode ? SetLoadingOnTopicItem(child, isLoading) : child)
-                    .ToList<TreeItemData<ResourceTreeNode>>()
-            };
-
-        if (node.Children is null)
-            return node;
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text, Value = node.Value, Icon = node.Icon, IconColor = node.IconColor,
-            EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-            Expandable = node.Expandable, Selected = node.Selected,
-            Children = node.Children.OfType<ResourceTreeItemData>()
-                .Select(child => SetAllTopicsLoading(child, target, isLoading))
-                .ToList<TreeItemData<ResourceTreeNode>>()
+                TopicTreeNode t when t.ConnectionName == connName => t with { IsLoading = false },
+                SubscriptionTreeNode s when s.ConnectionName == connName => s with { IsLoading = false },
+                _ => state.SelectedResource
+            }
         };
     }
+}
 
-    private static ResourceTreeItemData ReplaceAllTopicNodes(
-        ResourceTreeItemData node, TopicsTreeNode target, IReadOnlyCollection<TopicTreeNode> updatedNodes)
+internal static class DictionaryExtensions
+{
+    internal static Dictionary<TKey, TValue> With<TKey, TValue>(
+        this Dictionary<TKey, TValue> dict, TKey key, Func<TValue, TValue> update)
+        where TKey : notnull
     {
-        if (node.Value is TopicsTreeNode t && t.ConnectionConfig == target.ConnectionConfig)
-            return new ResourceTreeItemData
-            {
-                Text = node.Text, Value = t with { IsLoading = false }, Icon = node.Icon, IconColor = node.IconColor,
-                EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-                Expandable = node.Expandable, Selected = node.Selected,
-                IsReadonly =  node.IsReadonly,
-                Children = updatedNodes
-                    .Select(tn =>
-                    {
-                        var existing = node.Children?.OfType<ResourceTreeItemData>()
-                            .FirstOrDefault(c => c.Value is TopicTreeNode et && et.Resource.Url == tn.Resource.Url);
-                        return ReplaceTopicNodeInItem(existing ?? new ResourceTreeItemData
-                        {
-                            Icon = Icons.Material.Filled.Topic,
-                            IconColor = Color.Secondary,
-                            Expandable = tn.Resource.Subscriptions.Count > 0
-                        }, tn);
-                    })
-                    .ToList<TreeItemData<ResourceTreeNode>>()
-            };
-
-        if (node.Children is null)
-            return node;
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text, Value = node.Value, Icon = node.Icon, IconColor = node.IconColor,
-            EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-            Expandable = node.Expandable, Selected = node.Selected,
-            Children = node.Children.OfType<ResourceTreeItemData>()
-                .Select(child => ReplaceAllTopicNodes(child, target, updatedNodes))
-                .ToList<TreeItemData<ResourceTreeNode>>()
-        };
+        var copy = new Dictionary<TKey, TValue>(dict);
+        if (copy.TryGetValue(key, out var existing))
+            copy[key] = update(existing);
+        return copy;
     }
-
-    private static ResourceTreeItemData SetSubscriptionNodeLoading(ResourceTreeItemData node, SubscriptionTreeNode target)
-    {
-        if (node.Value is SubscriptionTreeNode s && s.Resource.Url == target.Resource.Url)
-            return SetLoadingOnItem(node, true);
-
-        if (node.Children is null)
-            return node;
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text, Value = node.Value, Icon = node.Icon, IconColor = node.IconColor,
-            EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-            Expandable = node.Expandable, Selected = node.Selected,
-            Children = node.Children.OfType<ResourceTreeItemData>()
-                .Select(child => SetSubscriptionNodeLoading(child, target))
-                .ToList<TreeItemData<ResourceTreeNode>>()
-        };
-    }
-
-    private static ResourceTreeItemData ClearSubscriptionNodeLoading(ResourceTreeItemData node, SubscriptionTreeNode target)
-    {
-        if (node.Value is SubscriptionTreeNode s && s.Resource.Url == target.Resource.Url)
-            return SetLoadingOnItem(node, false);
-
-        if (node.Children is null)
-            return node;
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text, Value = node.Value, Icon = node.Icon, IconColor = node.IconColor,
-            EndIcon = node.EndIcon, EndIconColor = node.EndIconColor, Expanded = node.Expanded,
-            Expandable = node.Expandable, Selected = node.Selected,
-            Children = node.Children.OfType<ResourceTreeItemData>()
-                .Select(child => ClearSubscriptionNodeLoading(child, target))
-                .ToList<TreeItemData<ResourceTreeNode>>()
-        };
-    }
-
-    private static ResourceTreeItemData SetLoadingOnItem(ResourceTreeItemData node, bool isLoading) =>
-        new()
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text,
-            Value = node.Value switch
-            {
-                QueueTreeNode q => q with { IsLoading = isLoading },
-                TopicTreeNode t => t with { IsLoading = isLoading },
-                SubscriptionTreeNode s => s with { IsLoading = isLoading },
-                var v => v
-            },
-            Icon = node.Icon,
-            IconColor = node.IconColor,
-            EndIcon = node.EndIcon,
-            EndIconColor = node.EndIconColor,
-            Expanded = node.Expanded,
-            Expandable = node.Expandable,
-            Selected = node.Selected,
-            Children = node.Children
-        };
-
-    private static ResourceTreeItemData ReplaceQueueNode(ResourceTreeItemData node, QueueTreeNode updatedNode)
-    {
-        if (node.Value is QueueTreeNode q && q.Resource.Url == updatedNode.Resource.Url)
-            return ReplaceQueueNodeInItem(node, updatedNode);
-
-        if (node.Children is null)
-            return node;
-
-        var updatedChildren = node.Children
-            .OfType<ResourceTreeItemData>()
-            .Select(child => ReplaceQueueNode(child, updatedNode))
-            .ToList();
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text,
-            Value = node.Value,
-            Icon = node.Icon,
-            IconColor = node.IconColor,
-            EndIcon = node.EndIcon,
-            EndIconColor = node.EndIconColor,
-            Expanded = node.Expanded,
-            Expandable = node.Expandable,
-            Selected = node.Selected,
-            Children = updatedChildren
-        };
-    }
-
-    private static ResourceTreeItemData ReplaceQueueNodeInItem(ResourceTreeItemData node, QueueTreeNode updatedNode) =>
-        new()
-        {
-            IsReadonly = node.IsReadonly,
-            Text = updatedNode.Resource.Name,
-            Value = updatedNode,
-            Icon = node.Icon,
-            IconColor = node.IconColor,
-            EndIcon = node.EndIcon,
-            EndIconColor = node.EndIconColor,
-            Expanded = node.Expanded,
-            Expandable = node.Expandable,
-            Selected = node.Selected,
-            Children = node.Children
-        };
-
-    private static ResourceTreeItemData ReplaceTopicNode(ResourceTreeItemData node, TopicTreeNode updatedNode)
-    {
-        if (node.Value is TopicTreeNode t && t.Resource.Url == updatedNode.Resource.Url)
-            return ReplaceTopicNodeInItem(node, updatedNode);
-
-        if (node.Children is null)
-            return node;
-
-        var updatedChildren = node.Children
-            .OfType<ResourceTreeItemData>()
-            .Select(child => ReplaceTopicNode(child, updatedNode))
-            .ToList();
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text,
-            Value = node.Value,
-            Icon = node.Icon,
-            IconColor = node.IconColor,
-            EndIcon = node.EndIcon,
-            EndIconColor = node.EndIconColor,
-            Expanded = node.Expanded,
-            Expandable = node.Expandable,
-            Selected = node.Selected,
-            Children = updatedChildren
-        };
-    }
-
-    private static ResourceTreeItemData ReplaceTopicNodeInItem(ResourceTreeItemData node, TopicTreeNode updatedNode)
-    {
-        var subscriptionItems = updatedNode.Resource.Subscriptions
-            .Select(sub => new ResourceTreeItemData
-            {
-                Text = sub.Name,
-                Value = new SubscriptionTreeNode(updatedNode.ConnectionName, sub, updatedNode.ConnectionConfig),
-                Expandable = false
-            })
-            .ToList<TreeItemData<ResourceTreeNode>>();
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = updatedNode.Resource.Name,
-            Value = updatedNode,
-            Icon = node.Icon,
-            IconColor = node.IconColor,
-            EndIcon = node.EndIcon,
-            EndIconColor = node.EndIconColor,
-            Expanded = node.Expanded,
-            Expandable = node.Expandable,
-            Selected = node.Selected,
-            Children = subscriptionItems.Count > 0 ? subscriptionItems : node.Children
-        };
-    }
-
-    private static ResourceTreeItemData ReplaceSubscriptionNode(ResourceTreeItemData node, SubscriptionTreeNode updatedNode)
-    {
-        if (node.Value is SubscriptionTreeNode s && s.Resource.Url == updatedNode.Resource.Url)
-            return ReplaceSubscriptionNodeInItem(node, updatedNode);
-
-        if (node.Children is null)
-            return node;
-
-        var updatedChildren = node.Children
-            .OfType<ResourceTreeItemData>()
-            .Select(child => ReplaceSubscriptionNode(child, updatedNode))
-            .ToList();
-
-        return new ResourceTreeItemData
-        {
-            IsReadonly = node.IsReadonly,
-            Text = node.Text,
-            Value = node.Value,
-            Icon = node.Icon,
-            IconColor = node.IconColor,
-            EndIcon = node.EndIcon,
-            EndIconColor = node.EndIconColor,
-            Expanded = node.Expanded,
-            Expandable = node.Expandable,
-            Selected = node.Selected,
-            Children = updatedChildren
-        };
-    }
-
-    private static ResourceTreeItemData ReplaceSubscriptionNodeInItem(ResourceTreeItemData node, SubscriptionTreeNode updatedNode) =>
-        new()
-        {
-            IsReadonly = node.IsReadonly,
-            Text = updatedNode.Resource.Name,
-            Value = updatedNode,
-            Icon = node.Icon,
-            IconColor = node.IconColor,
-            EndIcon = node.EndIcon,
-            EndIconColor = node.EndIconColor,
-            Expanded = node.Expanded,
-            Expandable = node.Expandable,
-            Selected = node.Selected,
-            Children = node.Children
-        };
 }

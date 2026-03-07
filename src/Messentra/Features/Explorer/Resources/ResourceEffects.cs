@@ -6,8 +6,6 @@ using Messentra.Features.Explorer.Resources.Subscriptions.GetSubscriptionResourc
 using Messentra.Features.Explorer.Resources.Topics.GetAllTopicResources;
 using Messentra.Features.Explorer.Resources.Topics.GetTopicResource;
 using Messentra.Features.Layout.State;
-using Messentra.Infrastructure.AzureServiceBus;
-using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources;
 
@@ -35,13 +33,12 @@ public sealed class ResourceEffects
 
             await Task.WhenAll(getQueues, getTopics);
 
-            var treeItems = MapToTreeItems(action, getQueues.Result, getTopics.Result);
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.ConnectionName,
                 "Info",
                 "Resources fetched successfully.",
                 DateTime.Now)));
-            dispatcher.Dispatch(new FetchResourcesSuccessAction(treeItems));
+            dispatcher.Dispatch(new FetchResourcesSuccessAction(action.ConnectionName, action.ConnectionConfig, getQueues.Result, getTopics.Result));
         }
         catch (Exception ex)
         {
@@ -250,74 +247,5 @@ public sealed class ResourceEffects
         }
     }
 
-    private static ResourceTreeItemData MapToTreeItems(
-        FetchResourcesAction action,
-        IReadOnlyCollection<Resource.Queue> queues,
-        IReadOnlyCollection<Resource.Topic> topics)
-    {
-        var queueItems = new ResourceTreeItemData
-        {
-            Text = "Queues",
-            IsReadonly = true,
-            Value = new QueuesTreeNode(action.ConnectionName, action.ConnectionConfig),
-            Icon = Icons.Material.Filled.ViewList,
-            IconColor = Color.Secondary,
-            Children = queues
-                .Select(queue => new ResourceTreeItemData
-                {
-                    Text = queue.Name,
-                    Value = new QueueTreeNode(action.ConnectionName, queue, action.ConnectionConfig),
-                    Expandable = false
-                })
-                .ToList()
-        };
-
-        var topicItems = new ResourceTreeItemData
-        {
-            Text = "Topics",
-            IsReadonly = true,
-            Value = new TopicsTreeNode(action.ConnectionName, action.ConnectionConfig),
-            Icon = Icons.Material.Filled.DynamicFeed,
-            IconColor = Color.Secondary,
-            Children = topics
-                .Select(topic =>
-                {
-                    var subscriptionItems = topic.Subscriptions
-                        .Select(sub => new ResourceTreeItemData
-                        {
-                            Text = sub.Name,
-                            Value = new SubscriptionTreeNode(action.ConnectionName, sub, action.ConnectionConfig),
-                            Expandable = false
-                        })
-                        .ToList();
-
-                    return new ResourceTreeItemData
-                    {
-                        Text = topic.Name,
-                        Value = new TopicTreeNode(action.ConnectionName, topic, action.ConnectionConfig),
-                        Icon = Icons.Material.Filled.Topic,
-                        IconColor = Color.Secondary,
-                        Expandable = subscriptionItems.Count > 0,
-                        Children = subscriptionItems.Count > 0
-                            ? new HashSet<ResourceTreeItemData>(subscriptionItems)
-                            : null
-                    };
-                })
-                .ToList()
-        };
-
-        var rootNode = new ResourceTreeItemData
-        {
-            Text = action.ConnectionName,
-            Value = new NamespaceTreeNode(action.ConnectionName, action.ConnectionConfig),
-            Icon = Icons.Material.Filled.Cloud,
-            IconColor = Color.Primary,
-            Expanded = true,
-            Expandable = true,
-            IsReadonly = true,
-            Children = [queueItems, topicItems]
-        };
-
-        return rootNode;
-    }
 }
+
