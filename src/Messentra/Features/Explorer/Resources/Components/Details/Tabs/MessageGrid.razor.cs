@@ -103,6 +103,20 @@ public partial class MessageGrid
         _scrollManager = scrollManager;
     }
 
+    private ResourceTreeNode? _previousResourceTreeNode;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(ResourceTreeNode, _previousResourceTreeNode))
+            return;
+
+        _previousResourceTreeNode = ResourceTreeNode;
+        _messages = [];
+        _lastSelected = null;
+        _searchTerm = string.Empty;
+        _fetchMessagesOptions = null;
+    }
+
     private string GetRowClass(ServiceBusMessage msg) =>
         SelectedItems.Contains(msg)
             ? $"mud-table-row-selected row-seq-{msg.Message.BrokerProperties.SequenceNumber}"
