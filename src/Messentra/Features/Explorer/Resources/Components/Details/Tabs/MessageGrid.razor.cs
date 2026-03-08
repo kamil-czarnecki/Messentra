@@ -5,6 +5,7 @@ using Messentra.Features.Explorer.Messages.FetchQueueMessages;
 using Messentra.Features.Explorer.Messages.FetchSubscriptionMessages;
 using Messentra.Features.Layout.State;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources.Components.Details.Tabs;
@@ -16,18 +17,28 @@ public partial class MessageGrid
 
     [Parameter]
     public SubQueue SubQueue { get; init; } = SubQueue.Active;
-    
+
     [Parameter, EditorRequired]
     public EventCallback OnRefresh { get; set; }
 
+    private readonly IDialogService _dialogService;
+    private readonly IMediator _mediator;
+    private readonly IDispatcher _dispatcher;
+    private readonly IJSRuntime _jsRuntime;
+
     private bool _isGridLoading;
     private bool _isFetchOngoing;
-    private bool _isResendOngoing;
-    private bool _isCompleteOngoing;
-    private bool _isAbandonOngoing;
-    private bool _isDeadLetterOngoing;
-    private MudDataGrid<ServiceBusMessage> _grid = null!;
+    private bool _actionOngoing;
+    private bool _isGridFocused;
     private int _activePanelIndex;
+    private ElementReference _gridContainer;
+    private MudDataGrid<ServiceBusMessage> _grid = null!;
+    private ServiceBusMessage? _lastSelected;
+    private ResourceTreeNode? _previousResourceTreeNode;
+    private List<ServiceBusMessage> _messages = [];
+    private FetchMessagesOptions? _fetchMessagesOptions;
+    private string _searchTerm = string.Empty;
+
     private bool IsReceiveAndDeleteMode =>
         _fetchMessagesOptions is { Mode: FetchMode.Receive, ReceiveMode: FetchReceiveMode.ReceiveAndDelete };
 
@@ -54,13 +65,10 @@ public partial class MessageGrid
         }
     } = [];
 
-    private ServiceBusMessage? _lastSelected;
-    private bool _isGridFocused;
-    private ElementReference _gridContainer;
-    private readonly IDialogService _dialogService;
-    private readonly IMediator _mediator;
-    private readonly IScrollManager _scrollManager;
-    private readonly IDispatcher _dispatcher;
+    private List<ServiceBusMessage> FilteredMessages =>
+        string.IsNullOrWhiteSpace(_searchTerm)
+            ? _messages
+            : _messages.Where(m => MatchesSearch(m, _searchTerm)).ToList();
 
     private string ConnectionName => ResourceTreeNode switch
     {
@@ -76,14 +84,30 @@ public partial class MessageGrid
         _ => ResourceTreeNode.GetType().Name
     };
 
-    private List<ServiceBusMessage> _messages = [];
-    private FetchMessagesOptions? _fetchMessagesOptions;
-    private string _searchTerm = string.Empty;
+    public MessageGrid(IDialogService dialogService, IMediator mediator, IDispatcher dispatcher, IJSRuntime jsRuntime)
+    {
+        _dialogService = dialogService;
+        _mediator = mediator;
+        _dispatcher = dispatcher;
+        _jsRuntime = jsRuntime;
+    }
 
-    private List<ServiceBusMessage> FilteredMessages =>
-        string.IsNullOrWhiteSpace(_searchTerm)
-            ? _messages
-            : _messages.Where(m => MatchesSearch(m, _searchTerm)).ToList();
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(ResourceTreeNode, _previousResourceTreeNode))
+            return;
+
+        _previousResourceTreeNode = ResourceTreeNode;
+        _messages = [];
+        _lastSelected = null;
+        _searchTerm = string.Empty;
+        _fetchMessagesOptions = null;
+    }
+
+    private string GetRowClass(ServiceBusMessage msg) =>
+        SelectedItems.Contains(msg)
+            ? $"mud-table-row-selected row-seq-{msg.Message.BrokerProperties.SequenceNumber}"
+            : $"row-seq-{msg.Message.BrokerProperties.SequenceNumber}";
 
     private static bool MatchesSearch(ServiceBusMessage msg, string term)
     {
@@ -113,32 +137,10 @@ public partial class MessageGrid
                 (kv.Value.ToString() ?? string.Empty).Contains(t, StringComparison.OrdinalIgnoreCase));
     }
 
-    public MessageGrid(IDialogService dialogService, IMediator mediator, IScrollManager scrollManager, IDispatcher dispatcher)
+    private void OnRowClick(ServiceBusMessage message)
     {
-        _dialogService = dialogService;
-        _mediator = mediator;
-        _scrollManager = scrollManager;
-        _dispatcher = dispatcher;
+        SelectedItems = [message];
     }
-
-    private ResourceTreeNode? _previousResourceTreeNode;
-
-    protected override void OnParametersSet()
-    {
-        if (ReferenceEquals(ResourceTreeNode, _previousResourceTreeNode))
-            return;
-
-        _previousResourceTreeNode = ResourceTreeNode;
-        _messages = [];
-        _lastSelected = null;
-        _searchTerm = string.Empty;
-        _fetchMessagesOptions = null;
-    }
-
-    private string GetRowClass(ServiceBusMessage msg) =>
-        SelectedItems.Contains(msg)
-            ? $"mud-table-row-selected row-seq-{msg.Message.BrokerProperties.SequenceNumber}"
-            : $"row-seq-{msg.Message.BrokerProperties.SequenceNumber}";
 
     private async Task OnKeyUpPressed()
     {
@@ -155,7 +157,12 @@ public partial class MessageGrid
 
         var index = Math.Max(0, FilteredMessages.IndexOf(_lastSelected) - 1);
         SelectedItems = [FilteredMessages[index]];
-        await _scrollManager.ScrollIntoViewAsync($".row-seq-{FilteredMessages[index].Message.BrokerProperties.SequenceNumber}", ScrollBehavior.Smooth);
+        await _jsRuntime.InvokeVoidAsync("messentra.scrollRowNearTop",
+            ".message-grid",
+            $".row-seq-{FilteredMessages[index].Message.BrokerProperties.SequenceNumber}",
+            index,
+            36,
+            3);
     }
 
     private async Task OnKeyDownPressed()
@@ -173,7 +180,12 @@ public partial class MessageGrid
 
         var index = Math.Min(FilteredMessages.Count - 1, FilteredMessages.IndexOf(_lastSelected) + 1);
         SelectedItems = [FilteredMessages[index]];
-        await _scrollManager.ScrollIntoViewAsync($".row-seq-{FilteredMessages[index].Message.BrokerProperties.SequenceNumber}", ScrollBehavior.Smooth);
+        await _jsRuntime.InvokeVoidAsync("messentra.scrollRowNearTop",
+            ".message-grid",
+            $".row-seq-{FilteredMessages[index].Message.BrokerProperties.SequenceNumber}",
+            index,
+            36,
+            3);
     }
 
     private async Task OnFetchMessagesClicked()
@@ -244,47 +256,40 @@ public partial class MessageGrid
         }
     }
 
-    private void OnRowClick(ServiceBusMessage message)
+    private async Task OnResendClicked()
     {
-        SelectedItems = [message];
-    }
-
-    private async Task OnAbandonClicked()
-    {
-        _isAbandonOngoing = true;
+        _actionOngoing = true;
         var count = SelectedItems.Count;
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
             ConnectionName, "Debug",
-            $"Abandoning {count} message(s) from '{ResourceName}'...",
+            $"Resending {count} message(s) from '{ResourceName}'...",
             DateTime.Now)));
         try
         {
             await Parallel.ForEachAsync(
                 SelectedItems,
                 new ParallelOptions { MaxDegreeOfParallelism = 100 },
-                async (message, ct) => await message.MessageContext.Abandon(ct));
+                async (message, ct) => await message.MessageContext.Resend(ct));
 
-            _messages = _messages.Except(SelectedItems).ToList();
-            SelectedItems = [];
             _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 ConnectionName, "Info",
-                $"Abandoned {count} message(s) from '{ResourceName}'.",
+                $"Resent {count} message(s) from '{ResourceName}'.",
                 DateTime.Now)));
         }
         catch (Exception ex)
         {
             _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 ConnectionName, "Error",
-                $"Abandoning messages from '{ResourceName}' failed: {ex.Message}",
+                $"Resending messages from '{ResourceName}' failed: {ex.Message}",
                 DateTime.Now)));
         }
-        _isAbandonOngoing = false;
+        _actionOngoing = false;
         await OnRefresh.InvokeAsync();
     }
 
     private async Task OnCompleteClicked()
     {
-        _isCompleteOngoing = true;
+        _actionOngoing = true;
         var count = SelectedItems.Count;
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
             ConnectionName, "Debug",
@@ -311,13 +316,46 @@ public partial class MessageGrid
                 $"Completing messages from '{ResourceName}' failed: {ex.Message}",
                 DateTime.Now)));
         }
-        _isCompleteOngoing = false;
+        _actionOngoing = false;
+        await OnRefresh.InvokeAsync();
+    }
+
+    private async Task OnAbandonClicked()
+    {
+        _actionOngoing = true;
+        var count = SelectedItems.Count;
+        _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+            ConnectionName, "Debug",
+            $"Abandoning {count} message(s) from '{ResourceName}'...",
+            DateTime.Now)));
+        try
+        {
+            await Parallel.ForEachAsync(
+                SelectedItems,
+                new ParallelOptions { MaxDegreeOfParallelism = 100 },
+                async (message, ct) => await message.MessageContext.Abandon(ct));
+
+            _messages = _messages.Except(SelectedItems).ToList();
+            SelectedItems = [];
+            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                ConnectionName, "Info",
+                $"Abandoned {count} message(s) from '{ResourceName}'.",
+                DateTime.Now)));
+        }
+        catch (Exception ex)
+        {
+            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                ConnectionName, "Error",
+                $"Abandoning messages from '{ResourceName}' failed: {ex.Message}",
+                DateTime.Now)));
+        }
+        _actionOngoing = false;
         await OnRefresh.InvokeAsync();
     }
 
     private async Task OnDeadLetterClicked()
     {
-        _isDeadLetterOngoing = true;
+        _actionOngoing = true;
         var count = SelectedItems.Count;
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
             ConnectionName, "Debug",
@@ -344,39 +382,7 @@ public partial class MessageGrid
                 $"Dead-lettering messages from '{ResourceName}' failed: {ex.Message}",
                 DateTime.Now)));
         }
-        _isDeadLetterOngoing = false;
-        await OnRefresh.InvokeAsync();
-    }
-    
-    private async Task OnResendClicked()
-    {
-        _isResendOngoing = true;
-        var count = SelectedItems.Count;
-        _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-            ConnectionName, "Debug",
-            $"Resending {count} message(s) from '{ResourceName}'...",
-            DateTime.Now)));
-        try
-        {
-            await Parallel.ForEachAsync(
-                SelectedItems,
-                new ParallelOptions { MaxDegreeOfParallelism = 100 },
-                async (message, ct) => await message.MessageContext.Resend(ct));
-
-            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-                ConnectionName, "Info",
-                $"Resent {count} message(s) from '{ResourceName}'.",
-                DateTime.Now)));
-        }
-        catch (Exception ex)
-        {
-            _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-                ConnectionName, "Error",
-                $"Resending messages from '{ResourceName}' failed: {ex.Message}",
-                DateTime.Now)));
-        }
-        _isResendOngoing = false;
+        _actionOngoing = false;
         await OnRefresh.InvokeAsync();
     }
 }
-

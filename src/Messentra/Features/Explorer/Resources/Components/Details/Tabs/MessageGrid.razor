@@ -29,22 +29,22 @@
                         }
                     </MudButton>
                     <MudButton IconSize="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.MoveUp" Ripple="false"
-                               OnClick="@OnResendClicked" Disabled="@(!SelectedItems.Any() || _isResendOngoing)">
-                        @if (!_isResendOngoing)
+                               OnClick="@OnResendClicked" Disabled="@(!SelectedItems.Any() || _actionOngoing)">
+                        @if (!_actionOngoing)
                         {
                             <MudText Typo="Typo.body2">Resend</MudText>
                         }
                         else
                         {
-                            <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
                         }
                     </MudButton>
                     @if (_fetchMessagesOptions is { Mode: FetchMode.Receive })
                     {
                         <MudHidden Breakpoint="Breakpoint.MdAndDown">
                             <MudButton IconSize="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Check" Ripple="false"
-                                       OnClick="@OnCompleteClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isCompleteOngoing)">
-                                @if (!_isCompleteOngoing)
+                                       OnClick="@OnCompleteClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _actionOngoing)">
+                                @if (!_actionOngoing)
                                 {
                                     <MudText Typo="Typo.body2">Complete</MudText>
                                 }
@@ -54,8 +54,8 @@
                                 }
                             </MudButton>
                             <MudButton IconSize="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.LockOpen" Ripple="false"
-                                       OnClick="@OnAbandonClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isAbandonOngoing)">
-                                @if (!_isAbandonOngoing)
+                                       OnClick="@OnAbandonClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _actionOngoing)">
+                                @if (!_actionOngoing)
                                 {
                                     <MudText Typo="Typo.body2">Abandon</MudText>
                                 }
@@ -65,8 +65,8 @@
                                 }
                             </MudButton>
                             <MudButton IconSize="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Delete" Ripple="false"
-                                       OnClick="@OnDeadLetterClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isDeadLetterOngoing)">
-                                @if (!_isDeadLetterOngoing)
+                                       OnClick="@OnDeadLetterClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _actionOngoing)">
+                                @if (!_actionOngoing)
                                 {
                                     <MudText Typo="Typo.body2">DeadLetter</MudText>
                                 }
@@ -78,8 +78,8 @@
                         </MudHidden>
                         <MudHidden Breakpoint="Breakpoint.LgAndUp">
                             <MudMenu Icon="@Icons.Material.Filled.MoreVert" Ripple="false" Dense="true">
-                                <MudMenuItem Icon="@Icons.Material.Filled.Check" OnClick="@OnCompleteClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isCompleteOngoing)">
-                                    @if (!_isCompleteOngoing)
+                                <MudMenuItem Icon="@Icons.Material.Filled.Check" OnClick="@OnCompleteClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _actionOngoing)">
+                                    @if (!_actionOngoing)
                                     {
                                         <MudText Typo="Typo.body2">Complete</MudText>
                                     }
@@ -88,8 +88,8 @@
                                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
                                     }
                                 </MudMenuItem>
-                                <MudMenuItem Icon="@Icons.Material.Filled.LockOpen" OnClick="@OnAbandonClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isAbandonOngoing)">
-                                    @if (!_isAbandonOngoing)
+                                <MudMenuItem Icon="@Icons.Material.Filled.LockOpen" OnClick="@OnAbandonClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _actionOngoing)">
+                                    @if (!_actionOngoing)
                                     {
                                         <MudText Typo="Typo.body2">Abandon</MudText>
                                     }
@@ -98,8 +98,8 @@
                                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
                                     }
                                 </MudMenuItem>
-                                <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@OnDeadLetterClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _isDeadLetterOngoing)">
-                                    @if (!_isDeadLetterOngoing)
+                                <MudMenuItem Icon="@Icons.Material.Filled.Delete" OnClick="@OnDeadLetterClicked" Disabled="@(IsReceiveAndDeleteMode || !SelectedItems.Any() || _actionOngoing)">
+                                    @if (!_actionOngoing)
                                     {
                                         <MudText Typo="Typo.body2">DeadLetter</MudText>
                                     }
