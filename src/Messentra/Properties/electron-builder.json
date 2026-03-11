@@ -21,6 +21,7 @@
   },
   "win": {
     "icon": "bin/wwwroot/icon.ico",
+    "artifactName": "${name}-${arch}-${version}.${ext}",
     "target": [
       {
         "target": "portable",
