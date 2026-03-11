@@ -39,16 +39,32 @@ builder.Services.AddInfrastructure();
 builder.Services.AddScoped<ResourceSelector>();
 builder.UseElectron(args, async () =>
 {
+    // Splash screen
+    var splashOptions = new BrowserWindowOptions
+    {
+        Width = 400,
+        Height = 300,
+        Frame = false,
+        Movable = false,
+        AlwaysOnTop = true,
+        Show = true,
+        IsRunningBlazor = false
+    };
+    var splash = await Electron.WindowManager.CreateWindowAsync(splashOptions);
+    var splashUrl = new Uri(Path.Combine(builder.Environment.WebRootPath, "splash.html")).AbsoluteUri;
+    splash.LoadURL(splashUrl);
+
+    // Main window
     var version = typeof(Program).Assembly.GetName().Version;
     var versionString = version is not null ? $" v{version.Major}.{version.Minor}.{version.Build}" : string.Empty;
-    var options = new BrowserWindowOptions 
+    var options = new BrowserWindowOptions
     {
         Title = $"Messentra {versionString}",
         Show = false,
         IsRunningBlazor = true,
         MinHeight = 768,
         MinWidth = 1024,
-        Width =  1024,
+        Width = 1024,
         Height = 768,
         WebPreferences = new WebPreferences
         {
@@ -59,20 +75,23 @@ builder.UseElectron(args, async () =>
 #endif
         }
     };
-    
+
     if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
         options.AutoHideMenuBar = true;
-    
+
     var browserWindow = await Electron.WindowManager.CreateWindowAsync(options);
 #if !DEBUG
     Electron.Menu.SetApplicationMenu([]);
 #endif
 #if DEBUG
     var extensionPath = builder.Configuration["ReduxDevTools:ExtensionPath"];
-    
     await browserWindow.WebContents.Session.LoadExtensionAsync(extensionPath);
 #endif
-    browserWindow.OnReadyToShow += () => browserWindow.Show();
+    browserWindow.OnReadyToShow += () =>
+    {
+        splash.Close();
+        browserWindow.Show();
+    };
 });
 
 var app = builder.Build();
