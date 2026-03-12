@@ -30,9 +30,10 @@
   },
   "mac": {
     "icon": "bin/wwwroot/icon.icns",
-    "category": "test.test.test",
+    "category": "public.app-category.developer-tools",
     "target": [
-      "dmg"
+      "dmg",
+      "zip"
     ],
     "hardenedRuntime": true
   }
