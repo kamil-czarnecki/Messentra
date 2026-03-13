@@ -3,14 +3,21 @@ using ElectronNET.API.Entities;
 using FluentValidation;
 using Fluxor;
 using Fluxor.Blazor.Web.ReduxDevTools;
+using Messentra;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Infrastructure;
 using Messentra.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
+using Serilog;
 using App = Messentra.Features.App;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (string.IsNullOrEmpty(builder.Environment.WebRootPath))
+    builder.Environment.WebRootPath = Path.Combine(AppContext.BaseDirectory, "publish", "bin", "wwwroot");
+
+LoggingConfiguration.ConfigureLogging(builder.Host);
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -20,10 +27,9 @@ builder.Services.AddMudServices();
 builder.Services.AddFluxor(x =>
 {
     x.ScanAssemblies(typeof(Program).Assembly);
-    
-#if DEBUG
-    x.UseReduxDevTools();
-#endif
+
+    if (builder.Environment.IsDevelopment())
+        x.UseReduxDevTools();
 });
 builder.Services.AddMediator(opts =>
 {
@@ -70,23 +76,25 @@ builder.UseElectron(args, async () =>
         {
             NodeIntegration = false,
             ContextIsolation = true,
-#if !DEBUG
-            DevTools = false
-#endif
+            DevTools = builder.Environment.IsDevelopment()
         }
     };
 
     if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
         options.AutoHideMenuBar = true;
 
+    if (!builder.Environment.IsDevelopment())
+        ElectronMenu.CreateApplicationMenu();
+    
     var browserWindow = await Electron.WindowManager.CreateWindowAsync(options);
-#if !DEBUG
-    Electron.Menu.SetApplicationMenu([]);
-#endif
-#if DEBUG
-    var extensionPath = builder.Configuration["ReduxDevTools:ExtensionPath"];
-    await browserWindow.WebContents.Session.LoadExtensionAsync(extensionPath);
-#endif
+
+    if (builder.Environment.IsDevelopment())
+    {
+        var extensionPath = builder.Configuration["ReduxDevTools:ExtensionPath"];
+        if (extensionPath is not null)
+            await browserWindow.WebContents.Session.LoadExtensionAsync(extensionPath);
+    }
+
     browserWindow.OnReadyToShow += () =>
     {
         splash.Close();
@@ -118,4 +126,11 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.Run();
+try
+{
+    app.Run();
+}
+finally
+{
+    Log.CloseAndFlush();
+}
