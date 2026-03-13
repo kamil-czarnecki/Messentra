@@ -4,11 +4,11 @@
                Elevation="1"
                ClipMode="DrawerClipMode.Always"
                Class="overflow-hidden">
-        <MudDrawerContainer Class="mud-height-full pa-4">
+        <MudDrawerContainer Class="mud-height-full pa-4 d-flex flex-column">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3 logo-container">
                 <MudImage Src="@Assets["logo.svg"]" Fluid="true" Alt="Logo"/>
             </MudStack>
-            <MudDivider />
+            <MudDivider Class="drawer-divider" />
     
             <MudNavMenu Color="Color.Primary"
                         Class="pt-3">
@@ -21,6 +21,8 @@
                     </MudNavLink>
                 }
             </MudNavMenu>
+
+            <UpdateNotification />
         </MudDrawerContainer>
     </MudDrawer>
 </div>

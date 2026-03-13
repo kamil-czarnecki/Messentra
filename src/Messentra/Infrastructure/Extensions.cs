@@ -1,3 +1,4 @@
+using Messentra.Infrastructure.AutoUpdater;
 using Messentra.Infrastructure.AzureServiceBus;
 using Messentra.Infrastructure.AzureServiceBus.Factories;
 using Messentra.Infrastructure.AzureServiceBus.Queues;
@@ -12,6 +13,7 @@ public static class Extensions
     {
         public void AddInfrastructure()
         {
+            services.AddSingleton<IAutoUpdaterService, AutoUpdaterService>();
             services.AddSingleton<IAzureServiceBusTokenCredentialFactory, AzureServiceBusTokenCredentialFactory>();
             services.AddSingleton<IAzureServiceBusClientFactory, AzureServiceBusClientFactory>();
             services.AddSingleton<IAzureServiceBusAdminClientFactory, AzureServiceBusAdminClientFactory>();

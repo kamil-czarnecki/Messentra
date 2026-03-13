@@ -1,0 +1,20 @@
+::deep .update-notification {
+    margin-top: auto;
+}
+
+::deep .update-panel {
+    padding: 8px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+::deep .update-version {
+    display: block;
+    margin-bottom: 6px;
+    opacity: 0.7;
+}
+
+::deep .update-alert {
+    border-radius: 8px;
+}
+

@@ -4,6 +4,7 @@ using Bunit;
 using Fluxor;
 using Mediator;
 using Messentra.Features.Explorer.Resources;
+using Messentra.Infrastructure.AutoUpdater;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -28,6 +29,8 @@ public class ComponentTestBase : BunitContext
         Services.AddSingleton(Mock.Of<IActionSubscriber>());
         Services.AddSingleton(Mock.Of<IStore>());
         Services.AddSingleton(MockMediator.Object);
+        Services.AddSingleton<FakeAutoUpdaterService>();
+        Services.AddSingleton<IAutoUpdaterService>(sp => sp.GetRequiredService<FakeAutoUpdaterService>());
         JSInterop.Mode = JSRuntimeMode.Loose;
         RegisterStateTypes();
         RegisterResourceSelector();
@@ -94,4 +97,6 @@ public class ComponentTestBase : BunitContext
         mockFeature.Setup(f => f.State).Returns(new ResourceState([], null, []));
         Services.AddScoped<ResourceSelector>(_ => new ResourceSelector(mockFeature.Object));
     }
+
+    protected virtual void RegisterServices() { }
 }

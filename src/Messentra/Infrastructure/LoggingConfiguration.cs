@@ -20,6 +20,9 @@ internal static class LoggingConfiguration
             .CreateBootstrapLogger();
 
         host.UseSerilog((_, services, configuration) => configuration
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft.AspNetCore", Serilog.Events.LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
             .ReadFrom.Services(services)
             .Enrich.FromLogContext()
             .WriteTo.Console()
