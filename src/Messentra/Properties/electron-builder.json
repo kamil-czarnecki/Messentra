@@ -21,6 +21,11 @@
   },
   "win": {
     "icon": "bin/wwwroot/icon.ico",
+    "signtoolOptions": {
+      "signingHashAlgorithms": ["sha256"],
+      "rfc3161TimeStampServer": "http://timestamp.certum.pl",
+      "publisherName": ["Open Source Developer Kamil Czarnecki"]
+    },
     "target": [
       {
         "target": "portable",

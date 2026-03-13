@@ -34,7 +34,7 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
-          - os: windows-latest
+          - os: [self-hosted, Windows, X64, messentra-signing]
             rid: win-x64
           # macos-26 is a beta image (Apple Silicon arm64) - fallback is macos-15
           - os: macos-26
