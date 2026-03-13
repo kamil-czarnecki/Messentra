@@ -19,8 +19,11 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Run tests
-        run: dotnet test Messentra.slnx -r linux-x64
+      - name: Run unit tests
+        run: dotnet test tests/Messentra.UnitTests/Messentra.UnitTests.csproj -r linux-x64
+
+      - name: Run component tests
+        run: dotnet test tests/Messentra.ComponentTests/Messentra.ComponentTests.csproj -r linux-x64
 
   publish:
     name: Publish (${{ matrix.rid }})
