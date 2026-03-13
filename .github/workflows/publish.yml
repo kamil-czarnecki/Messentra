@@ -28,6 +28,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
+    env:
+      IS_RELEASE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     strategy:
       fail-fast: false
       matrix:
@@ -39,6 +41,7 @@ jobs:
           # macos-26 is a beta image (Apple Silicon arm64) - fallback is macos-15
           - os: macos-26
             rid: osx-arm64
+            sign_mac: true
 
     steps:
       - name: Checkout
@@ -52,11 +55,10 @@ jobs:
       - name: Publish .NET app
         run: dotnet publish src/Messentra/Messentra.csproj /p:PublishProfile=${{ matrix.rid }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ELECTRON_BUILDER_NO_PUBLISH: ${{ startsWith(github.ref, 'refs/tags/') && 'false' || 'true' }}
-          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-
+          GH_TOKEN: ${{ env.IS_RELEASE == 'true' && secrets.GITHUB_TOKEN || '' }}
+          ELECTRON_BUILDER_NO_PUBLISH: ${{ env.IS_RELEASE != 'true' }}
+          CSC_LINK: ${{ matrix.sign_mac && secrets.MAC_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.sign_mac && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ matrix.sign_mac && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.sign_mac && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.sign_mac && secrets.APPLE_TEAM_ID || '' }}
