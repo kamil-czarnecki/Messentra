@@ -17,7 +17,16 @@ public partial class NamespaceTree
     public List<ConnectionDto> Connections { get; init; } = [];
     [Parameter]
     public ResourceTreeNode? SelectedResource { get; init; }
-    private string? _searchPhrase;
+    [Parameter]
+    public string? SearchPhrase { get; set; }
+
+    private string? _localSearchPhrase;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _localSearchPhrase = SearchPhrase;
+    }
 
 
     private readonly NavigationManager _navigationManager;
@@ -133,12 +142,13 @@ public partial class NamespaceTree
     
     private void OnTextChanged(string? searchPhrase)
     {
-        _searchPhrase = searchPhrase;
+        _localSearchPhrase = searchPhrase;
+        _dispatcher.Dispatch(new SetSearchPhraseAction(searchPhrase));
         StateHasChanged();
     }
 
     private List<ResourceTreeItemData> FilteredResources =>
-        string.IsNullOrEmpty(_searchPhrase)
+        string.IsNullOrEmpty(_localSearchPhrase)
             ? Resources
             : Resources
                 .Select(FilterNamespace)
@@ -186,14 +196,14 @@ public partial class NamespaceTree
 
     private ResourceTreeItemData? FilterItem(ResourceTreeItemData item)
     {
-        var nameMatches = item.Text?.Contains(_searchPhrase!, StringComparison.OrdinalIgnoreCase) == true;
+        var nameMatches = item.Text?.Contains(_localSearchPhrase!, StringComparison.OrdinalIgnoreCase) == true;
 
         if (item.Children is not { Count: > 0 } children)
             return nameMatches ? item : null;
         
         var filteredSubs = children
             .OfType<ResourceTreeItemData>()
-            .Where(s => s.Text?.Contains(_searchPhrase!, StringComparison.OrdinalIgnoreCase) == true)
+            .Where(s => s.Text?.Contains(_localSearchPhrase!, StringComparison.OrdinalIgnoreCase) == true)
             .ToList<TreeItemData<ResourceTreeNode>>();
 
         if (!nameMatches && filteredSubs.Count == 0)

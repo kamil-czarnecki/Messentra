@@ -769,5 +769,63 @@ public sealed class ResourceReducersShould
         var selectedNode = newState.SelectedResource as TopicTreeNode;
         selectedNode!.IsLoading.ShouldBeFalse();
     }
+
+    [Fact]
+    public void SetSearchPhraseAction_SetsSearchPhrase()
+    {
+        // Arrange
+        var state = new ResourceState(Namespaces: [], SelectedResource: null, ExpandedKeys: []);
+        var action = new SetSearchPhraseAction("queue2");
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
+        newState.SearchPhrase.ShouldBe("queue2");
+    }
+
+    [Fact]
+    public void SetSearchPhraseAction_NormalizesEmptyStringToNull()
+    {
+        // Arrange
+        var state = new ResourceState(Namespaces: [], SelectedResource: null, ExpandedKeys: [], SearchPhrase: "queue2");
+        var action = new SetSearchPhraseAction("");
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
+        newState.SearchPhrase.ShouldBeNull();
+    }
+
+    [Fact]
+    public void SetSearchPhraseAction_NullPhraseResetsSearchPhrase()
+    {
+        // Arrange
+        var state = new ResourceState(Namespaces: [], SelectedResource: null, ExpandedKeys: [], SearchPhrase: "queue2");
+        var action = new SetSearchPhraseAction(null);
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
+        newState.SearchPhrase.ShouldBeNull();
+    }
+
+    [Fact]
+    public void DisconnectResourceAction_PreservesSearchPhrase()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var entry = new NamespaceEntry(ConnectionName, config, false, Queues: [], Topics: []);
+        var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: [], SearchPhrase: "queue2");
+        var action = new DisconnectResourceAction(ConnectionName);
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
+        newState.SearchPhrase.ShouldBe("queue2");
+    }
 }
 

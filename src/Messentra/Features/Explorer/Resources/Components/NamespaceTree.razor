@@ -54,7 +54,7 @@
     else
     {
         <MudHotkey Key="JsKey.F5" OnHotkeyPressed="@(() => RefreshHotkeyClicked())"/>
-        <MudTextField T="string" Typo="Typo.caption" Adornment="Adornment.Start" IconSize="Size.Small" AdornmentIcon="@Icons.Material.Filled.Search" TextChanged="@OnTextChanged" Immediate="true" Clearable="true" DebounceInterval="300"/>
+        <MudTextField Class="mx-2" T="string" Value="@_localSearchPhrase" Typo="Typo.caption" Adornment="Adornment.Start" IconSize="Size.Small" AdornmentIcon="@Icons.Material.Filled.Search" TextChanged="@OnTextChanged" Immediate="true" Clearable="true" DebounceInterval="300"/>
         <MudTreeView Ripple="false" Items="@FilteredResources" Dense="true" Class="ma-0 pa-0 mud-height-full compact-tree"
                      tabindex="0"
                      @onfocusin="@(() => _isFocused = true)"

@@ -59,11 +59,17 @@ public static class ResourceReducers
             _ => state.SelectedResource
         };
 
-        return new ResourceState(
-            state.Namespaces.Where(n => n.ConnectionName != action.ConnectionName).ToList(),
-            updatedSelected,
-            []);
+        return state with
+        {
+            Namespaces = state.Namespaces.Where(n => n.ConnectionName != action.ConnectionName).ToList(),
+            SelectedResource = updatedSelected,
+            ExpandedKeys = []
+        };
     }
+
+    [ReducerMethod]
+    public static ResourceState Reduce(ResourceState state, SetSearchPhraseAction action)
+        => state with { SearchPhrase = string.IsNullOrEmpty(action.Phrase) ? null : action.Phrase };
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, ToggleExpandedAction action)
