@@ -5,7 +5,7 @@
 # Messentra — Azure Service Bus Desktop Explorer
 
 <p align="center">
-  <a href="https://github.com/kamil-czarnecki/Messentra/releases"><img src="https://img.shields.io/badge/version-0.1.0-2563EB?style=flat-square" alt="Version" /></a>
+  <a href="https://github.com/kamil-czarnecki/Messentra/releases"><img src="https://img.shields.io/github/v/release/kamil-czarnecki/Messentra?style=flat-square&color=2563EB" alt="Version" /></a>
   <a href="https://dotnet.microsoft.com/en-us/download/dotnet/10.0"><img src="https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet" alt=".NET 10" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-22C55E?style=flat-square" alt="License: GPL-3.0" /></a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-38BDF8?style=flat-square" alt="Platform: macOS | Windows | Linux" />
