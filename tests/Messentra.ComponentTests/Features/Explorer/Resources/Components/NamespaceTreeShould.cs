@@ -354,4 +354,156 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             cut.Markup.ShouldNotContain("clean-queue");
         });
     }
+
+    // --- Autocomplete suggestions ---
+
+    private static async Task<List<string>> GetSuggestions(IRenderedComponent<NamespaceTree> cut, string input)
+    {
+        var ac = cut.FindComponent<MudAutocomplete<string>>();
+        ac.Instance.SearchFunc.ShouldNotBeNull();
+        var results = await ac.Instance.SearchFunc(input, CancellationToken.None)!;
+        return results.ToList();
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_EmptyInput_SuggestsBothKeywords()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "");
+
+        suggestions.ShouldContain("namespace:");
+        suggestions.ShouldContain("has:dlq");
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_PartialN_SuggestsNamespaceKeyword()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "n");
+
+        suggestions.ShouldContain("namespace:");
+        suggestions.ShouldNotContain("has:dlq");
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_PartialH_SuggestsHasDlqKeyword()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "h");
+
+        suggestions.ShouldContain("has:dlq");
+        suggestions.ShouldNotContain("namespace:");
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_NamespaceColon_SuggestsConnectedNamespaceNames()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "namespace:");
+
+        suggestions.ShouldContain("namespace:TestNamespace");
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_NamespaceColonPartial_FiltersNamespacesByPartialName()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "namespace:Test");
+
+        suggestions.ShouldContain("namespace:TestNamespace");
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_NamespaceColonNoMatch_ReturnsEmpty()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "namespace:zzznomatch");
+
+        suggestions.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_CompleteToken_DoesNotSuggestItself()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "has:dlq");
+
+        suggestions.ShouldNotContain("has:dlq");
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_TrailingSpace_SuggestsForNextToken()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "queue1 ");
+
+        suggestions.ShouldContain("queue1 namespace:");
+        suggestions.ShouldContain("queue1 has:dlq");
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_PartialSecondToken_PreservesCompletedPrefix()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "queue1 h");
+
+        suggestions.ShouldContain("queue1 has:dlq");
+        suggestions.ShouldNotContain("queue1 namespace:");
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_IsCaseInsensitiveForKeywords()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestionsUpper = await GetSuggestions(cut, "HAS");
+        var suggestionsNamespace = await GetSuggestions(cut, "NAMESPACE:");
+
+        suggestionsUpper.ShouldContain("has:dlq");
+        suggestionsNamespace.ShouldContain("namespace:TestNamespace");
+    }
+
+    [Fact]
+    public async Task OnSuggestionSelected_DispatchesSetSearchPhraseAction()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+        var ac = cut.FindComponent<MudAutocomplete<string>>();
+
+        await cut.InvokeAsync(() => ac.Instance.ValueChanged.InvokeAsync("has:dlq"));
+
+        MockDispatcher.Verify(
+            d => d.Dispatch(It.Is<SetSearchPhraseAction>(a => a.Phrase == "has:dlq")),
+            Times.Once);
+    }
 }

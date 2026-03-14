@@ -39,6 +39,13 @@ Built with **Blazor Server**, **Electron.NET**, **MudBlazor**, and **Fluxor**.
 - **Properties** tab: full resource configuration and storage & quota details
 - **Dead-Letter** sub-queue accessible directly from the resource panel
 
+### 🔎 Resource Search & Filtering
+- Smart search bar in the Explorer tree with **special-phrase autocomplete**
+- **Plain text** — filter queues, topics, and subscriptions by name
+- `namespace:x` — limit the tree to a specific namespace; autocomplete completes connected namespace names
+- `has:dlq` — show only resources that currently have dead-letter messages
+- Combine phrases freely: `namespace:prod has:dlq`, `namespace:prod orders`
+
 ### 📨 Message Fetching
 - Fetch messages from queues and topic subscriptions
 - Choose fetch mode: **Peek** (non-destructive) or **Receive** (destructive)
@@ -85,6 +92,9 @@ Actions available on fetched messages (in Receive mode):
 
 ### Resource Explorer
 ![Messentra resource explorer — browsing queues, topics and subscriptions with live message counts](docs/resources.png)
+
+### Resource Search & Filtering
+![Messentra resource search — filtering queues and topics by name, namespace or dead-letter status](docs/resources_search.png)
 
 ### Messages
 ![Messentra message inspector — fetching, searching and viewing Service Bus messages with body and properties](docs/messages.png)
