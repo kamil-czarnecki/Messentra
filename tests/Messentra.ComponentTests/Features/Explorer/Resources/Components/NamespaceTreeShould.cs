@@ -506,4 +506,48 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             d => d.Dispatch(It.Is<SetSearchPhraseAction>(a => a.Phrase == "has:dlq")),
             Times.Once);
     }
+
+    [Fact]
+    public async Task SuggestionSearch_CompleteNamespaceToken_DoesNotSuggestItself()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "namespace:TestNamespace");
+
+        suggestions.ShouldNotContain("namespace:TestNamespace");
+    }
+
+    [Fact]
+    public async Task SuggestionSearch_CompleteNamespaceTokenDifferentCase_DoesNotSuggestItself()
+    {
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        var suggestions = await GetSuggestions(cut, "NAMESPACE:TESTNAMESPACE");
+
+        suggestions.ShouldNotContain("namespace:TestNamespace");
+    }
+
+    [Fact]
+    public void OnParametersSet_WhenSearchPhraseChangesExternally_SyncsLocalPhrase()
+    {
+        // Arrange — render with an initial phrase
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, [])
+            .Add(x => x.SearchPhrase, "queue1"));
+
+        cut.Markup.ShouldNotContain("queue2");
+
+        // Act — simulate an external state reset by re-rendering with a null phrase
+        cut.Render(p => p
+            .Add(x => x.SearchPhrase, (string?)null));
+
+        // Assert — both queues visible again, confirming _localSearchPhrase was synced
+        cut.Markup.ShouldContain("queue1");
+        cut.Markup.ShouldContain("queue2");
+    }
 }

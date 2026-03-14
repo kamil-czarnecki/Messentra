@@ -22,13 +22,13 @@ public partial class NamespaceTree
 
     private string? _localSearchPhrase;
 
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
-        base.OnInitialized();
-        _localSearchPhrase = SearchPhrase;
+        base.OnParametersSet();
+        if (SearchPhrase != _localSearchPhrase)
+            _localSearchPhrase = SearchPhrase;
     }
-
-
+    
     private readonly NavigationManager _navigationManager;
     private readonly IDispatcher _dispatcher;
 
@@ -166,7 +166,8 @@ public partial class NamespaceTree
             var partial = lastToken["namespace:".Length..];
             suggestions = Resources
                 .Where(r => !string.IsNullOrEmpty(r.Text) &&
-                            r.Text.Contains(partial, StringComparison.OrdinalIgnoreCase))
+                            r.Text.Contains(partial, StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals("namespace:" + r.Text, lastToken, StringComparison.OrdinalIgnoreCase))
                 .Select(r => prefix + "namespace:" + r.Text);
         }
         else
