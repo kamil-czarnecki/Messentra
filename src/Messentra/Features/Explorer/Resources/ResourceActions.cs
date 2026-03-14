@@ -10,6 +10,7 @@ public sealed record FetchResourcesFailureAction(string Error);
 public sealed record SelectResourceAction(ResourceTreeNode Node);
 public sealed record DisconnectResourceAction(string ConnectionName);
 public sealed record ToggleExpandedAction(string NodeKey, bool Expanded);
+public sealed record SetSearchPhraseAction(string? Phrase);
 
 public sealed record RefreshQueueAction(QueueTreeNode Node);
 public sealed record RefreshQueueSuccessAction(QueueTreeNode UpdatedNode);

@@ -13,7 +13,8 @@
         <FirstPanel>
             <NamespaceTree Resources="@_resourceSelector.TreeItems.Value"
                            Connections="@_connectionState.Value.Connections.ToList()"
-                           SelectedResource="@_resourceSelector.SelectedResource.Value"/>
+                           SelectedResource="@_resourceSelector.SelectedResource.Value"
+                           SearchPhrase="@_resourceSelector.SearchPhrase.Value"/>
         </FirstPanel>
         <SecondPanel>
             <ResourceDetails SelectedResource="@_resourceSelector.SelectedResource.Value"/>

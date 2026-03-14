@@ -6,9 +6,9 @@ using MudBlazor;
 namespace Messentra.Features.Explorer.Resources;
 
 [FeatureState]
-public sealed record ResourceState(List<NamespaceEntry> Namespaces, ResourceTreeNode? SelectedResource, HashSet<string> ExpandedKeys)
+public sealed record ResourceState(List<NamespaceEntry> Namespaces, ResourceTreeNode? SelectedResource, HashSet<string> ExpandedKeys, string? SearchPhrase = null)
 {
-    private ResourceState() : this([], null, []) { }
+    private ResourceState() : this([], null, [], null) { }
 }
 
 public sealed record NamespaceEntry(

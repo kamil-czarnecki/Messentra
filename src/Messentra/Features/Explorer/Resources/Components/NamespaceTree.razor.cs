@@ -3,6 +3,7 @@ using Messentra.Domain;
 using Messentra.Features.Layout.State;
 using Messentra.Features.Settings.Connections.GetConnections;
 using Microsoft.AspNetCore.Components;
+using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources.Components;
 
@@ -16,7 +17,18 @@ public partial class NamespaceTree
     public List<ConnectionDto> Connections { get; init; } = [];
     [Parameter]
     public ResourceTreeNode? SelectedResource { get; init; }
+    [Parameter]
+    public string? SearchPhrase { get; set; }
 
+    private string? _localSearchPhrase;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (SearchPhrase != _localSearchPhrase)
+            _localSearchPhrase = SearchPhrase;
+    }
+    
     private readonly NavigationManager _navigationManager;
     private readonly IDispatcher _dispatcher;
 
@@ -127,4 +139,54 @@ public partial class NamespaceTree
                 break;
         }
     }
+    
+    private void OnTextChanged(string? searchPhrase)
+    {
+        if (searchPhrase == _localSearchPhrase) return;
+        _localSearchPhrase = searchPhrase;
+        _dispatcher.Dispatch(new SetSearchPhraseAction(searchPhrase));
+        StateHasChanged();
+    }
+
+    private void OnSuggestionSelected(string? value) => OnTextChanged(value);
+
+    private Task<IEnumerable<string>> SuggestSearchPhrases(string? value, CancellationToken ct)
+    {
+        var endsWithSpace = value?.EndsWith(' ') == true;
+        var parts = (value ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        var lastToken = !endsWithSpace && parts.Length > 0 ? parts[^1] : "";
+        var completedParts = !endsWithSpace && parts.Length > 0 ? parts[..^1] : parts;
+        var prefix = completedParts.Length > 0 ? string.Join(" ", completedParts) + " " : "";
+
+        IEnumerable<string> suggestions;
+
+        if (lastToken.StartsWith("namespace:", StringComparison.OrdinalIgnoreCase))
+        {
+            var partial = lastToken["namespace:".Length..];
+            suggestions = Resources
+                .Where(r => !string.IsNullOrEmpty(r.Text) &&
+                            r.Text.Contains(partial, StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals("namespace:" + r.Text, lastToken, StringComparison.OrdinalIgnoreCase))
+                .Select(r => prefix + "namespace:" + r.Text);
+        }
+        else
+        {
+            suggestions = SourceArray.Where(p => p.StartsWith(lastToken, StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(p, lastToken, StringComparison.OrdinalIgnoreCase))
+                .Select(p => prefix + p);
+        }
+
+        return Task.FromResult(suggestions.Distinct().Take(10));
+    }
+
+    private static string GetSuggestionIcon(string token) =>
+        token.StartsWith("namespace:", StringComparison.OrdinalIgnoreCase)
+            ? Icons.Material.Filled.Cloud
+            : Icons.Material.Filled.AllInbox;
+
+    private List<ResourceTreeItemData> FilteredResources =>
+        ResourceTreeFilter.Filter(Resources, SearchQueryParser.Parse(_localSearchPhrase));
+
+    private static readonly string[] SourceArray = ["namespace:", "has:dlq"];
 }

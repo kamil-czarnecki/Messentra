@@ -7,17 +7,20 @@ public sealed class ResourceSelector
 {
     public IStateSelection<ResourceState, List<ResourceTreeItemData>> TreeItems { get; }
     public IStateSelection<ResourceState, ResourceTreeNode?> SelectedResource { get; }
+    public IStateSelection<ResourceState, string?> SearchPhrase { get; }
 
     public ResourceSelector(IFeature<ResourceState> feature)
     {
         TreeItems = new StateSelection<ResourceState, List<ResourceTreeItemData>>(feature);
         SelectedResource = new StateSelection<ResourceState, ResourceTreeNode?>(feature);
-        
+        SearchPhrase = new StateSelection<ResourceState, string?>(feature);
+
         TreeItems.Select(
             state => BuildTreeItems(state.Namespaces, state.SelectedResource, state.ExpandedKeys));
         SelectedResource.Select(
             state => state.SelectedResource,
             ReferenceEquals);
+        SearchPhrase.Select(state => state.SearchPhrase);
     }
 
     private static List<ResourceTreeItemData> BuildTreeItems(
