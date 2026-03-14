@@ -24,6 +24,7 @@
     "signtoolOptions": {
       "signingHashAlgorithms": ["sha256"],
       "rfc3161TimeStampServer": "http://timestamp.certum.pl",
+      "certificateSubjectName": "Open Source Developer Kamil Czarnecki",
       "publisherName": ["Open Source Developer Kamil Czarnecki"]
     },
     "target": [
