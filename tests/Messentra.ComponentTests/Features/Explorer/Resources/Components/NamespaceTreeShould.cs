@@ -6,6 +6,7 @@ using Messentra.Features.Settings.Connections.GetConnections;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using MudBlazor;
 using Shouldly;
 using Xunit;
 
@@ -84,5 +85,189 @@ public sealed class NamespaceTreeShould : ComponentTestBase
 
         // Assert
         navigationManager.Uri.ShouldContain("/options");
+    }
+
+    // --- Filtering ---
+
+    private static ResourceTreeItemData QueueItem(string name) => new() { Text = name };
+
+    private static ResourceTreeItemData TopicItem(string name, params string[] subscriptionNames)
+    {
+        var subs = subscriptionNames
+            .Select(s => new ResourceTreeItemData { Text = s })
+            .ToList<TreeItemData<ResourceTreeNode>>();
+
+        return new ResourceTreeItemData
+        {
+            Text = name,
+            Expandable = subs.Count > 0,
+            Expanded = true,
+            Children = subs.Count > 0 ? subs : null
+        };
+    }
+
+    private static List<ResourceTreeItemData> BuildNamespaceTree(string[] queueNames, params ResourceTreeItemData[] topicItems)
+    {
+        var queuesGroup = new ResourceTreeItemData
+        {
+            Text = "Queues",
+            IsReadonly = true,
+            Expandable = true,
+            Expanded = true,
+            Children = queueNames.Select(QueueItem).ToList<TreeItemData<ResourceTreeNode>>()
+        };
+
+        var topicsGroup = new ResourceTreeItemData
+        {
+            Text = "Topics",
+            IsReadonly = true,
+            Expandable = true,
+            Expanded = true,
+            Children = topicItems.ToList<TreeItemData<ResourceTreeNode>>()
+        };
+
+        return
+        [
+            new ResourceTreeItemData
+            {
+                Text = "TestNamespace",
+                IsReadonly = true,
+                Expandable = true,
+                Expanded = true,
+                Children = new[] { queuesGroup, topicsGroup }.ToList<TreeItemData<ResourceTreeNode>>()
+            }
+        ];
+    }
+
+    [Fact]
+    public void ShowsAllItemsWhenNoSearchPhraseEntered()
+    {
+        // Arrange & Act
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, []));
+
+        // Assert
+        cut.Markup.ShouldContain("queue1");
+        cut.Markup.ShouldContain("queue2");
+    }
+
+    [Fact]
+    public void ShowsOnlyMatchingQueueWhenFiltered()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find("input").Input("queue2");
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.ShouldContain("queue2");
+            cut.Markup.ShouldNotContain("queue1");
+        });
+    }
+
+    [Fact]
+    public void HidesAllItemsWhenSearchMatchesNothing()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find("input").Input("xyznomatch");
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.ShouldNotContain("queue1");
+            cut.Markup.ShouldNotContain("queue2");
+        });
+    }
+
+    [Fact]
+    public void FilteringIsCaseInsensitive()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find("input").Input("QUEUE2");
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.ShouldContain("queue2");
+            cut.Markup.ShouldNotContain("queue1");
+        });
+    }
+
+    [Fact]
+    public void ShowsAllItemsAfterSearchIsCleared()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, []));
+
+        // Act - filter then clear
+        cut.Find("input").Input("queue2");
+        cut.WaitForAssertion(() => cut.Markup.ShouldNotContain("queue1"));
+
+        cut.Find("input").Input("");
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.ShouldContain("queue1");
+            cut.Markup.ShouldContain("queue2");
+        });
+    }
+
+    [Fact]
+    public void ShowsAllSubscriptionsWhenTopicNameMatchesSearch()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree([], TopicItem("topic1", "sub1", "sub2")))
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find("input").Input("topic1");
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.ShouldContain("topic1");
+            cut.Markup.ShouldContain("sub1");
+            cut.Markup.ShouldContain("sub2");
+        });
+    }
+
+    [Fact]
+    public void ShowsOnlyMatchingSubscriptionWhenFiltered()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree([], TopicItem("topic1", "sub1", "sub2")))
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find("input").Input("sub1");
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.ShouldContain("topic1");
+            cut.Markup.ShouldContain("sub1");
+            cut.Markup.ShouldNotContain("sub2");
+        });
     }
 }

@@ -3,6 +3,7 @@ using Messentra.Domain;
 using Messentra.Features.Layout.State;
 using Messentra.Features.Settings.Connections.GetConnections;
 using Microsoft.AspNetCore.Components;
+using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources.Components;
 
@@ -16,6 +17,8 @@ public partial class NamespaceTree
     public List<ConnectionDto> Connections { get; init; } = [];
     [Parameter]
     public ResourceTreeNode? SelectedResource { get; init; }
+    private string? _searchPhrase;
+
 
     private readonly NavigationManager _navigationManager;
     private readonly IDispatcher _dispatcher;
@@ -126,5 +129,82 @@ public partial class NamespaceTree
                 _dispatcher.Dispatch(new RefreshTopicsAction(t));
                 break;
         }
+    }
+    
+    private void OnTextChanged(string? searchPhrase)
+    {
+        _searchPhrase = searchPhrase;
+        StateHasChanged();
+    }
+
+    private List<ResourceTreeItemData> FilteredResources =>
+        string.IsNullOrEmpty(_searchPhrase)
+            ? Resources
+            : Resources
+                .Select(FilterNamespace)
+                .OfType<ResourceTreeItemData>()
+                .ToList();
+
+    private ResourceTreeItemData? FilterNamespace(ResourceTreeItemData ns)
+    {
+        if (ns.Children is null) return null;
+
+        var filteredGroups = ns.Children
+            .OfType<ResourceTreeItemData>()
+            .Select(FilterGroup)
+            .OfType<ResourceTreeItemData>()
+            .ToList<TreeItemData<ResourceTreeNode>>();
+
+        if (filteredGroups.Count == 0) return null;
+
+        return new ResourceTreeItemData
+        {
+            Text = ns.Text, Value = ns.Value, Icon = ns.Icon, IconColor = ns.IconColor,
+            IsReadonly = ns.IsReadonly, Expandable = true, Expanded = true,
+            Children = filteredGroups
+        };
+    }
+
+    private ResourceTreeItemData? FilterGroup(ResourceTreeItemData group)
+    {
+        var filteredItems = group.Children?
+            .OfType<ResourceTreeItemData>()
+            .Select(FilterItem)
+            .OfType<ResourceTreeItemData>()
+            .ToList<TreeItemData<ResourceTreeNode>>();
+
+        if (filteredItems is null || filteredItems.Count == 0)
+            return null;
+
+        return new ResourceTreeItemData
+        {
+            Text = group.Text, Value = group.Value, Icon = group.Icon, IconColor = group.IconColor,
+            IsReadonly = group.IsReadonly, Expandable = true, Expanded = true,
+            Children = filteredItems
+        };
+    }
+
+    private ResourceTreeItemData? FilterItem(ResourceTreeItemData item)
+    {
+        var nameMatches = item.Text?.Contains(_searchPhrase!, StringComparison.OrdinalIgnoreCase) == true;
+
+        if (item.Children is not { Count: > 0 } children)
+            return nameMatches ? item : null;
+        
+        var filteredSubs = children
+            .OfType<ResourceTreeItemData>()
+            .Where(s => s.Text?.Contains(_searchPhrase!, StringComparison.OrdinalIgnoreCase) == true)
+            .ToList<TreeItemData<ResourceTreeNode>>();
+
+        if (!nameMatches && filteredSubs.Count == 0)
+            return null;
+
+        return new ResourceTreeItemData
+        {
+            Text = item.Text, Value = item.Value, Icon = item.Icon, IconColor = item.IconColor,
+            IsReadonly = item.IsReadonly, Expandable = true, Expanded = true, Selected = item.Selected,
+            Children = nameMatches ? item.Children.ToList() : filteredSubs
+        };
+
     }
 }
