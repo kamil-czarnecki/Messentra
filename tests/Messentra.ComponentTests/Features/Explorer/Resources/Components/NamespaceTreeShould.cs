@@ -3,6 +3,7 @@ using Messentra.Domain;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components;
 using Messentra.Features.Settings.Connections.GetConnections;
+using Messentra.Infrastructure.AzureServiceBus;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -90,6 +91,18 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     // --- Filtering ---
 
     private static ResourceTreeItemData QueueItem(string name) => new() { Text = name };
+
+    private static ResourceTreeItemData QueueItemWithDlq(string name, long dlq)
+    {
+        var config = ConnectionConfig.CreateConnectionString(
+            "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=k;SharedAccessKey=key=");
+        var queue = new Resource.Queue(name, $"https://test/{name}",
+            new ResourceOverview("Active", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
+                new MessageInfo(0, dlq, 0, 0, 0, dlq), new SizeInfo(0, 1024)),
+            new QueueProperties(TimeSpan.FromDays(14), TimeSpan.FromSeconds(60), TimeSpan.MaxValue,
+                10, false, null, null, false, false, TimeSpan.FromMinutes(1), false, 256, string.Empty));
+        return new ResourceTreeItemData { Text = name, Value = new QueueTreeNode("TestNS", queue, config) };
+    }
 
     private static ResourceTreeItemData TopicItem(string name, params string[] subscriptionNames)
     {
@@ -268,6 +281,77 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             cut.Markup.ShouldContain("topic1");
             cut.Markup.ShouldContain("sub1");
             cut.Markup.ShouldNotContain("sub2");
+        });
+    }
+
+    [Fact]
+    public void NamespaceFilter_ShowsQueuesBelongingToMatchingNamespace()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find("input").Input("namespace:TestNamespace");
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.ShouldContain("queue1");
+            cut.Markup.ShouldContain("queue2");
+        });
+    }
+
+    [Fact]
+    public void NamespaceFilter_HidesQueuesBelongingToNonMatchingNamespace()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find("input").Input("namespace:production");
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.ShouldNotContain("queue1");
+            cut.Markup.ShouldNotContain("queue2");
+        });
+    }
+
+    [Fact]
+    public void HasDlqFilter_ShowsOnlyQueuesWithDlqMessages()
+    {
+        // Arrange
+        var queuesGroup = new ResourceTreeItemData
+        {
+            Text = "Queues", IsReadonly = true, Expandable = true, Expanded = true,
+            Children = new List<TreeItemData<ResourceTreeNode>>
+            {
+                QueueItemWithDlq("dlq-queue", dlq: 5),
+                QueueItemWithDlq("clean-queue", dlq: 0)
+            }
+        };
+        var resources = new List<ResourceTreeItemData>
+        {
+            new() { Text = "TestNamespace", IsReadonly = true, Expandable = true, Expanded = true,
+                Children = new List<TreeItemData<ResourceTreeNode>> { queuesGroup } }
+        };
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, resources)
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find("input").Input("has:dlq");
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.ShouldContain("dlq-queue");
+            cut.Markup.ShouldNotContain("clean-queue");
         });
     }
 }
