@@ -43,7 +43,7 @@ public sealed class CreateConnectionCommandValidator : AbstractValidator<CreateC
 
 // Handler
 public sealed class CreateConnectionCommandHandler(
-    DbContext db, IValidator<CreateConnectionCommand> validator) 
+    DbContext db, IValidator<CreateConnectionCommand> validator)
     : ICommandHandler<CreateConnectionCommand>
 {
     public async ValueTask Handle(CreateConnectionCommand cmd, CancellationToken ct)
@@ -75,23 +75,29 @@ public sealed class MyEffects(IMediator mediator)
 public static class MyReducers
 {
     [ReducerMethod]
-    public static MyState OnLoad(MyState state, LoadItemsAction _) 
+    public static MyState OnLoad(MyState state, LoadItemsAction _)
         => state with { IsLoading = true };
 }
 ```
 
 ### Blazor Components
 ```csharp
-// Code-behind (.razor.cs) - use when component has logic/dependencies
+// Code-behind (.razor.cs) - use constructor injection (not [Inject] properties)
 public partial class MyComponent
 {
-    [Inject] private IState<MyState> State { get; set; } = null!;
-    [Inject] private IDispatcher Dispatcher { get; set; } = null!;
+    private readonly IState<MyState> _state;
+    private readonly IDispatcher _dispatcher;
+
+    public MyComponent(IState<MyState> state, IDispatcher dispatcher)
+    {
+        _state = state;
+        _dispatcher = dispatcher;
+    }
 
     protected override void OnInitialized()
     {
-        if (!State.Value.IsLoaded)
-            Dispatcher.Dispatch(new LoadAction());
+        if (!_state.Value.IsLoaded)
+            _dispatcher.Dispatch(new LoadAction());
     }
 }
 ```
@@ -101,13 +107,13 @@ public partial class MyComponent
 <!-- NO @inherits needed - inherited from _Imports.razor -->
 <!-- MUST have single root element for isolated CSS -->
 <div class="my-component">
-    @if (State.Value.IsLoading)
+    @if (_state.Value.IsLoading)
     {
         <MudProgressLinear Indeterminate="true" />
     }
     else
     {
-        @foreach (var item in State.Value.Items)
+        @foreach (var item in _state.Value.Items)
         {
             <MudCard>@item.Name</MudCard>
         }

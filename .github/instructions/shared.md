@@ -1,3 +1,6 @@
+---
+applyTo: "**"
+---
 # Shared Project Standards
 
 This document contains common patterns and standards used across development and testing.
@@ -56,4 +59,3 @@ public async Task MethodName()
 - **Run:** `dotnet run`
 - **Test:** `dotnet test`
 - **Filter tests:** `dotnet test --filter "FullyQualifiedName~ClassName"`
-

@@ -1,51 +1,36 @@
 ---
 name: orchestrator
-description: Routes tasks to specialized agents (developer or tester)
+description: Routes tasks to specialized agents (developer, tester, or debugger)
 ---
 
-Main orchestrator for Messentra - analyze requests and delegate to appropriate agent.
+Main orchestrator for Messentra — analyze the request and embody the appropriate agent role.
 
 ## Available Agents
 
+### Orchestrator (`orchestrator`)
+🤖 **[Agent →](./agents/orchestrator.agent.md)**
+
+**Use for:** Any multi-step task — new features with tests, bug fix + regression test, refactors. Plans work first, then executes step by step using the right specialist agents.
+
 ### Developer Agent (`developer`)
-📖 **[Full specification →](./instructions/development.instructions.md)**
+🤖 **[Agent →](./agents/developer.agent.md)** · 📖 **[Full spec →](./instructions/development.instructions.md)**
 
 **Use for:** Features, CQRS operations, UI components, Fluxor state, validators, database operations, refactoring, bug fixes
 
 ### Tester Agent (`tester`)
-📖 **[Full specification →](./instructions/tests.instructions.md)**
+🤖 **[Agent →](./agents/tester.agent.md)** · 📖 **[Full spec →](./instructions/tests.instructions.md)**
 
-**Use for:** Unit tests, component tests, test coverage, fixing failing tests, integration tests
+**Use for:** Unit tests, component tests, test coverage, fixing failing tests
+
+### Debugger Agent (`debugger`)
+🤖 **[Agent →](./agents/debugger.agent.md)** · 📖 **[Full spec →](./instructions/debugging.instructions.md)**
+
+**Use for:** Diagnosing runtime errors, Fluxor state issues, Azure SDK failures, EF Core errors, component rendering bugs
 
 ## Decision Process
-1. Analyze request keywords and intent
-2. Classify: Implementation or Testing?
-3. Select agent and announce decision
-4. Delegate to agent
-
-## Response Format
-```
-📋 **Task Analysis**
-- Request: [summary]
-- Classification: [Implementation | Testing]
-- Selected Agent: [developer | tester]
-- Reason: [why]
----
-```
-
-## Edge Cases
-**Both needed:** Delegate to developer first, then tester  
-**Ambiguous:** Ask questions or make reasonable assumption  
-**Out of scope:** Explain why and suggest rephrasing
+1. **Multi-step task** (feature + tests, bug + fix + test, refactor)? → use **orchestrator**
+2. **Single concern** (implement only, test only, diagnose only)? → use the specialist directly
+3. **Ambiguous?** → default to **orchestrator**
 
 ## Project Context
-📖 **[Shared Standards](./instructions/shared.md)** - Tech stack, naming conventions, tools
-
-**Architecture:** Vertical slice + CQRS, Fluxor state, MudBlazor UI
-
-### Component Standards
-- ✅ FluxorComponent inherited via `_Imports.razor` - **DON'T** add `@inherits`
-- ✅ Use `.razor.cs` for logic, `.razor.css` for styles
-- ❌ **NEVER** use `Style` attribute or `<style>` tags
-- ⚠️ **MUST** wrap in single root element for isolated CSS
-
+📖 **[Shared Standards](./instructions/shared.md)** — always active via `applyTo: "**"` (naming, component rules, commands)
