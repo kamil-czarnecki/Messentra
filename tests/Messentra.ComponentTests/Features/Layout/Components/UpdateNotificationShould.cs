@@ -36,7 +36,11 @@ public sealed class UpdateNotificationShould : ComponentTestBase
     [Fact]
     public void RenderMudTextWithCaptionTypo()
     {
-        // Arrange & Act
+        // Arrange
+        var state = GetState<AutoUpdateState>();
+        state.SetState(state.Value with { CurrentVersion = "v1.0.0" });
+
+        // Act
         var cut = Render<UpdateNotification>();
 
         // Assert
@@ -171,6 +175,203 @@ public sealed class UpdateNotificationShould : ComponentTestBase
         _fakeAutoUpdater.RaiseError("test error");
 
         MockDispatcher.Verify(d => d.Dispatch(It.IsAny<object>()), Times.Exactly(6)); // RunAutoUpdater + 5 events
+    }
+
+    // --- Update available ---
+
+    [Fact]
+    public void RenderUpdateAvailableButton_WhenUpdateIsAvailable()
+    {
+        // Arrange
+        var state = GetState<AutoUpdateState>();
+        state.SetState(state.Value with
+        {
+            CurrentVersion = "v1.0.0",
+            IsUpdateAvailable = true,
+            AvailableVersion = "v2.0.0",
+            IsDownloading = false,
+            IsReadyToInstall = false
+        });
+
+        // Act
+        var cut = Render<UpdateNotification>();
+
+        // Assert
+        cut.FindComponent<MudIconButton>().Instance.Icon.ShouldBe(Icons.Material.Outlined.NewReleases);
+    }
+
+    [Fact]
+    public void NotRenderUpdateAvailableButton_WhenDownloading()
+    {
+        // Arrange
+        var state = GetState<AutoUpdateState>();
+        state.SetState(state.Value with
+        {
+            CurrentVersion = "v1.0.0",
+            IsUpdateAvailable = true,
+            IsDownloading = true,
+            IsReadyToInstall = false
+        });
+
+        // Act
+        var cut = Render<UpdateNotification>();
+
+        // Assert — no icon buttons at all (no download, no install)
+        cut.FindComponents<MudIconButton>().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void NotRenderUpdateAvailableButton_WhenReadyToInstall()
+    {
+        // Arrange
+        var state = GetState<AutoUpdateState>();
+        state.SetState(state.Value with
+        {
+            CurrentVersion = "v1.0.0",
+            IsUpdateAvailable = true,
+            IsReadyToInstall = true
+        });
+
+        // Act
+        var cut = Render<UpdateNotification>();
+
+        // Assert — install button shown, but NOT the download button
+        cut.FindComponents<MudIconButton>()
+            .ShouldNotContain(b => b.Instance.Icon == Icons.Material.Outlined.NewReleases);
+    }
+
+    [Fact]
+    public void DispatchDownloadUpdateAction_WhenDownloadButtonClicked()
+    {
+        // Arrange
+        var state = GetState<AutoUpdateState>();
+        state.SetState(state.Value with
+        {
+            CurrentVersion = "v1.0.0",
+            IsUpdateAvailable = true,
+            AvailableVersion = "v2.0.0",
+            IsDownloading = false,
+            IsReadyToInstall = false
+        });
+        var cut = Render<UpdateNotification>();
+
+        // Act
+        cut.Find("button").Click();
+
+        // Assert
+        MockDispatcher.Verify(d => d.Dispatch(new DownloadUpdateAction()), Times.Once);
+    }
+
+    // --- Error ---
+
+    [Fact]
+    public void RenderErrorAlert_WhenErrorMessageSet()
+    {
+        // Arrange
+        var state = GetState<AutoUpdateState>();
+        state.SetState(state.Value with { ErrorMessage = "Update failed" });
+
+        // Act
+        var cut = Render<UpdateNotification>();
+
+        // Assert
+        cut.FindComponents<MudAlert>().ShouldNotBeEmpty();
+        cut.Markup.ShouldContain("Update failed");
+    }
+
+    [Fact]
+    public void NotRenderErrorAlert_WhenNoErrorMessage()
+    {
+        // Arrange & Act
+        var cut = Render<UpdateNotification>();
+
+        // Assert
+        cut.FindComponents<MudAlert>().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void DispatchDismissUpdateErrorAction_WhenErrorAlertClosed()
+    {
+        // Arrange
+        var state = GetState<AutoUpdateState>();
+        state.SetState(state.Value with { ErrorMessage = "Update failed" });
+        var cut = Render<UpdateNotification>();
+
+        // Act — click the close button inside the alert (CurrentVersion is null so it's the only button)
+        cut.Find("button").Click();
+
+        // Assert
+        MockDispatcher.Verify(d => d.Dispatch(new DismissUpdateErrorAction()), Times.Once);
+    }
+
+    // --- Downloading ---
+
+    [Fact]
+    public void RenderProgressCircular_WhenDownloading()
+    {
+        // Arrange
+        var state = GetState<AutoUpdateState>();
+        state.SetState(state.Value with
+        {
+            CurrentVersion = "v1.0.0",
+            IsDownloading = true,
+            DownloadProgress = 65.0
+        });
+
+        // Act
+        var cut = Render<UpdateNotification>();
+
+        // Assert
+        cut.FindComponent<MudProgressCircular>().Instance.Value.ShouldBe(65.0);
+    }
+
+    [Fact]
+    public void NotRenderProgressCircular_WhenNotDownloading()
+    {
+        // Arrange & Act
+        var cut = Render<UpdateNotification>();
+
+        // Assert
+        cut.FindComponents<MudProgressCircular>().ShouldBeEmpty();
+    }
+
+    // --- Ready to install ---
+
+    [Fact]
+    public void RenderInstallButton_WhenReadyToInstall()
+    {
+        // Arrange
+        var state = GetState<AutoUpdateState>();
+        state.SetState(state.Value with
+        {
+            CurrentVersion = "v1.0.0",
+            IsReadyToInstall = true
+        });
+
+        // Act
+        var cut = Render<UpdateNotification>();
+
+        // Assert
+        cut.FindComponent<MudIconButton>().Instance.Icon.ShouldBe(Icons.Material.Outlined.SystemUpdateAlt);
+    }
+
+    [Fact]
+    public void DispatchInstallUpdateAction_WhenInstallButtonClicked()
+    {
+        // Arrange
+        var state = GetState<AutoUpdateState>();
+        state.SetState(state.Value with
+        {
+            CurrentVersion = "v1.0.0",
+            IsReadyToInstall = true
+        });
+        var cut = Render<UpdateNotification>();
+
+        // Act
+        cut.Find("button").Click();
+
+        // Assert
+        MockDispatcher.Verify(d => d.Dispatch(new InstallUpdateAction()), Times.Once);
     }
 }
 

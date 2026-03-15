@@ -61,11 +61,9 @@ builder.UseElectron(args, async () =>
     splash.LoadURL(splashUrl);
 
     // Main window
-    var version = typeof(Program).Assembly.GetName().Version;
-    var versionString = version is not null ? $" v{version.Major}.{version.Minor}.{version.Build}" : string.Empty;
     var options = new BrowserWindowOptions
     {
-        Title = $"Messentra {versionString}",
+        Title = "Messentra",
         Show = false,
         IsRunningBlazor = true,
         MinHeight = 768,

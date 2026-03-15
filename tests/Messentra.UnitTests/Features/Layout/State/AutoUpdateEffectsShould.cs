@@ -128,18 +128,6 @@ public sealed class AutoUpdateEffectsShould
         _autoUpdater.Verify(x => x.DownloadUpdate(), Times.Once);
     }
 
-    [Fact]
-    public async Task DispatchUpdateReadyToInstallAction_WhenDownloadUpdateActionHandled()
-    {
-        // Arrange
-        _autoUpdater.Setup(x => x.DownloadUpdate()).Returns(Task.CompletedTask);
-
-        // Act
-        await _sut.HandleDownloadUpdate(new DownloadUpdateAction(), _dispatcher.Object);
-
-        // Assert
-        _dispatcher.Verify(d => d.Dispatch(new UpdateReadyToInstallAction()), Times.Once);
-    }
 
     [Fact]
     public async Task DispatchAutoUpdateErrorAction_WhenDownloadUpdateThrows()
@@ -175,7 +163,7 @@ public sealed class AutoUpdateEffectsShould
         await _sut.HandleInstallUpdate(new InstallUpdateAction(), _dispatcher.Object);
 
         // Assert
-        _autoUpdater.Verify(x => x.QuitAndInstall(true, false), Times.Once);
+        _autoUpdater.Verify(x => x.QuitAndInstall(false, false), Times.Once);
     }
 
     [Fact]

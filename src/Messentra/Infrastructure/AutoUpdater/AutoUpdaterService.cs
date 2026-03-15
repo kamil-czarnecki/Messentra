@@ -36,23 +36,30 @@ public sealed class AutoUpdaterService : IAutoUpdaterService
     
     public async Task<string> GetCurrentVersion()
     {
+        _logger.LogInformation("Getting current version...");
         var semVer = await Electron.AutoUpdater.CurrentVersionAsync;
+        _logger.LogInformation("Current version: {SemVer}", semVer.Version);
         
         return $"v{semVer.Version}";
     }
 
     public async Task CheckForUpdates()
     {
+        _logger.LogInformation("Checking for updates...");
         await Electron.AutoUpdater.CheckForUpdatesAsync();
+        _logger.LogInformation("Update check complete");
     }
 
     public async Task DownloadUpdate()
     {
+        _logger.LogInformation("Downloading update...");
         await Electron.AutoUpdater.DownloadUpdateAsync();
+        _logger.LogInformation("Update download complete");
     }
 
     public void QuitAndInstall(bool isSilent = true, bool isForceRunAfter = false)
     {
+        _logger.LogInformation("Quitting and installing update...");
         Electron.AutoUpdater.QuitAndInstall(isSilent, isForceRunAfter);
     }
     
@@ -60,6 +67,11 @@ public sealed class AutoUpdaterService : IAutoUpdaterService
     {
         Electron.AutoUpdater.AutoDownload = false;
         Electron.AutoUpdater.AutoInstallOnAppQuit = false;
+        Electron.AutoUpdater.FullChangelog = true;
+        Electron.AutoUpdater.OnCheckingForUpdate += () =>
+        {
+            _logger.LogInformation("Checking for update...");
+        };
         Electron.AutoUpdater.OnUpdateAvailable += info =>
         {
             try
