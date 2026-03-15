@@ -54,7 +54,7 @@ public sealed class AutoUpdateEffects
     {
         try
         {
-            _autoUpdater.QuitAndInstall(false);
+            _autoUpdater.QuitAndInstall(isSilent: false);
         }
         catch (Exception ex)
         {
