@@ -7,10 +7,13 @@ Detailed per-agent instructions live in `.github/instructions/`. Invokable agent
 
 | Role | Agent file | Full spec |
 |------|-----------|-----------|
-| 📋 Orchestrator | [orchestrator.agent.md](/.github/agents/orchestrator.agent.md) | Plans multi-step tasks and delegates to specialist agents |
 | 🛠 Developer | [developer.agent.md](/.github/agents/developer.agent.md) | [development.instructions.md](/.github/instructions/development.instructions.md) |
 | 🧪 Tester | [tester.agent.md](/.github/agents/tester.agent.md) | [tests.instructions.md](/.github/instructions/tests.instructions.md) |
+| 🔧 Tests Run & Fix | [tests-run-fix.agent.md](/.github/agents/tests-run-fix.agent.md) | Run suite, triage failures, fix, confirm green |
 | 🔍 Debugger | [debugger.agent.md](/.github/agents/debugger.agent.md) | [debugging.instructions.md](/.github/instructions/debugging.instructions.md) |
+| 🔎 Code Reviewer | [code-reviewer.agent.md](/.github/agents/code-reviewer.agent.md) | Convention & architecture quality audit |
+| ✂️ Refactoring | [refactoring.agent.md](/.github/agents/refactoring.agent.md) | Behaviour-preserving code improvements |
+| 📦 Committer | [committer.agent.md](/.github/agents/committer.agent.md) | Branch creation, code review gate, conventional commits |
 
 ## Architecture Overview
 

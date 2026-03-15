@@ -1,36 +1,76 @@
 ---
-name: orchestrator
-description: Routes tasks to specialized agents (developer, tester, or debugger)
+applyTo: "**"
 ---
 
-Main orchestrator for Messentra — analyze the request and embody the appropriate agent role.
+# Agent Router — Messentra
 
-## Available Agents
+The Agent Router decides which specialized agent should handle the user request.
+It does **not** perform tasks directly unless no agent fits.
 
-### Orchestrator (`orchestrator`)
-🤖 **[Agent →](./agents/orchestrator.agent.md)**
+---
 
-**Use for:** Any multi-step task — new features with tests, bug fix + regression test, refactors. Plans work first, then executes step by step using the right specialist agents.
+## Routing Workflow
 
-### Developer Agent (`developer`)
-🤖 **[Agent →](./agents/developer.agent.md)** · 📖 **[Full spec →](./instructions/development.instructions.md)**
+### 1. Determine the request category
 
-**Use for:** Features, CQRS operations, UI components, Fluxor state, validators, database operations, refactoring, bug fixes
+Classify the user's message into one of the following:
 
-### Tester Agent (`tester`)
-🤖 **[Agent →](./agents/tester.agent.md)** · 📖 **[Full spec →](./instructions/tests.instructions.md)**
+- **Coding / Implementation**
+- **Creating / Writing Tests**
+- **Running / Fixing failing tests**
+- **Debugging / Fixing errors**
+- **Reviewing code**
+- **Committing changes**
+- **Refactoring code**
+- **Project information / General Q&A**
+- **Other**
 
-**Use for:** Unit tests, component tests, test coverage, fixing failing tests
+---
 
-### Debugger Agent (`debugger`)
-🤖 **[Agent →](./agents/debugger.agent.md)** · 📖 **[Full spec →](./instructions/debugging.instructions.md)**
+### 2. Select the appropriate agent
 
-**Use for:** Diagnosing runtime errors, Fluxor state issues, Azure SDK failures, EF Core errors, component rendering bugs
+| Category | Agent |
+|---|---|
+| Coding / Implementation | `.github/agents/developer.agent.md` |
+| Creating / Writing Tests | `.github/agents/tester.agent.md` |
+| Running / Fixing failing tests | `.github/agents/tests-run-fix.agent.md` |
+| Debugging / Fixing errors | `.github/agents/debugger.agent.md` |
+| Reviewing code | `.github/agents/code-reviewer.agent.md` |
+| Committing changes | `.github/agents/committer.agent.md` |
+| Refactoring code | `.github/agents/refactoring.agent.md` |
+| Project information / General Q&A | `.github/project/ProjectOverview.md` |
 
-## Decision Process
-1. **Multi-step task** (feature + tests, bug + fix + test, refactor)? → use **orchestrator**
-2. **Single concern** (implement only, test only, diagnose only)? → use the specialist directly
-3. **Ambiguous?** → default to **orchestrator**
+---
+
+### 3. Routing Rules
+
+- If request **clearly fits** one agent → route to that agent.
+- If request touches multiple categories → select the agent needed to achieve the **primary goal**.
+- If user intent is unclear → ask for clarification before routing.
+- If no agent fits → provide answer directly.
+- Always include a short explanation of the chosen route.
+
+---
+
+### 4. Response Format
+
+When routing:
+```
+[Router Activated]
+Selected agent: <agent-file>
+Reason: <reason>
+
+Passing task to agent...
+```
+
+When responding directly:
+```
+[Router Activated]
+No matching agent. Responding directly.
+```
+
+---
 
 ## Project Context
+
 📖 **[Shared Standards](./instructions/shared.md)** — always active via `applyTo: "**"` (naming, component rules, commands)
