@@ -59,9 +59,8 @@ public sealed class AutoUpdaterService : IAutoUpdaterService
 
     public void QuitAndInstall(bool isSilent = true, bool isForceRunAfter = false)
     {
-        _logger.LogInformation("Quit and installing update...");
+        _logger.LogInformation("Quitting and installing update...");
         Electron.AutoUpdater.QuitAndInstall(isSilent, isForceRunAfter);
-        _logger.LogInformation("Update quit complete");
     }
     
     private void SetupAutoUpdater()
