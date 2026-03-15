@@ -41,9 +41,7 @@ public sealed class AutoUpdateEffects
     {
         try
         {
-            await _autoUpdater.DownloadUpdate();    
-            
-            dispatcher.Dispatch(new UpdateReadyToInstallAction());
+            await _autoUpdater.DownloadUpdate();
         }
         catch (Exception ex)
         {
@@ -56,7 +54,7 @@ public sealed class AutoUpdateEffects
     {
         try
         {
-            _autoUpdater.QuitAndInstall();
+            _autoUpdater.QuitAndInstall(false);
         }
         catch (Exception ex)
         {

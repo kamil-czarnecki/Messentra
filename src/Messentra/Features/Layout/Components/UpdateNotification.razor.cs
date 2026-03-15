@@ -63,6 +63,21 @@ public partial class UpdateNotification : IDisposable
         _dispatcher.Dispatch(new AutoUpdateErrorAction(errorMessage));
     }
 
+    private void OnDownloadClick()
+    {
+        _dispatcher.Dispatch(new DownloadUpdateAction());
+    }
+
+    private void OnInstallClick()
+    {
+        _dispatcher.Dispatch(new InstallUpdateAction());
+    }
+
+    private void OnCloseErrorClick()
+    {
+        _dispatcher.Dispatch(new DismissUpdateErrorAction());
+    }
+
     protected virtual void Dispose(bool disposing)
     {
         if (!disposing)

@@ -1,7 +1,43 @@
 <div class="update-notification mud-height-full">
-    <MudStack Justify="Justify.FlexEnd" Class="mud-height-full">
-        <MudText Align="Align.Center" Typo="Typo.caption">
-            @_state.Value.CurrentVersion
-        </MudText>
+    <MudStack Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mud-height-full" Spacing="2">
+        @if(_state.Value.ErrorMessage != null)
+        {
+            <MudAlert Severity="Severity.Error" ShowCloseIcon="true" Dense="true" Variant="Variant.Outlined" Class="update-alert mb-2" CloseIconClicked="@OnCloseErrorClick">
+                <MudText Typo="Typo.caption">@_state.Value.ErrorMessage</MudText>
+            </MudAlert>
+        }
+        @if (_state.Value.CurrentVersion != null)
+        {
+            @if (_state.Value.IsUpdateAvailable && !_state.Value.IsDownloading && !_state.Value.IsReadyToInstall)
+            {
+                <MudTooltip Text="@($"A new version '{_state.Value.AvailableVersion}' is available! Click to download the latest version.")">
+                    <MudIconButton
+                        Ripple="false"
+                        Size="Size.Small"
+                        Icon="@Icons.Material.Outlined.NewReleases"
+                        Color="Color.Secondary"
+                        OnClick="@OnDownloadClick"/>
+                </MudTooltip>
+            }
+            @if (_state.Value.IsDownloading)
+            {
+                <MudProgressCircular Color="Color.Secondary" Size="Size.Small" Min="0" Max="100" Value="@_state.Value.DownloadProgress"/>
+            }
+            @if (_state.Value.IsReadyToInstall)
+            {
+                <MudTooltip Text="@($"Install the latest version '{_state.Value.AvailableVersion}' now!")">
+                    <MudIconButton
+                        Ripple="false"
+                        Size="Size.Small"
+                        Icon="@Icons.Material.Outlined.SystemUpdateAlt"
+                        Color="Color.Secondary"
+                        OnClick="@OnInstallClick"/>
+                </MudTooltip>
+            }
+                
+            <MudText Align="Align.Center" Typo="Typo.caption">
+                @_state.Value.CurrentVersion
+            </MudText>
+        }
     </MudStack>
 </div>
