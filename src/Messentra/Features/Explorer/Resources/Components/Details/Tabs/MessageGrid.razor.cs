@@ -92,12 +92,24 @@ public partial class MessageGrid
         _jsRuntime = jsRuntime;
     }
 
+    private string? ResourceKey(ResourceTreeNode? node) => node switch
+    {
+        QueueTreeNode q => $"queue:{q.ConnectionName}:{q.Resource.Name}:{SubQueue}",
+        SubscriptionTreeNode s =>
+            $"subscription:{s.ConnectionName}:{s.Resource.TopicName}:{s.Resource.Name}:{SubQueue}",
+        _ => null
+    };
+
     protected override void OnParametersSet()
     {
-        if (ReferenceEquals(ResourceTreeNode, _previousResourceTreeNode))
-            return;
-
+        var currentKey  = ResourceKey(ResourceTreeNode);
+        var previousKey = ResourceKey(_previousResourceTreeNode);
+        
         _previousResourceTreeNode = ResourceTreeNode;
+        
+        if (currentKey != null && currentKey == previousKey)
+            return;
+        
         _messages = [];
         _lastSelected = null;
         _searchTerm = string.Empty;
