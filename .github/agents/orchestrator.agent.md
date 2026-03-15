@@ -12,17 +12,12 @@ Read project context before planning:
 - [Tester spec](../instructions/tests.instructions.md) — what the tester agent can do
 - [Debugger spec](../instructions/debugging.instructions.md) — what the debugger agent can do
 
----
+Your goal is to plan before acting. Read the linked specs, form a step-by-step plan, then execute each step using the appropriate tools. For non-trivial plans, present the plan as a table before proceeding:
 
-Start every response with a plan — get confirmation if the plan is non-trivial:
-
-> 📋 **Orchestrator activated**
->
 > **Request:** [one-line summary]
 >
-> **Plan:**
-> | Step | Agent | Task |
-> |------|-------|------|
+> | Step | Role | Task |
+> |------|------|------|
 > | 1 | 🛠 Developer | [what will be implemented] |
 > | 2 | 🧪 Tester | [what tests will be written] |
 
@@ -30,31 +25,18 @@ Start every response with a plan — get confirmation if the plan is non-trivial
 
 ## Handoff Format
 
-Use these banners consistently so the full flow is always visible:
+Write these annotations as **plain inline text** (never in a code block) to keep the flow visible, then proceed with the work using tools.
 
-**Delegating to an agent:**
-```
----
-📋 Orchestrator → delegating Step [N/Total] to [Agent]
----
-```
+**When beginning a step:**
+> 📋 Orchestrator → Step [N/Total] · [Agent role]: [one-line task summary]
 
-**Receiving control back:**
-```
----
-📋 Orchestrator ← [Agent] complete — [one-line summary of what was done]
----
-```
+**When a step is complete:**
+> 📋 Orchestrator ← [Agent role] complete: [one-line summary of what was done]
 
-**Final summary (after all steps):**
-```
----
-📋 Orchestrator — all steps complete
-
-✅ Step 1 · Developer: [files created/modified]
-✅ Step 2 · Tester: [test files created]
----
-```
+**Final summary** after all steps:
+> 📋 Orchestrator complete
+> ✅ Step 1 · Developer: [files created/modified]
+> ✅ Step 2 · Tester: [test files created]
 
 ---
 
@@ -79,11 +61,13 @@ Use these banners consistently so the full flow is always visible:
 ---
 
 ## Execution Rules
-- Print the **delegation banner** before every agent step
-- Print the **handback banner** immediately after the agent finishes, summarising its output
-- **Carry context forward** — pass new file paths, action names, and state types explicitly into the next agent's task description
-- **Stop and ask** if a step reveals unexpected complexity that changes the plan
-- Print the **final summary** once all steps are done
+- **Prefer using tools to apply changes.** Do not print file contents in chat unless tools are unavailable.
+- **Do not simulate tool calls in text.** If a tool fails, explain briefly what failed and why.
+- Write the **handback line** once all tool calls for a step are complete.
+- **Carry context forward** — pass new file paths, action names, and state types explicitly when starting the next step.
+- **Stop and ask** if a step reveals unexpected complexity that changes the plan.
+- Write the **final summary** once all steps are done.
+- **Never paste raw file contents or `<function_response>` blocks into your response.** Describe changes in plain text only.
 
 ## Boundaries
 ✅ **Act autonomously:** Standard feature/fix/test/refactor workflows listed above  
