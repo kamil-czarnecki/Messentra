@@ -10,7 +10,7 @@ using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources.Components.Details.Tabs;
 
-public partial class MessageGrid
+public partial class MessageGrid : IDisposable
 {
     [Parameter, EditorRequired]
     public ResourceTreeNode ResourceTreeNode { get; init; } = null!;
@@ -35,6 +35,7 @@ public partial class MessageGrid
     private MudDataGrid<ServiceBusMessage> _grid = null!;
     private ServiceBusMessage? _lastSelected;
     private ResourceTreeNode? _previousResourceTreeNode;
+    private CancellationTokenSource _resourceOperationCts = new();
     private List<ServiceBusMessage> _messages = [];
     private FetchMessagesOptions? _fetchMessagesOptions;
     private string _searchTerm = string.Empty;
@@ -109,11 +110,33 @@ public partial class MessageGrid
         
         if (currentKey != null && currentKey == previousKey)
             return;
+
+        var previousCts = _resourceOperationCts;
+        _resourceOperationCts = new CancellationTokenSource();
+        previousCts.Cancel();
+        previousCts.Dispose();
         
         _messages = [];
         _lastSelected = null;
         _searchTerm = string.Empty;
         _fetchMessagesOptions = null;
+        _isGridLoading = false;
+        _isFetchOngoing = false;
+        _actionOngoing = false;
+    }
+
+    private void LogCanceledOperation(string operation)
+    {
+        _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+            ConnectionName, "Warning",
+            $"{operation} canceled for '{ResourceName}'.",
+            DateTime.Now)));
+    }
+
+    public void Dispose()
+    {
+        _resourceOperationCts.Cancel();
+        _resourceOperationCts.Dispose();
     }
 
     private string GetRowClass(ServiceBusMessage msg) =>
@@ -219,6 +242,7 @@ public partial class MessageGrid
             _isFetchOngoing = true;
 
             var optionsWithSubQueue = optionsData with { SubQueue = SubQueue };
+            var cancellationToken = _resourceOperationCts.Token;
 
             try
             {
@@ -233,23 +257,33 @@ public partial class MessageGrid
                         (await _mediator.Send(new FetchQueueMessagesQuery(
                             QueueName: queue.Resource.Name,
                             ConnectionConfig: queue.ConnectionConfig,
-                            Options: optionsWithSubQueue))).ToList(),
+                            Options: optionsWithSubQueue), cancellationToken)).ToList(),
 
                     _ when ResourceTreeNode is SubscriptionTreeNode subscription =>
                         (await _mediator.Send(new FetchSubscriptionMessagesQuery(
                             TopicName: subscription.Resource.TopicName,
                             SubscriptionName: subscription.Resource.Name,
                             ConnectionConfig: subscription.ConnectionConfig,
-                            Options: optionsWithSubQueue))).ToList(),
+                            Options: optionsWithSubQueue), cancellationToken)).ToList(),
 
                     _ => throw new InvalidOperationException(
                         $"Unsupported resource type: {ResourceTreeNode.GetType().Name}")
                 };
 
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    LogCanceledOperation("Fetching messages");
+                    return;
+                }
+
                 _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                     ConnectionName, "Info",
                     $"Fetched {_messages.Count} message(s) from '{ResourceName}'.",
                     DateTime.Now)));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                LogCanceledOperation("Fetching messages");
             }
             catch (Exception ex)
             {
@@ -258,13 +292,15 @@ public partial class MessageGrid
                     $"Fetching messages from '{ResourceName}' failed: {ex.Message}",
                     DateTime.Now)));
             }
+            finally
+            {
+                _fetchMessagesOptions = optionsWithSubQueue;
+                _isGridLoading = false;
+                _isFetchOngoing = false;
 
-            _fetchMessagesOptions = optionsWithSubQueue;
-            _isGridLoading = false;
-            _isFetchOngoing = false;
-
-            if (IsReceiveAndDeleteMode)
-                await OnRefresh.InvokeAsync();
+                if (IsReceiveAndDeleteMode)
+                    await OnRefresh.InvokeAsync();
+            }
         }
     }
 
@@ -272,6 +308,7 @@ public partial class MessageGrid
     {
         _actionOngoing = true;
         var count = SelectedItems.Count;
+        var cancellationToken = _resourceOperationCts.Token;
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
             ConnectionName, "Debug",
             $"Resending {count} message(s) from '{ResourceName}'...",
@@ -280,7 +317,7 @@ public partial class MessageGrid
         {
             await Parallel.ForEachAsync(
                 SelectedItems,
-                new ParallelOptions { MaxDegreeOfParallelism = 100 },
+                new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = cancellationToken },
                 async (message, ct) =>
                 {
                     await message.MessageContext.Resend(ct);
@@ -288,6 +325,13 @@ public partial class MessageGrid
                     if (autoComplete)
                         await message.MessageContext.Complete(ct);
                 });
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                LogCanceledOperation("Resending messages");
+                
+                return;
+            }
 
             if (autoComplete)
             {
@@ -300,6 +344,10 @@ public partial class MessageGrid
                 $"Resent {count} message(s) from '{ResourceName}'.",
                 DateTime.Now)));
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            LogCanceledOperation("Resending messages");
+        }
         catch (Exception ex)
         {
             _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
@@ -307,14 +355,18 @@ public partial class MessageGrid
                 $"Resending messages from '{ResourceName}' failed: {ex.Message}",
                 DateTime.Now)));
         }
-        _actionOngoing = false;
-        await OnRefresh.InvokeAsync();
+        finally
+        {
+            _actionOngoing = false;
+            await OnRefresh.InvokeAsync();
+        }
     }
 
     private async Task OnCompleteClicked()
     {
         _actionOngoing = true;
         var count = SelectedItems.Count;
+        var cancellationToken = _resourceOperationCts.Token;
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
             ConnectionName, "Debug",
             $"Completing {count} message(s) from '{ResourceName}'...",
@@ -323,8 +375,14 @@ public partial class MessageGrid
         {
             await Parallel.ForEachAsync(
                 SelectedItems,
-                new ParallelOptions { MaxDegreeOfParallelism = 100 },
+                new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = cancellationToken },
                 async (message, ct) => await message.MessageContext.Complete(ct));
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                LogCanceledOperation("Completing messages");
+                return;
+            }
 
             _messages = _messages.Except(SelectedItems).ToList();
             SelectedItems = [];
@@ -333,6 +391,10 @@ public partial class MessageGrid
                 $"Completed {count} message(s) from '{ResourceName}'.",
                 DateTime.Now)));
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            LogCanceledOperation("Completing messages");
+        }
         catch (Exception ex)
         {
             _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
@@ -340,14 +402,18 @@ public partial class MessageGrid
                 $"Completing messages from '{ResourceName}' failed: {ex.Message}",
                 DateTime.Now)));
         }
-        _actionOngoing = false;
-        await OnRefresh.InvokeAsync();
+        finally
+        {
+            _actionOngoing = false;
+            await OnRefresh.InvokeAsync();
+        }
     }
 
     private async Task OnAbandonClicked()
     {
         _actionOngoing = true;
         var count = SelectedItems.Count;
+        var cancellationToken = _resourceOperationCts.Token;
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
             ConnectionName, "Debug",
             $"Abandoning {count} message(s) from '{ResourceName}'...",
@@ -356,8 +422,14 @@ public partial class MessageGrid
         {
             await Parallel.ForEachAsync(
                 SelectedItems,
-                new ParallelOptions { MaxDegreeOfParallelism = 100 },
+                new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = cancellationToken },
                 async (message, ct) => await message.MessageContext.Abandon(ct));
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                LogCanceledOperation("Abandoning messages");
+                return;
+            }
 
             _messages = _messages.Except(SelectedItems).ToList();
             SelectedItems = [];
@@ -366,6 +438,10 @@ public partial class MessageGrid
                 $"Abandoned {count} message(s) from '{ResourceName}'.",
                 DateTime.Now)));
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            LogCanceledOperation("Abandoning messages");
+        }
         catch (Exception ex)
         {
             _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
@@ -373,14 +449,18 @@ public partial class MessageGrid
                 $"Abandoning messages from '{ResourceName}' failed: {ex.Message}",
                 DateTime.Now)));
         }
-        _actionOngoing = false;
-        await OnRefresh.InvokeAsync();
+        finally
+        {
+            _actionOngoing = false;
+            await OnRefresh.InvokeAsync();
+        }
     }
 
     private async Task OnDeadLetterClicked()
     {
         _actionOngoing = true;
         var count = SelectedItems.Count;
+        var cancellationToken = _resourceOperationCts.Token;
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
             ConnectionName, "Debug",
             $"Dead-lettering {count} message(s) from '{ResourceName}'...",
@@ -389,8 +469,14 @@ public partial class MessageGrid
         {
             await Parallel.ForEachAsync(
                 SelectedItems,
-                new ParallelOptions { MaxDegreeOfParallelism = 100 },
+                new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = cancellationToken },
                 async (message, ct) => await message.MessageContext.DeadLetter(ct));
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                LogCanceledOperation("Dead-lettering messages");
+                return;
+            }
 
             _messages = _messages.Except(SelectedItems).ToList();
             SelectedItems = [];
@@ -399,6 +485,10 @@ public partial class MessageGrid
                 $"Dead-lettered {count} message(s) from '{ResourceName}'.",
                 DateTime.Now)));
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            LogCanceledOperation("Dead-lettering messages");
+        }
         catch (Exception ex)
         {
             _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
@@ -406,7 +496,10 @@ public partial class MessageGrid
                 $"Dead-lettering messages from '{ResourceName}' failed: {ex.Message}",
                 DateTime.Now)));
         }
-        _actionOngoing = false;
-        await OnRefresh.InvokeAsync();
+        finally
+        {
+            _actionOngoing = false;
+            await OnRefresh.InvokeAsync();
+        }
     }
 }
