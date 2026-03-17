@@ -74,7 +74,8 @@ public sealed class MessageGridShould : ComponentTestBase
 
     private async Task FetchMessagesThroughUi(IRenderedComponent<MessageGrid> cut, FetchMode mode = FetchMode.Peek)
     {
-        await cut.FindAll("button").Single(x => x.TextContent.Trim() == "Fetch").ClickAsync();
+        // ClickAsync causes deadlock 
+        cut.FindAll("button").Single(x => x.TextContent.Trim() == "Fetch").Click();
 
         if (mode == FetchMode.Receive)
         {

@@ -229,6 +229,11 @@ public sealed class MyComponentShould : ComponentTestBase
 }
 ```
 
+### bUnit Dialog Click Pitfall
+- If a button handler awaits `dialogReference.Result`, `await button.ClickAsync()` can hang because the click waits for the handler to finish while the handler waits for the dialog to close.
+- Prefer `button.Click()` for the initial dialog-open action.
+- If you want async style, start the click without awaiting (`var clickTask = button.ClickAsync();`), complete dialog interaction (submit/cancel), then `await clickTask`.
+
 ## Dialog Tests
 ```csharp
 public sealed class MyDialogShould : ComponentTestBase
