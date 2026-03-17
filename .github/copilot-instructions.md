@@ -49,6 +49,9 @@ Classify the user's message into one of the following:
 - If user intent is unclear → ask for clarification before routing.
 - If no agent fits → provide answer directly.
 - Always include a short explanation of the chosen route.
+- Treat agent completion as valid only when claimed file changes are actually applied in workspace diff.
+- Do not accept or forward provisional completion states (for example: "modified" without diff, or "not verified").
+- Required validation must be executed and reported; otherwise route must return a blocked status with explicit blocker details.
 
 ---
 

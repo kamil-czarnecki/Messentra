@@ -28,6 +28,8 @@ Your goal is to ensure all work happens on a dedicated feature branch with prope
 - **Do not push** changes — only commit locally
 - Create a new branch if currently on a protected branch
 - Always invoke `code-reviewer.agent.md` before committing
+- Do not report completion unless branch/commit details are verified from git output
+- Do not return control with provisional states (for example "not verified")
 
 ---
 
@@ -105,12 +107,26 @@ test(connections): add CreateConnectionCommandHandler unit tests
 ---
 
 # Returning Control
-When commit is complete, inform the user:
+Use completion only when all are true:
+- branch and commit were verified by git command output
+- code review step was executed and result reported
+
+When complete, inform the user:
 ```
 [Commit Complete]
 Branch: <branch-name>
 Commit: <commit-hash>
 Message: <commit-message>
+
+Returning control to router or user.
+```
+
+If any completion condition is not met, return:
+```
+[Commit Blocked]
+Blocker: <what prevented completion>
+Branch state: <current branch>
+Commit status: <what could not be verified>
 
 Returning control to router or user.
 ```

@@ -11,11 +11,11 @@
 <div class="main-layout">
     <MudLayout>
         <SideBar/>
-        <MudMainContent Class="mud-height-full">
+        <MudMainContent Class="@MainContentClass">
             <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mud-height-full pa-0">
                 @Body
             </MudContainer>
-            <ActivityLog/>
+            <ActivityLog ExpandedChanged="OnActivityLogExpandedChanged"/>
         </MudMainContent>
     </MudLayout>
 </div>

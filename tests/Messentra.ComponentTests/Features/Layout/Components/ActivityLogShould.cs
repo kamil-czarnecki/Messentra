@@ -2,6 +2,7 @@ using AutoFixture;
 using Bunit;
 using Messentra.Features.Layout.Components;
 using Messentra.Features.Layout.State;
+using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MudBlazor.Extensions;
 using Shouldly;
@@ -139,6 +140,26 @@ public sealed class ActivityLogShould : ComponentTestBase
         // Assert
         var selects = cut.FindComponents<MudSelect<string>>();
         selects.Count.ShouldBe(2); // Connection and Log Level dropdowns
+    }
+
+    [Fact]
+    public void NotifyExpandedStateWhenToggled()
+    {
+        // Arrange
+        var reportedStates = new List<bool>();
+        var callback = EventCallback.Factory.Create<bool>(this, state => reportedStates.Add(state));
+        var cut = Render<ActivityLog>(parameters => parameters
+            .Add(component => component.ExpandedChanged, callback));
+
+        // Act
+        cut.Find(".cursor-pointer").Click();
+        cut.Find(".cursor-pointer").Click();
+
+        // Assert
+        reportedStates.Count.ShouldBeGreaterThanOrEqualTo(3);
+        reportedStates[0].ShouldBeFalse();
+        reportedStates[1].ShouldBeTrue();
+        reportedStates[2].ShouldBeFalse();
     }
 }
 

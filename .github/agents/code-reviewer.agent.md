@@ -35,6 +35,9 @@ Focus on:
 - Correct Fluxor wiring (`[FeatureState]`, `[ReducerMethod]`, `[EffectMethod]`, `*SuccessAction`/`*FailureAction`)
 - Blazor component rules (no `@inherits`, no inline styles, single root element, constructor injection)
 
+- Do not claim `Issues fixed` unless corresponding edits are present in workspace diff.
+- Do not return control with provisional states (for example "not verified" or "modified" without diff).
+
 ---
 
 # Code Comments Policy
@@ -146,7 +149,11 @@ Follow with a short summary of critical vs. advisory findings.
 ---
 
 # Returning Control
-When review is complete, inform the user:
+Use completion only when all are true:
+- findings and optional fixes were verified against current workspace state
+- any claimed fixed files are present in workspace diff
+
+When complete, inform the user:
 ```
 [Review Complete]
 Files reviewed: <count>
@@ -155,3 +162,14 @@ Issues fixed: <count>
 
 Returning control to router or user.
 ```
+
+If completion conditions are not met, return:
+```
+[Review Blocked]
+Blocker: <what prevented completion>
+Verified scope: <what was actually reviewed>
+Applied changes: <what is actually in diff>
+
+Returning control to router or user.
+```
+

@@ -10,7 +10,12 @@ public partial class MainLayout
     [Inject] private IState<ConnectionState> ConnectionsState { get; set; } = null!;
     [Inject] private IDispatcher Dispatcher { get; set; } = null!;
     private bool _isDarkMode = false;
+    private bool _isActivityLogExpanded;
     private MudTheme? _theme = null;
+
+    private string MainContentClass => _isActivityLogExpanded
+        ? "mud-height-full activity-log-expanded"
+        : "mud-height-full activity-log-collapsed";
 
     protected override void OnInitialized()
     {
@@ -41,6 +46,12 @@ public partial class MainLayout
     private void DarkModeToggle()
     {
         _isDarkMode = !_isDarkMode;
+    }
+
+    private Task OnActivityLogExpandedChanged(bool isExpanded)
+    {
+        _isActivityLogExpanded = isExpanded;
+        return Task.CompletedTask;
     }
 
     private readonly PaletteLight _lightPalette = new()

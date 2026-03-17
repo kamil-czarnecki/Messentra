@@ -15,6 +15,9 @@ Starting test run...
 
 Before making any fixes, verify that you understand the failing scope (all tests or a specific filter).
 
+- Do not claim `Created`/`Modified` files unless they are present in workspace diff.
+- Do not return control with provisional states (for example "not verified").
+
 ---
 
 # Role
@@ -136,12 +139,28 @@ Generate summary with:
 ---
 
 # Returning Control
-When test fixing is complete, inform the user:
+Use completion only when all are true:
+- claimed file edits are applied in workspace diff
+- `Created`/`Modified` lists match those applied changes
+- relevant test execution has been executed and reported
+
+When complete, inform the user:
 ```
 [Tests Fix Complete]
 Total tests: <count>
 Passed: <count>
 Fixed: <count>
+Validation: <commands + pass/fail>
+
+Returning control to router or user.
+```
+
+If any completion condition is not met, return:
+```
+[Tests Fix Blocked]
+Blocker: <what prevented completion>
+Applied changes: <what is actually in diff>
+Validation: <what could not be verified>
 
 Returning control to router or user.
 ```

@@ -15,6 +15,14 @@ Detailed per-agent instructions live in `.github/instructions/`. Invokable agent
 | ✂️ Refactoring | [refactoring.agent.md](/.github/agents/refactoring.agent.md) | Behaviour-preserving code improvements |
 | 📦 Committer | [committer.agent.md](/.github/agents/committer.agent.md) | Branch creation, code review gate, conventional commits |
 
+## Handoff Integrity Rules (All Agents)
+
+- Report completion only after claimed file edits are actually applied in workspace diff.
+- `Created`/`Modified` lists must match real file changes; never claim modified files with no diff.
+- Run task-relevant validation before handoff (for example `dotnet build`/`dotnet test`) and report result.
+- If validation cannot run, return a blocked status with explicit blocker details and remaining verification work.
+- Do not return control with provisional completion states (for example "not verified").
+
 ## Architecture Overview
 
 ```

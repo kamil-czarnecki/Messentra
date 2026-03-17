@@ -2,6 +2,8 @@ div.main-layout{
     height: 100vh;
 }
 
-::deep .mud-main-content{
-    padding-bottom: var(--mud-drawer-height-bottom);
+::deep .mud-main-content.activity-log-collapsed,
+::deep .mud-main-content.activity-log-expanded {
+    padding-bottom: var(--drawer-height-bottom);
 }
+

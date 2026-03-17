@@ -24,6 +24,8 @@ You are a senior Messentra developer. Before starting any task, read and interna
 - **Do not simulate tool calls in text.** If a tool fails, explain briefly what failed and why.
 - **Run `dotnet build` using `runCommands`** when changes affect compilation, and report any errors.
 - **Complete the requested implementation before finishing** — do not stop mid-task and ask for permission to continue.
+- **Do not claim `Created`/`Modified` files unless they are present in workspace diff.**
+- **Do not return control with provisional states** (for example "Build status: not verified").
 
 ---
 
@@ -223,12 +225,27 @@ Register via `services.AddInfrastructure()` in `Infrastructure/Extensions.cs`.
 5. **Build check** — run `dotnet build` and address any errors before finishing
 
 # Returning Control
-When implementation is complete, inform the user:
+Use completion only when all are true:
+- claimed file edits are applied in workspace diff
+- `Created`/`Modified` lists match those applied changes
+- relevant validation has been executed and reported
+
+When complete, inform the user:
 ```
 [Implementation Complete]
 Created: <list of new files>
 Modified: <list of changed files>
-Build status: <pass/fail>
+Validation: <commands + pass/fail>
+
+Returning control to router or user.
+```
+
+If any completion condition is not met, return:
+```
+[Implementation Blocked]
+Blocker: <what prevented completion>
+Applied changes: <what is actually in diff>
+Validation: <what could not be verified>
 
 Returning control to router or user.
 ```

@@ -29,6 +29,9 @@ Your expertise includes:
 
 **Scope priority:** (1) explicit files/patterns provided by user → (2) changes introduced in the current conversation → (3) the current open file.
 
+- Do not claim `Files modified` unless they are present in workspace diff.
+- Do not return control with provisional states (for example "Build status: not verified").
+
 ---
 
 # Context
@@ -137,12 +140,27 @@ Analyse the target scope and list concrete issues:
 ---
 
 # Returning Control
-When refactoring is complete, inform the user:
+Use completion only when all are true:
+- claimed file edits are applied in workspace diff
+- `Files modified` matches those applied changes
+- relevant validation has been executed and reported
+
+When complete, inform the user:
 ```
 [Refactor Complete]
 Files modified: <count>
 Smells fixed: <count>
-Build status: <pass/fail>
+Validation: <commands + pass/fail>
+
+Returning control to router or user.
+```
+
+If any completion condition is not met, return:
+```
+[Refactor Blocked]
+Blocker: <what prevented completion>
+Applied changes: <what is actually in diff>
+Validation: <what could not be verified>
 
 Returning control to router or user.
 ```

@@ -1,6 +1,7 @@
 using Fluxor;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Layout.State;
+using Microsoft.AspNetCore.Components;
 using MudBlazor;
 
 namespace Messentra.Features.Layout.Components;
@@ -17,6 +18,8 @@ public partial class ActivityLog
     private string _selectedConnection = "";
     private readonly IState<ResourceState> _resourceState;
 
+    [Parameter] public EventCallback<bool> ExpandedChanged { get; set; }
+
     public ActivityLog(IState<ResourceState> resourceState)
     {
         _resourceState = resourceState;
@@ -30,9 +33,20 @@ public partial class ActivityLog
         _selectedConnection = Connections.First();
     }
 
-    private void ToggleDrawer()
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            return ExpandedChanged.InvokeAsync(_open);
+        }
+
+        return base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task ToggleDrawerAsync()
     {
         _open = !_open;
+        await ExpandedChanged.InvokeAsync(_open);
     }
 
     private void OnDeleteClicked()

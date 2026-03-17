@@ -19,7 +19,7 @@
             <MudStack Row="true" AlignItems="AlignItems.Center" Class="mud-width-full">
                 <MudIcon Icon="@(_open ? Icons.Material.Filled.KeyboardArrowDown : Icons.Material.Filled.KeyboardArrowUp)"
                          Size="Size.Small"
-                         @onclick="@ToggleDrawer"
+                         @onclick="@ToggleDrawerAsync"
                          Class="cursor-pointer"/>
                 <MudText Typo="Typo.subtitle2" Class="ml-2">Activity Log</MudText>
                 <MudText Typo="Typo.caption">@ActivityLogState.Value.Logs.Count()</MudText>
