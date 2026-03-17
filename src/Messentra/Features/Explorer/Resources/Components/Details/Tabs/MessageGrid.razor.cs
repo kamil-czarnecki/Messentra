@@ -268,7 +268,7 @@ public partial class MessageGrid
         }
     }
 
-    private async Task OnResendClicked()
+    private async Task OnResendClicked(bool autoComplete)
     {
         _actionOngoing = true;
         var count = SelectedItems.Count;
@@ -281,7 +281,19 @@ public partial class MessageGrid
             await Parallel.ForEachAsync(
                 SelectedItems,
                 new ParallelOptions { MaxDegreeOfParallelism = 100 },
-                async (message, ct) => await message.MessageContext.Resend(ct));
+                async (message, ct) =>
+                {
+                    await message.MessageContext.Resend(ct);
+
+                    if (autoComplete)
+                        await message.MessageContext.Complete(ct);
+                });
+
+            if (autoComplete)
+            {
+                _messages = _messages.Except(SelectedItems).ToList();
+                SelectedItems = [];
+            }
 
             _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 ConnectionName, "Info",

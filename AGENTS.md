@@ -142,6 +142,11 @@ MudPopover.Find(".mud-menu-item").Click();
 ```
 Get/set Fluxor state: `GetState<TState>().SetState(newState)`.
 
+Additional component test conventions:
+- Prefer async variants of bUnit APIs when available (`ClickAsync`, `WaitForAssertionAsync`, etc.).
+- Treat component tests as black-box tests. Do **not** read or mutate internal/private fields, properties, or methods (including via reflection).
+- Pass inputs via public component parameters in `Render(...)` and verify outcomes through rendered UI and user interactions only.
+
 ### Naming
 Test classes: `<Subject>Should` (e.g. `ConnectionEffectsShould`). Test methods: plain English sentences (`HandleFetchConnectionsActionWhenSuccess`).
 
