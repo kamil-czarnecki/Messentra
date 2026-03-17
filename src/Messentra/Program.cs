@@ -12,7 +12,15 @@ using MudBlazor.Services;
 using Serilog;
 using App = Messentra.Features.App;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+#if DEBUG
+    EnvironmentName = "Development",
+#else
+    EnvironmentName = "Production",
+#endif
+});
 
 if (string.IsNullOrEmpty(builder.Environment.WebRootPath))
     builder.Environment.WebRootPath = Path.Combine(AppContext.BaseDirectory, "publish", "bin", "wwwroot");
