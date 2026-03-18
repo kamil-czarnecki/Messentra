@@ -61,15 +61,18 @@ Built with **Blazor Server**, **Electron.NET**, **MudBlazor**, and **Fluxor**.
 - Properties include all broker properties (e.g. `ContentType`, `CorrelationId`, `TimeToLive`) and custom application properties
 
 ### 🛠️ Message Operations
-Actions available on fetched messages:
+Actions available on fetched messages vary by fetch mode:
 - **Resend** - re-send selected message(s) back to the queue/topic
   - In **Peek** mode (non-destructive), the original message is not removed or settled
   - In **Receive** mode with **PeekLock**, successful resend completes the original message
   - In **ReceiveAndDelete** mode, resend simply sends a new copy (the original is already removed on receive)
   - In **Peek** and **ReceiveAndDelete**, this can intentionally create duplicates
-- **Complete** - settle and remove message(s) from the queue (PeekLock only)
-- **Abandon** - release the lock so message(s) become available again (PeekLock only)
-- **Dead-Letter** - move message(s) to the dead-letter sub-queue (PeekLock only)
+
+- **Receive / PeekLock mode only: settlement operations**
+  - **Complete** - settle and remove message(s) from the queue
+  - **Abandon** - release the lock so message(s) become available again
+  - **Dead-Letter** - move message(s) to the dead-letter sub-queue
+  - Note: In **ReceiveAndDelete** mode, these settlement actions are not available (and are disabled in the UI) because messages are removed immediately when received.
 
 ### 📤 Send Message
 - Send a message to any queue or topic
