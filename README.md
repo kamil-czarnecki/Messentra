@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="Messentra — Azure Service Bus Desktop Explorer" width="480" />
+  <img src="docs/logo.svg" alt="Messentra - Azure Service Bus Desktop Explorer" width="480" />
 </p>
 
-# Messentra — Azure Service Bus Desktop Explorer
+# Messentra - Azure Service Bus Desktop Explorer
 
 <p align="center">
   <a href="https://github.com/kamil-czarnecki/Messentra/releases"><img src="https://img.shields.io/github/v/release/kamil-czarnecki/Messentra?style=flat-square&color=2563EB" alt="Version" /></a>
@@ -12,14 +12,14 @@
 </p>
 
 <p align="center">
-  A cross-platform desktop GUI for <strong>Azure Service Bus</strong> — browse resources, inspect and send messages, manage dead-letter queues — built with Blazor and Electron.NET.
+  A cross-platform desktop GUI for <strong>Azure Service Bus</strong> - browse resources, inspect and send messages, manage dead-letter queues - built with Blazor and Electron.NET.
 </p>
 
 ---
 
 ## About
 
-Messentra is an open-source, cross-platform desktop application for exploring and managing **Azure Service Bus** namespaces. It provides a clean, modern GUI for browsing queues, topics, and subscriptions; inspecting and sending messages; and managing dead-letter queues — without leaving your desktop. It supports both **Connection String** and **Entra ID (Azure AD)** authentication, making it suitable for local development as well as enterprise environments.
+Messentra is an open-source, cross-platform desktop application for exploring and managing **Azure Service Bus** namespaces. It provides a clean, modern GUI for browsing queues, topics, and subscriptions; inspecting and sending messages; and managing dead-letter queues - without leaving your desktop. It supports both **Connection String** and **Entra ID (Azure AD)** authentication, making it suitable for local development as well as enterprise environments.
 
 Built with **Blazor Server**, **Electron.NET**, **MudBlazor**, and **Fluxor**.
 
@@ -28,8 +28,8 @@ Built with **Blazor Server**, **Electron.NET**, **MudBlazor**, and **Fluxor**.
 
 ### 🔌 Connection Management
 - Add, edit, and delete named namespace connections
-- **Connection String** — paste a standard Azure Service Bus connection string
-- **Entra ID** — authenticate using Tenant ID + Client ID (Azure AD / Microsoft Entra)
+- **Connection String** - paste a standard Azure Service Bus connection string
+- **Entra ID** - authenticate using Tenant ID + Client ID (Azure AD / Microsoft Entra)
 - Multiple connections managed side by side in the Explorer
 
 ### 🗂️ Resource Explorer
@@ -41,16 +41,17 @@ Built with **Blazor Server**, **Electron.NET**, **MudBlazor**, and **Fluxor**.
 
 ### 🔎 Resource Search & Filtering
 - Smart search bar in the Explorer tree with **special-phrase autocomplete**
-- **Plain text** — filter queues, topics, and subscriptions by name
-- `namespace:x` — limit the tree to a specific namespace; autocomplete completes connected namespace names
-- `has:dlq` — show only resources that currently have dead-letter messages
+- **Plain text** - filter queues, topics, and subscriptions by name
+- `namespace:x` - limit the tree to a specific namespace; autocomplete completes connected namespace names
+- `has:dlq` - show only resources that currently have dead-letter messages
 - Combine phrases freely: `namespace:prod has:dlq`, `namespace:prod orders`
 
 ### 📨 Message Fetching
 - Fetch messages from queues and topic subscriptions
-- Choose fetch mode: **Peek** (non-destructive) or **Receive** (destructive)
-  - **Peek** — configurable start sequence number for offset-based peeking
-  - **Receive** — choose between **PeekLock** or **ReceiveAndDelete**; configurable wait time
+- Choose fetch mode: **Peek** (non-destructive) or **Receive**
+  - **Peek** - configurable start sequence number for offset-based peeking
+  - **Receive / PeekLock** - locks messages for explicit settlement; configurable wait time
+  - **Receive / ReceiveAndDelete** - removes messages immediately on receive; configurable wait time
 - Configurable fetch count
 - Message list displays: Sequence #, Message ID, Label, Enqueued Time, Delivery Count
 - Dead-letter queue view adds Reason and Error Description columns
@@ -60,11 +61,18 @@ Built with **Blazor Server**, **Electron.NET**, **MudBlazor**, and **Fluxor**.
 - Properties include all broker properties (e.g. `ContentType`, `CorrelationId`, `TimeToLive`) and custom application properties
 
 ### 🛠️ Message Operations
-Actions available on fetched messages (in Receive mode):
-- **Resend** — re-send selected message(s) back to the queue/topic
-- **Complete** — settle and remove message(s) from the queue (PeekLock only)
-- **Abandon** — release the lock so message(s) become available again (PeekLock only)
-- **Dead-Letter** — move message(s) to the dead-letter sub-queue (PeekLock only)
+Actions available on fetched messages vary by fetch mode:
+- **Resend** - re-send selected message(s) back to the queue/topic
+  - In **Peek** mode (non-destructive), the original message is not removed or settled
+  - In **Receive** mode with **PeekLock**, successful resend completes the original message
+  - In **ReceiveAndDelete** mode, resend simply sends a new copy (the original is already removed on receive)
+  - In **Peek** and **ReceiveAndDelete**, this can intentionally create duplicates
+
+- **Receive / PeekLock mode only: settlement operations**
+  - **Complete** - settle and remove message(s) from the queue
+  - **Abandon** - release the lock so message(s) become available again
+  - **Dead-Letter** - move message(s) to the dead-letter sub-queue
+  - Note: In **ReceiveAndDelete** mode, these settlement actions are not available (and are disabled in the UI) because messages are removed immediately when received.
 
 ### 📤 Send Message
 - Send a message to any queue or topic
@@ -88,19 +96,19 @@ Actions available on fetched messages (in Receive mode):
 ## Screenshots
 
 ### Welcome
-![Messentra welcome screen — Azure Service Bus desktop explorer](docs/welcome.png)
+![Messentra welcome screen - Azure Service Bus desktop explorer](docs/welcome.png)
 
 ### Resource Explorer
-![Messentra resource explorer — browsing queues, topics and subscriptions with live message counts](docs/resources.png)
+![Messentra resource explorer - browsing queues, topics and subscriptions with live message counts](docs/resources.png)
 
 ### Resource Search & Filtering
-![Messentra resource search — filtering queues and topics by name, namespace or dead-letter status](docs/resources_search.png)
+![Messentra resource search - filtering queues and topics by name, namespace or dead-letter status](docs/resources_search.png)
 
 ### Messages
-![Messentra message inspector — fetching, searching and viewing Service Bus messages with body and properties](docs/messages.png)
+![Messentra message inspector - fetching, searching and viewing Service Bus messages with body and properties](docs/messages.png)
 
 ### Connections
-![Messentra connection manager — adding Connection String and Entra ID connections](docs/connections.png)
+![Messentra connection manager - adding Connection String and Entra ID connections](docs/connections.png)
 
 ---
 
