@@ -127,6 +127,28 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             Times.Never);
     }
 
+    [Fact]
+    public void RefreshQueuesWhenNamespaceFilterDoesNotNarrow_DispatchesRefreshQueuesAction()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find("input").Input("namespace:TestNamespace");
+        cut.WaitForAssertion(() =>
+        {
+            cut.Markup.ShouldContain("queue1");
+            cut.Markup.ShouldContain("queue2");
+        });
+        cut.FindAll(".tree-item-body .mud-icon-button")[0].Click();
+
+        // Assert
+        MockDispatcher.Verify(d => d.Dispatch(It.IsAny<RefreshQueuesAction>()), Times.Once);
+        MockDispatcher.Verify(d => d.Dispatch(It.IsAny<RefreshQueueAction>()), Times.Never);
+    }
+
     // --- Filtering ---
 
     private static ResourceTreeItemData QueueItem(string name) => new() { Text = name };
