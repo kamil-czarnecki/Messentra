@@ -12,10 +12,12 @@ namespace Messentra.Features.Explorer.Resources;
 public sealed class ResourceEffects
 {
     private readonly IMediator _mediator;
+    private readonly ILogger<ResourceEffects> _logger;
 
-    public ResourceEffects(IMediator mediator)
+    public ResourceEffects(IMediator mediator, ILogger<ResourceEffects> logger)
     {
         _mediator = mediator;
+        _logger = logger;
     }
 
     [EffectMethod]
@@ -42,12 +44,14 @@ public sealed class ResourceEffects
         }
         catch (Exception ex)
         {
+            var errorSummary = BuildExceptionSummary(ex);
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.ConnectionName,
                 "Error",
-                $"Fetching resources failed: {ex.Message}",
+                $"Fetching resources failed: {errorSummary}",
                 DateTime.Now)));
-            dispatcher.Dispatch(new FetchResourcesFailureAction(ex.Message));
+            dispatcher.Dispatch(new FetchResourcesFailureAction(errorSummary));
+            _logger.LogError(ex, "Error fetching resources for connection '{ConnectionName}'", action.ConnectionName);
         }
     }
 
@@ -89,12 +93,14 @@ public sealed class ResourceEffects
         }
         catch (Exception ex)
         {
+            var errorSummary = BuildExceptionSummary(ex);
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
                 "Error",
-                $"Refreshing '{action.Node.Resource.Name}' queue failed: {ex.Message}",
+                $"Refreshing '{action.Node.Resource.Name}' queue failed: {errorSummary}",
                 DateTime.Now)));
-            dispatcher.Dispatch(new RefreshQueueFailureAction(action.Node, ex.Message));
+            dispatcher.Dispatch(new RefreshQueueFailureAction(action.Node, errorSummary));
+            _logger.LogError(ex, "Error refreshing queue '{QueueName}' for connection '{ConnectionName}'", action.Node.Resource.Name, action.Node.ConnectionName);
         }
     }
 
@@ -136,12 +142,14 @@ public sealed class ResourceEffects
         }
         catch (Exception ex)
         {
+            var errorSummary = BuildExceptionSummary(ex);
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
                 "Error",
-                $"Refreshing '{action.Node.Resource.Name}' topic failed: {ex.Message}",
+                $"Refreshing '{action.Node.Resource.Name}' topic failed: {errorSummary}",
                 DateTime.Now)));
-            dispatcher.Dispatch(new RefreshTopicFailureAction(action.Node, ex.Message));
+            dispatcher.Dispatch(new RefreshTopicFailureAction(action.Node, errorSummary));
+            _logger.LogError(ex, "Error refreshing topic '{TopicName}' for connection '{ConnectionName}'", action.Node.Resource.Name, action.Node.ConnectionName);
         }
     }
 
@@ -186,12 +194,14 @@ public sealed class ResourceEffects
         }
         catch (Exception ex)
         {
+            var errorSummary = BuildExceptionSummary(ex);
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
                 "Error",
-                $"Refreshing '{action.Node.Resource.TopicName}/{action.Node.Resource.Name}' subscription failed: {ex.Message}",
+                $"Refreshing '{action.Node.Resource.TopicName}/{action.Node.Resource.Name}' subscription failed: {errorSummary}",
                 DateTime.Now)));
-            dispatcher.Dispatch(new RefreshSubscriptionFailureAction(action.Node, ex.Message));
+            dispatcher.Dispatch(new RefreshSubscriptionFailureAction(action.Node, errorSummary));
+            _logger.LogError(ex, "Error refreshing subscription '{TopicName}/{SubscriptionName}' for connection '{ConnectionName}'", action.Node.Resource.TopicName, action.Node.Resource.Name, action.Node.ConnectionName);
         }
     }
 
@@ -215,9 +225,11 @@ public sealed class ResourceEffects
         }
         catch (Exception ex)
         {
+            var errorSummary = BuildExceptionSummary(ex);
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-                action.Node.ConnectionName, "Error", $"Refreshing queues failed: {ex.Message}", DateTime.Now)));
-            dispatcher.Dispatch(new RefreshQueuesFailureAction(action.Node, ex.Message));
+                action.Node.ConnectionName, "Error", $"Refreshing queues failed: {errorSummary}", DateTime.Now)));
+            dispatcher.Dispatch(new RefreshQueuesFailureAction(action.Node, errorSummary));
+            _logger.LogError(ex, "Error refreshing queues for connection '{ConnectionName}'", action.Node.ConnectionName);
         }
     }
 
@@ -241,10 +253,37 @@ public sealed class ResourceEffects
         }
         catch (Exception ex)
         {
+            var errorSummary = BuildExceptionSummary(ex);
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-                action.Node.ConnectionName, "Error", $"Refreshing topics failed: {ex.Message}", DateTime.Now)));
-            dispatcher.Dispatch(new RefreshTopicsFailureAction(action.Node, ex.Message));
+                action.Node.ConnectionName, "Error", $"Refreshing topics failed: {errorSummary}", DateTime.Now)));
+            dispatcher.Dispatch(new RefreshTopicsFailureAction(action.Node, errorSummary));
+            _logger.LogError(ex, "Error refreshing topics for connection '{ConnectionName}'", action.Node.ConnectionName);
         }
+    }
+
+    private static string BuildExceptionSummary(Exception ex)
+    {
+        var parts = new List<string>();
+        
+        AppendExceptionMessages(ex, parts);
+
+        return string.Join(Environment.NewLine, parts).Trim();
+    }
+
+    private static void AppendExceptionMessages(Exception ex, List<string> parts)
+    {
+        if (ex is AggregateException aggregateException)
+        {
+            foreach (var innerException in aggregateException.Flatten().InnerExceptions)
+                AppendExceptionMessages(innerException, parts);
+
+            return;
+        }
+
+        parts.Add($"{ex.GetType().Name}: {ex.Message}");
+
+        if (ex.InnerException is not null)
+            AppendExceptionMessages(ex.InnerException, parts);
     }
 
 }

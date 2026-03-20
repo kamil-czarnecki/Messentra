@@ -107,11 +107,80 @@ public partial class NamespaceTree
         switch (node)
         {
             case QueuesTreeNode q:
-                _dispatcher.Dispatch(new RefreshQueuesAction(q));
+                var filteredQueueNodes = GetFilteredNodes<QueueTreeNode>(q.ConnectionName).ToList();
+                var allQueueNodes = GetAllNodes<QueueTreeNode>(q.ConnectionName).ToList();
+
+                if (ContainsSameNodes(filteredQueueNodes, allQueueNodes))
+                {
+                    _dispatcher.Dispatch(new RefreshQueuesAction(q));
+                    break;
+                }
+
+                foreach (var queueNode in filteredQueueNodes)
+                    _dispatcher.Dispatch(new RefreshQueueAction(queueNode));
                 break;
+
             case TopicsTreeNode t:
-                _dispatcher.Dispatch(new RefreshTopicsAction(t));
+                var filteredTopicNodes = GetFilteredNodes<TopicTreeNode>(t.ConnectionName).ToList();
+                var allTopicNodes = GetAllNodes<TopicTreeNode>(t.ConnectionName).ToList();
+
+                if (ContainsSameNodes(filteredTopicNodes, allTopicNodes))
+                {
+                    _dispatcher.Dispatch(new RefreshTopicsAction(t));
+                    break;
+                }
+
+                foreach (var topicNode in filteredTopicNodes)
+                    _dispatcher.Dispatch(new RefreshTopicAction(topicNode));
                 break;
+        }
+    }
+
+    private IEnumerable<TNode> GetAllNodes<TNode>(string connectionName)
+        where TNode : ResourceTreeNode =>
+        FlattenNodes(Resources)
+            .OfType<TNode>()
+            .Where(n => GetConnectionName(n) == connectionName)
+            .Distinct();
+
+    private IEnumerable<TNode> GetFilteredNodes<TNode>(string connectionName)
+        where TNode : ResourceTreeNode =>
+        FlattenNodes(FilteredResources)
+            .OfType<TNode>()
+            .Where(n => GetConnectionName(n) == connectionName)
+            .Distinct();
+
+    private static bool ContainsSameNodes<TNode>(IEnumerable<TNode> filteredNodes, IEnumerable<TNode> allNodes)
+        where TNode : ResourceTreeNode
+    {
+        var filteredNodeKeys = filteredNodes.Select(GetNodeKey).ToHashSet(StringComparer.Ordinal);
+        var allNodeKeys = allNodes.Select(GetNodeKey).ToHashSet(StringComparer.Ordinal);
+        return filteredNodeKeys.SetEquals(allNodeKeys);
+    }
+
+    private static string? GetConnectionName(ResourceTreeNode node) => node switch
+    {
+        NamespaceTreeNode n => n.ConnectionName,
+        QueuesTreeNode n => n.ConnectionName,
+        TopicsTreeNode n => n.ConnectionName,
+        QueueTreeNode n => n.ConnectionName,
+        TopicTreeNode n => n.ConnectionName,
+        SubscriptionTreeNode n => n.ConnectionName,
+        _ => null
+    };
+
+    private static IEnumerable<ResourceTreeNode> FlattenNodes(IEnumerable<ResourceTreeItemData> items)
+    {
+        foreach (var item in items)
+        {
+            if (item.Value is not null)
+                yield return item.Value;
+
+            if (item.Children is null)
+                continue;
+
+            foreach (var nested in FlattenNodes(item.Children.OfType<ResourceTreeItemData>()))
+                yield return nested;
         }
     }
 
