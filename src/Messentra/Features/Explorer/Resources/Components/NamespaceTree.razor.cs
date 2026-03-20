@@ -126,8 +126,8 @@ public partial class NamespaceTree
                     _dispatcher.Dispatch(new RefreshQueueAction(queueNode));
                 break;
             case TopicsTreeNode t:
-                foreach (var subscriptionNode in GetFilteredNodes<SubscriptionTreeNode>(t.ConnectionName))
-                    _dispatcher.Dispatch(new RefreshSubscriptionAction(subscriptionNode));
+                foreach (var topicNode in GetFilteredNodes<TopicTreeNode>(t.ConnectionName))
+                    _dispatcher.Dispatch(new RefreshTopicAction(topicNode));
                 break;
         }
     }
