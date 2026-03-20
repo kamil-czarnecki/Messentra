@@ -29,7 +29,7 @@ public partial class ActivityLog
     {
         base.OnInitialized();
         
-        _selectedLogLevel = "Info";
+        _selectedLogLevel = _logLevels.First();
         _selectedConnection = Connections.First();
     }
 

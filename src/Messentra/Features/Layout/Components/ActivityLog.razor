@@ -22,7 +22,7 @@
                          @onclick="@ToggleDrawerAsync"
                          Class="cursor-pointer"/>
                 <MudText Typo="Typo.subtitle2" Class="ml-2">Activity Log</MudText>
-                <MudText Typo="Typo.caption">@ActivityLogState.Value.Logs.Count()</MudText>
+                <MudText Typo="Typo.caption">@GetFilteredLogs().Count()</MudText>
                 <MudSpacer />
                 <MudSelect @bind-Value="@_selectedConnection"
                            Variant="Variant.Outlined"
