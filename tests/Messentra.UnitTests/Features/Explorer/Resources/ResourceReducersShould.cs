@@ -84,19 +84,24 @@ public sealed class ResourceReducersShould
     }
 
     [Fact]
-    public void FetchResourcesFailureAction_StateUnchanged()
+    public void FetchResourcesFailureAction_RemovesFailedLoadingNamespace()
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var entry = new NamespaceEntry(ConnectionName, config, false, [], []);
-        var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
-        var action = new FetchResourcesFailureAction("some error");
+        var loadingEntry = new NamespaceEntry(ConnectionName, config, true, [], []);
+        var state = new ResourceState(
+            Namespaces: [loadingEntry],
+            SelectedResource: null,
+            ExpandedKeys: [$"ns:{ConnectionName}"]);
+        var action = new FetchResourcesFailureAction(ConnectionName, "some error");
 
         // Act
         var newState = ResourceReducers.OnFetchResourcesFailure(state, action);
 
         // Assert
-        newState.ShouldBe(state);
+        newState.Namespaces.ShouldBeEmpty();
+        newState.ExpandedKeys.ShouldNotContain($"ns:{ConnectionName}");
+        newState.SelectedResource.ShouldBeNull();
     }
 
     [Fact]

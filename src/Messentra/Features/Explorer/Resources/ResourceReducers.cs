@@ -39,7 +39,19 @@ public static class ResourceReducers
     }
 
     [ReducerMethod]
-    public static ResourceState OnFetchResourcesFailure(ResourceState state, FetchResourcesFailureAction _) => state;
+    public static ResourceState OnFetchResourcesFailure(ResourceState state, FetchResourcesFailureAction action)
+    {
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Where(n => n.ConnectionName != action.ConnectionName)
+                .ToList(),
+            ExpandedKeys = state.ExpandedKeys
+                .Where(k => k != $"ns:{action.ConnectionName}")
+                .ToHashSet(),
+            SelectedResource = null
+        };
+    }
 
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, SelectResourceAction action)
