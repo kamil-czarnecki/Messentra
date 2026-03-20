@@ -44,11 +44,12 @@ public static class ResourceReducers
         return state with
         {
             Namespaces = state.Namespaces
-                .Where(n => !(n.ConnectionName == action.ConnectionName && n.IsLoading))
+                .Where(n => n.ConnectionName != action.ConnectionName)
                 .ToList(),
             ExpandedKeys = state.ExpandedKeys
                 .Where(k => k != $"ns:{action.ConnectionName}")
-                .ToHashSet()
+                .ToHashSet(),
+            SelectedResource = null
         };
     }
 

@@ -101,6 +101,7 @@ public sealed class ResourceReducersShould
         // Assert
         newState.Namespaces.ShouldBeEmpty();
         newState.ExpandedKeys.ShouldNotContain($"ns:{ConnectionName}");
+        newState.SelectedResource.ShouldBeNull();
     }
 
     [Fact]
