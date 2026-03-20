@@ -104,14 +104,64 @@ public partial class NamespaceTree
 
     private void OnRefreshClicked(ResourceTreeNode node)
     {
+        if (SearchQueryParser.Parse(_localSearchPhrase).IsEmpty)
+        {
+            switch (node)
+            {
+                case QueuesTreeNode q:
+                    _dispatcher.Dispatch(new RefreshQueuesAction(q));
+                    break;
+                case TopicsTreeNode t:
+                    _dispatcher.Dispatch(new RefreshTopicsAction(t));
+                    break;
+            }
+
+            return;
+        }
+
         switch (node)
         {
             case QueuesTreeNode q:
-                _dispatcher.Dispatch(new RefreshQueuesAction(q));
+                foreach (var queueNode in GetFilteredNodes<QueueTreeNode>(q.ConnectionName))
+                    _dispatcher.Dispatch(new RefreshQueueAction(queueNode));
                 break;
             case TopicsTreeNode t:
-                _dispatcher.Dispatch(new RefreshTopicsAction(t));
+                foreach (var subscriptionNode in GetFilteredNodes<SubscriptionTreeNode>(t.ConnectionName))
+                    _dispatcher.Dispatch(new RefreshSubscriptionAction(subscriptionNode));
                 break;
+        }
+    }
+
+    private IEnumerable<TNode> GetFilteredNodes<TNode>(string connectionName)
+        where TNode : ResourceTreeNode =>
+        FlattenNodes(FilteredResources)
+            .OfType<TNode>()
+            .Where(n => GetConnectionName(n) == connectionName)
+            .Distinct();
+
+    private static string? GetConnectionName(ResourceTreeNode node) => node switch
+    {
+        NamespaceTreeNode n => n.ConnectionName,
+        QueuesTreeNode n => n.ConnectionName,
+        TopicsTreeNode n => n.ConnectionName,
+        QueueTreeNode n => n.ConnectionName,
+        TopicTreeNode n => n.ConnectionName,
+        SubscriptionTreeNode n => n.ConnectionName,
+        _ => null
+    };
+
+    private static IEnumerable<ResourceTreeNode> FlattenNodes(IEnumerable<ResourceTreeItemData> items)
+    {
+        foreach (var item in items)
+        {
+            if (item.Value is not null)
+                yield return item.Value;
+
+            if (item.Children is null)
+                continue;
+
+            foreach (var nested in FlattenNodes(item.Children.OfType<ResourceTreeItemData>()))
+                yield return nested;
         }
     }
 

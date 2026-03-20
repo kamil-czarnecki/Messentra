@@ -7,6 +7,7 @@ using Messentra.Features.Explorer.Resources.Subscriptions.GetSubscriptionResourc
 using Messentra.Features.Explorer.Resources.Topics.GetAllTopicResources;
 using Messentra.Features.Explorer.Resources.Topics.GetTopicResource;
 using Messentra.Infrastructure.AzureServiceBus;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
@@ -18,11 +19,12 @@ public sealed class ResourceEffectsShould
 
     private readonly Mock<IMediator> _mediator = new();
     private readonly Mock<IDispatcher> _dispatcher = new();
+    private readonly Mock<ILogger<ResourceEffects>> _logger = new();
     private readonly ResourceEffects _sut;
 
     public ResourceEffectsShould()
     {
-        _sut = new ResourceEffects(_mediator.Object);
+        _sut = new ResourceEffects(_mediator.Object, _logger.Object);
     }
     
     [Fact]

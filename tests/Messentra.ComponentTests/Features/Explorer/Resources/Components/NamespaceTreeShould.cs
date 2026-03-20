@@ -88,6 +88,45 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         navigationManager.Uri.ShouldContain("/options");
     }
 
+    [Fact]
+    public void RefreshQueuesWhenSearchIsEmpty_DispatchesRefreshQueuesAction()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.FindAll(".tree-item-body .mud-icon-button")[0].Click();
+
+        // Assert
+        MockDispatcher.Verify(d => d.Dispatch(It.IsAny<RefreshQueuesAction>()), Times.Once);
+        MockDispatcher.Verify(d => d.Dispatch(It.IsAny<RefreshQueueAction>()), Times.Never);
+    }
+
+    [Fact]
+    public void RefreshQueuesWhenSearchIsActive_DispatchesOnlyFilteredQueueRefreshActions()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1", "queue2"]))
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find("input").Input("queue2");
+        cut.WaitForAssertion(() => cut.Markup.ShouldNotContain("queue1"));
+        cut.FindAll(".tree-item-body .mud-icon-button")[0].Click();
+
+        // Assert
+        MockDispatcher.Verify(d => d.Dispatch(It.IsAny<RefreshQueuesAction>()), Times.Never);
+        MockDispatcher.Verify(
+            d => d.Dispatch(It.Is<RefreshQueueAction>(a => a.Node.Resource.Name == "queue2")),
+            Times.Once);
+        MockDispatcher.Verify(
+            d => d.Dispatch(It.Is<RefreshQueueAction>(a => a.Node.Resource.Name == "queue1")),
+            Times.Never);
+    }
+
     // --- Filtering ---
 
     private static ResourceTreeItemData QueueItem(string name) => new() { Text = name };
@@ -102,6 +141,80 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             new QueueProperties(TimeSpan.FromDays(14), TimeSpan.FromSeconds(60), TimeSpan.MaxValue,
                 10, false, null, null, false, false, TimeSpan.FromMinutes(1), false, 256, string.Empty));
         return new ResourceTreeItemData { Text = name, Value = new QueueTreeNode("TestNS", queue, config) };
+    }
+
+    private static ConnectionConfig BuildConnectionConfig() =>
+        ConnectionConfig.CreateConnectionString(
+            "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=k;SharedAccessKey=key=");
+
+    private static Resource.Queue BuildQueueResource(string name)
+    {
+        return new Resource.Queue(name, $"https://test/{name}",
+            new ResourceOverview("Active", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
+                new MessageInfo(0, 0, 0, 0, 0, 0), new SizeInfo(0, 1024)),
+            new QueueProperties(TimeSpan.FromDays(14), TimeSpan.FromSeconds(60), TimeSpan.MaxValue,
+                10, false, null, null, false, false, TimeSpan.FromMinutes(1), false, 256, string.Empty));
+    }
+
+    private static Resource.Topic BuildTopicResource(string name)
+    {
+        return new Resource.Topic(name, $"https://test/{name}",
+            new ResourceOverview("Active", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
+                new MessageInfo(0, 0, 0, 0, 0, 0), new SizeInfo(0, 1024)),
+            new TopicProperties(TimeSpan.FromDays(14), TimeSpan.MaxValue, false, false, TimeSpan.Zero, 256,
+                string.Empty), []);
+    }
+
+    private static List<ResourceTreeItemData> BuildRefreshableNamespaceTree(string[] queueNames)
+    {
+        var config = BuildConnectionConfig();
+        const string connectionName = "TestNamespace";
+
+        var queueItems = queueNames
+            .Select(name =>
+            {
+                var queueNode = new QueueTreeNode(connectionName, BuildQueueResource(name), config);
+                return new ResourceTreeItemData { Text = name, Value = queueNode };
+            })
+            .ToList<TreeItemData<ResourceTreeNode>>();
+
+        var topicNode = new TopicTreeNode(connectionName, BuildTopicResource("topic1"), config);
+
+        var queuesGroup = new ResourceTreeItemData
+        {
+            Text = "Queues",
+            Value = new QueuesTreeNode(connectionName, config),
+            IsReadonly = true,
+            Expandable = true,
+            Expanded = true,
+            Children = queueItems
+        };
+
+        var topicsGroup = new ResourceTreeItemData
+        {
+            Text = "Topics",
+            Value = new TopicsTreeNode(connectionName, config),
+            IsReadonly = true,
+            Expandable = true,
+            Expanded = true,
+            Children = new List<TreeItemData<ResourceTreeNode>>
+            {
+                new ResourceTreeItemData { Text = "topic1", Value = topicNode }
+            }
+        };
+
+        return
+        [
+            new ResourceTreeItemData
+            {
+                Text = connectionName,
+                Value = new NamespaceTreeNode(connectionName, config),
+                IsReadonly = true,
+                Expandable = true,
+                Expanded = true,
+                Children = [queuesGroup, topicsGroup]
+            }
+        ];
     }
 
     private static ResourceTreeItemData TopicItem(string name, params string[] subscriptionNames)

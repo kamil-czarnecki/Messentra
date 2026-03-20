@@ -12,10 +12,12 @@ namespace Messentra.Features.Explorer.Resources;
 public sealed class ResourceEffects
 {
     private readonly IMediator _mediator;
+    private readonly ILogger<ResourceEffects> _logger;
 
-    public ResourceEffects(IMediator mediator)
+    public ResourceEffects(IMediator mediator, ILogger<ResourceEffects> logger)
     {
         _mediator = mediator;
+        _logger = logger;
     }
 
     [EffectMethod]
@@ -45,9 +47,10 @@ public sealed class ResourceEffects
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.ConnectionName,
                 "Error",
-                $"Fetching resources failed: {ex.Message}",
+                $"Fetching resources failed: {ex}",
                 DateTime.Now)));
             dispatcher.Dispatch(new FetchResourcesFailureAction(ex.Message));
+            _logger.LogError(ex, "Error fetching resources for connection '{ConnectionName}'", action.ConnectionName);
         }
     }
 
@@ -92,9 +95,10 @@ public sealed class ResourceEffects
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
                 "Error",
-                $"Refreshing '{action.Node.Resource.Name}' queue failed: {ex.Message}",
+                $"Refreshing '{action.Node.Resource.Name}' queue failed: {ex}",
                 DateTime.Now)));
             dispatcher.Dispatch(new RefreshQueueFailureAction(action.Node, ex.Message));
+            _logger.LogError(ex, "Error refreshing queue '{QueueName}' for connection '{ConnectionName}'", action.Node.Resource.Name, action.Node.ConnectionName);
         }
     }
 
@@ -139,9 +143,10 @@ public sealed class ResourceEffects
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
                 "Error",
-                $"Refreshing '{action.Node.Resource.Name}' topic failed: {ex.Message}",
+                $"Refreshing '{action.Node.Resource.Name}' topic failed: {ex}",
                 DateTime.Now)));
             dispatcher.Dispatch(new RefreshTopicFailureAction(action.Node, ex.Message));
+            _logger.LogError(ex, "Error refreshing topic '{TopicName}' for connection '{ConnectionName}'", action.Node.Resource.Name, action.Node.ConnectionName);
         }
     }
 
@@ -189,9 +194,10 @@ public sealed class ResourceEffects
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.Node.ConnectionName,
                 "Error",
-                $"Refreshing '{action.Node.Resource.TopicName}/{action.Node.Resource.Name}' subscription failed: {ex.Message}",
+                $"Refreshing '{action.Node.Resource.TopicName}/{action.Node.Resource.Name}' subscription failed: {ex}",
                 DateTime.Now)));
             dispatcher.Dispatch(new RefreshSubscriptionFailureAction(action.Node, ex.Message));
+            _logger.LogError(ex, "Error refreshing subscription '{TopicName}/{SubscriptionName}' for connection '{ConnectionName}'", action.Node.Resource.TopicName, action.Node.Resource.Name, action.Node.ConnectionName);
         }
     }
 
@@ -216,8 +222,9 @@ public sealed class ResourceEffects
         catch (Exception ex)
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-                action.Node.ConnectionName, "Error", $"Refreshing queues failed: {ex.Message}", DateTime.Now)));
+                action.Node.ConnectionName, "Error", $"Refreshing queues failed: {ex}", DateTime.Now)));
             dispatcher.Dispatch(new RefreshQueuesFailureAction(action.Node, ex.Message));
+            _logger.LogError(ex, "Error refreshing queues for connection '{ConnectionName}'", action.Node.ConnectionName);
         }
     }
 
@@ -242,8 +249,9 @@ public sealed class ResourceEffects
         catch (Exception ex)
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
-                action.Node.ConnectionName, "Error", $"Refreshing topics failed: {ex.Message}", DateTime.Now)));
+                action.Node.ConnectionName, "Error", $"Refreshing topics failed: {ex}", DateTime.Now)));
             dispatcher.Dispatch(new RefreshTopicsFailureAction(action.Node, ex.Message));
+            _logger.LogError(ex, "Error refreshing topics for connection '{ConnectionName}'", action.Node.ConnectionName);
         }
     }
 
