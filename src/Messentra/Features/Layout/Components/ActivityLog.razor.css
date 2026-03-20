@@ -11,3 +11,7 @@
 ::deep .drawer-bottom-content {
     height: calc(100% - var(--drawer-height-bottom));
 }
+
+::deep .pre-wrap {
+    white-space: pre-wrap;
+}
