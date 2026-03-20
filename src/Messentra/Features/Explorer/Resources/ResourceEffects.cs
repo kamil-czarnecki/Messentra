@@ -50,7 +50,7 @@ public sealed class ResourceEffects
                 "Error",
                 $"Fetching resources failed: {errorSummary}",
                 DateTime.Now)));
-            dispatcher.Dispatch(new FetchResourcesFailureAction(errorSummary));
+            dispatcher.Dispatch(new FetchResourcesFailureAction(action.ConnectionName, errorSummary));
             _logger.LogError(ex, "Error fetching resources for connection '{ConnectionName}'", action.ConnectionName);
         }
     }
