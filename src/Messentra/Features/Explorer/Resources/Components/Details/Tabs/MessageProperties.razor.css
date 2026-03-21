@@ -4,6 +4,7 @@
     box-sizing: border-box;
     padding: 1.5rem;
     max-height: 400px;
+    user-select: text;
 }
 
 ::deep .section-paper {

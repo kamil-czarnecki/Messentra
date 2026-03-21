@@ -19,6 +19,7 @@
 
 ::deep .json-container {
     white-space: pre;
+    user-select: text;
 }
 
 ::deep .json-line {

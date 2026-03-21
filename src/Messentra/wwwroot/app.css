@@ -11,3 +11,7 @@
 .text-secondary {
     color: var(--mud-palette-text-secondary);
 }
+
+body {
+    user-select: none;
+}

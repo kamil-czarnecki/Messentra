@@ -10,8 +10,6 @@ public partial class JsonViewer
 {
     [Inject] private IJSRuntime Js { get; set; } = null!;
 
-    // ...existing code...
-
     private bool _copied;
 
     private async Task CopyToClipboard()
