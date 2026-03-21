@@ -54,6 +54,36 @@ public static class ResourceReducers
     }
 
     [ReducerMethod]
+    public static ResourceState Reduce(ResourceState state, CancelFetchResourcesAction action)
+    {
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Where(n => !(n.ConnectionName == action.ConnectionName && n.IsLoading))
+                .ToList(),
+            ExpandedKeys = state.ExpandedKeys
+                .Where(k => k != $"ns:{action.ConnectionName}")
+                .ToHashSet(),
+            SelectedResource = null
+        };
+    }
+
+    [ReducerMethod]
+    public static ResourceState Reduce(ResourceState state, FetchResourcesCanceledAction action)
+    {
+        return state with
+        {
+            Namespaces = state.Namespaces
+                .Where(n => !(n.ConnectionName == action.ConnectionName && n.IsLoading))
+                .ToList(),
+            ExpandedKeys = state.ExpandedKeys
+                .Where(k => k != $"ns:{action.ConnectionName}")
+                .ToHashSet(),
+            SelectedResource = null
+        };
+    }
+
+    [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, SelectResourceAction action)
         => state with { SelectedResource = action.Node };
 

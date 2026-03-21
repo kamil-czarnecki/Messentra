@@ -26,7 +26,7 @@ public sealed class AzureServiceBusSubscriptionProviderShould
     public AzureServiceBusSubscriptionProviderShould()
     {
         _clientFactory
-            .Setup(x => x.CreateClient(It.IsAny<string>()))
+            .Setup(x => x.CreateClient(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(_adminClient.Object);
 
         _sut = new AzureServiceBusResourceSubscriptionProvider(_clientFactory.Object);

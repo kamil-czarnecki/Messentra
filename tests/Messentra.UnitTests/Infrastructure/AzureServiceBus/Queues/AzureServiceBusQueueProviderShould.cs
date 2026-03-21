@@ -25,7 +25,7 @@ public sealed class AzureServiceBusQueueProviderShould
     public AzureServiceBusQueueProviderShould()
     {
         _clientFactory
-            .Setup(x => x.CreateClient(It.IsAny<string>()))
+            .Setup(x => x.CreateClient(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(_adminClient.Object);
 
         _sut = new AzureServiceBusResourceQueueProvider(_clientFactory.Object);

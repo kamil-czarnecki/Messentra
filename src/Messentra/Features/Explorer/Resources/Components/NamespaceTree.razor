@@ -132,7 +132,21 @@
                             }
                             else
                             {
-                                <MudProgressCircular Class="namespace-loading-icon" Color="Color.Primary" Indeterminate="true"/>
+                                @if (presenter.Value is NamespaceTreeNode namespaceNode)
+                                {
+                                    <div class="namespace-loading-control">
+                                        <MudProgressCircular Class="namespace-loading-icon namespace-loading-spinner" Color="Color.Primary" Indeterminate="true"/>
+                                        <MudIconButton Class="namespace-loading-cancel"
+                                                       Icon="@Icons.Material.Filled.Stop"
+                                                       Color="Color.Error"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => OnCancelFetchResourcesClicked(namespaceNode.ConnectionName))" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <MudProgressCircular Class="namespace-loading-icon" Color="Color.Primary" Indeterminate="true"/>
+                                }
                             }
                         </MudStack>
                     </BodyContent>

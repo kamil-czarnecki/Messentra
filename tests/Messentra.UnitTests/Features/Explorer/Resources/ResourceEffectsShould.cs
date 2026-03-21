@@ -68,6 +68,47 @@ public sealed class ResourceEffectsShould
         // Assert
         _dispatcher.Verify(d => d.Dispatch(It.IsAny<FetchResourcesFailureAction>()), Times.Once);
     }
+
+    [Fact]
+    public async Task HandleCancelFetchResources_WhenRequestIsInFlight_DispatchesFetchResourcesCanceledAction()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var fetchAction = new FetchResourcesAction(ConnectionName, config);
+
+        _mediator
+            .Setup(m => m.Send(It.IsAny<GetAllQueueResourcesQuery>(), It.IsAny<CancellationToken>()))
+            .Returns((GetAllQueueResourcesQuery _, CancellationToken ct) =>
+                new ValueTask<IReadOnlyCollection<Resource.Queue>>(WaitUntilCanceled<IReadOnlyCollection<Resource.Queue>>(ct)));
+        _mediator
+            .Setup(m => m.Send(It.IsAny<GetAllTopicResourcesQuery>(), It.IsAny<CancellationToken>()))
+            .Returns((GetAllTopicResourcesQuery _, CancellationToken ct) =>
+                new ValueTask<IReadOnlyCollection<Resource.Topic>>(WaitUntilCanceled<IReadOnlyCollection<Resource.Topic>>(ct)));
+
+        // Act
+        var fetchTask = _sut.HandleFetchResources(fetchAction, _dispatcher.Object);
+        await Task.Delay(25);
+        await _sut.HandleCancelFetchResources(new CancelFetchResourcesAction(ConnectionName), _dispatcher.Object);
+        await fetchTask;
+
+        // Assert
+        _dispatcher.Verify(
+            d => d.Dispatch(It.Is<FetchResourcesCanceledAction>(a => a.ConnectionName == ConnectionName)),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleCancelFetchResources_WhenNoRequestInFlight_DoesNotDispatchCanceledAction()
+    {
+        // Arrange
+        var action = new CancelFetchResourcesAction(ConnectionName);
+
+        // Act
+        await _sut.HandleCancelFetchResources(action, _dispatcher.Object);
+
+        // Assert
+        _dispatcher.Verify(d => d.Dispatch(It.IsAny<FetchResourcesCanceledAction>()), Times.Never);
+    }
     
     [Fact]
     public async Task HandleRefreshQueue_WhenSuccess_DispatchesRefreshQueueSuccessAction()
@@ -265,6 +306,13 @@ public sealed class ResourceEffectsShould
 
         // Assert
         _dispatcher.Verify(d => d.Dispatch(It.IsAny<RefreshTopicsFailureAction>()), Times.Once);
+    }
+
+    private static Task<T> WaitUntilCanceled<T>(CancellationToken cancellationToken)
+    {
+        var tcs = new TaskCompletionSource<T>();
+        cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+        return tcs.Task;
     }
 }
 

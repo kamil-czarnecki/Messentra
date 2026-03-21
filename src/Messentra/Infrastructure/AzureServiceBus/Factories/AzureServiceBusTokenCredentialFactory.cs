@@ -6,7 +6,7 @@ namespace Messentra.Infrastructure.AzureServiceBus.Factories;
 
 public interface IAzureServiceBusTokenCredentialFactory
 {
-    Task<TokenCredential> Create(string tenantId, string clientId);
+    Task<TokenCredential> Create(string tenantId, string clientId, CancellationToken cancellationToken);
 }
 
 public sealed class AzureServiceBusTokenCredentialFactory : IAzureServiceBusTokenCredentialFactory
@@ -24,13 +24,13 @@ public sealed class AzureServiceBusTokenCredentialFactory : IAzureServiceBusToke
         _bootstrapper = bootstrapper;
     }
 
-    public Task<TokenCredential> Create(string tenantId, string clientId)
+    public Task<TokenCredential> Create(string tenantId, string clientId, CancellationToken cancellationToken)
     {
         var cacheKey = CacheKey.Create(tenantId, clientId);
         var lazyCredential = _credentials.GetOrAdd(
             cacheKey,
             _ => new Lazy<Task<TokenCredential>>(
-                () => CreateCredential(cacheKey, tenantId, clientId),
+                () => CreateCredential(cacheKey, tenantId, clientId, cancellationToken),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
         return GetOrResetOnFailure(cacheKey, lazyCredential);
@@ -50,7 +50,11 @@ public sealed class AzureServiceBusTokenCredentialFactory : IAzureServiceBusToke
         }
     }
 
-    private async Task<TokenCredential> CreateCredential(CacheKey cacheKey, string tenantId, string clientId)
+    private async Task<TokenCredential> CreateCredential(
+        CacheKey cacheKey,
+        string tenantId,
+        string clientId,
+        CancellationToken cancellationToken)
     {
         var options = new InteractiveBrowserCredentialOptions
         {
@@ -70,7 +74,8 @@ public sealed class AzureServiceBusTokenCredentialFactory : IAzureServiceBusToke
             existingRecord = await _bootstrapper
                 .AuthenticateAsync(
                     tokenCredential,
-                    new TokenRequestContext(ServiceBusScopes))
+                    new TokenRequestContext(ServiceBusScopes),
+                    cancellationToken)
                 .ConfigureAwait(false);
             
             _authenticationRecordStore.Save(cacheKey.Key, existingRecord);

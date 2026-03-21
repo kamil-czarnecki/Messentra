@@ -5,8 +5,12 @@ namespace Messentra.Infrastructure.AzureServiceBus.Factories;
 
 public interface IAzureServiceBusClientFactory
 {
-    Task<ServiceBusClient> CreateClient(string connectionString);
-    Task<ServiceBusClient> CreateClient(string fullyQualifiedNamespace, string tenantId, string clientId);
+    Task<ServiceBusClient> CreateClient(string connectionString, CancellationToken cancellationToken);
+    Task<ServiceBusClient> CreateClient(
+        string fullyQualifiedNamespace,
+        string tenantId,
+        string clientId,
+        CancellationToken cancellationToken);
 }
 
 public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory, IAsyncDisposable
@@ -19,7 +23,7 @@ public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory
         _credentialFactory = credentialFactory;
     }
 
-    public Task<ServiceBusClient> CreateClient(string connectionString)
+    public Task<ServiceBusClient> CreateClient(string connectionString, CancellationToken cancellationToken)
     {
         var key = CacheKey.Create(connectionString);
         var client = _clients.GetOrAdd(key,
@@ -31,12 +35,13 @@ public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory
     public Task<ServiceBusClient> CreateClient(
         string fullyQualifiedNamespace,
         string tenantId,
-        string clientId)
+        string clientId,
+        CancellationToken cancellationToken)
     {
         var key = CacheKey.Create(fullyQualifiedNamespace, tenantId, clientId);
         var client = _clients.GetOrAdd(key, _ => new Lazy<Task<ServiceBusClient>>(async () =>
         {
-            var tokenCredential = await _credentialFactory.Create(tenantId, clientId);
+            var tokenCredential = await _credentialFactory.Create(tenantId, clientId, cancellationToken);
 
             return new ServiceBusClient(fullyQualifiedNamespace, tokenCredential);
         }));

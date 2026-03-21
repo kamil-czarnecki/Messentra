@@ -7,14 +7,15 @@ namespace Messentra.Infrastructure.AzureServiceBus;
 
 public abstract class AzureServiceBusProviderBase(IAzureServiceBusClientFactory clientFactory)
 {
-    protected async Task<ServiceBusClient> GetClient(ConnectionInfo info) =>
+    protected async Task<ServiceBusClient> GetClient(ConnectionInfo info, CancellationToken cancellationToken) =>
         info switch
         {
-            ConnectionInfo.ConnectionString cs => await clientFactory.CreateClient(cs.Value),
+            ConnectionInfo.ConnectionString cs => await clientFactory.CreateClient(cs.Value, cancellationToken),
             ConnectionInfo.ManagedIdentity mi => await clientFactory.CreateClient(
                 mi.FullyQualifiedNamespace,
                 mi.TenantId,
-                mi.ClientId),
+                mi.ClientId,
+                cancellationToken),
             _ => throw new InvalidOperationException("Invalid connection info type")
         };
     

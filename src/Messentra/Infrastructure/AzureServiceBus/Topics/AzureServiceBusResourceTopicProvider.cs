@@ -11,7 +11,7 @@ public sealed class AzureServiceBusResourceTopicProvider(
 {
     public async Task<IReadOnlyCollection<Resource.Topic>> GetAll(ConnectionInfo info, CancellationToken cancellationToken)
     {
-        var client = await GetClient(info);
+        var client = await GetClient(info, cancellationToken);
         var @namespace = GetNamespace(info);
         var topicsProperties = new ConcurrentDictionary<string, Azure.Messaging.ServiceBus.Administration.TopicProperties>();
         var topicsRuntimeProperties = new ConcurrentDictionary<string, Azure.Messaging.ServiceBus.Administration.TopicRuntimeProperties>();
@@ -79,7 +79,7 @@ public sealed class AzureServiceBusResourceTopicProvider(
 
     public async Task<Resource.Topic> GetByName(ConnectionInfo info, string name, CancellationToken cancellationToken)
     {
-        var client = await GetClient(info);
+        var client = await GetClient(info, cancellationToken);
         var @namespace = GetNamespace(info);
 
         var topicTask = client.GetTopicAsync(name, cancellationToken);

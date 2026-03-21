@@ -41,7 +41,7 @@ public sealed class AzureServiceBusTokenCredentialFactoryShould
         var clientId = _fixture.Create<string>();
         
         // Act
-        var credential = await _sut.Create(tenantId, clientId);
+        var credential = await _sut.Create(tenantId, clientId, CancellationToken.None);
         
         // Assert
         credential.ShouldNotBeNull();
@@ -56,8 +56,8 @@ public sealed class AzureServiceBusTokenCredentialFactoryShould
         var clientId = _fixture.Create<string>();
         
         // Act
-        var credential1 = await _sut.Create(tenantId, clientId);
-        var credential2 = await _sut.Create(tenantId, clientId);
+        var credential1 = await _sut.Create(tenantId, clientId, CancellationToken.None);
+        var credential2 = await _sut.Create(tenantId, clientId, CancellationToken.None);
         
         // Assert
         credential1.ShouldBeSameAs(credential2);
@@ -72,8 +72,8 @@ public sealed class AzureServiceBusTokenCredentialFactoryShould
         var clientId = _fixture.Create<string>();
         
         // Act
-        var credential1 = await _sut.Create(tenantId1, clientId);
-        var credential2 = await _sut.Create(tenantId2, clientId);
+        var credential1 = await _sut.Create(tenantId1, clientId, CancellationToken.None);
+        var credential2 = await _sut.Create(tenantId2, clientId, CancellationToken.None);
         
         // Assert
         credential1.ShouldNotBeSameAs(credential2);
@@ -88,8 +88,8 @@ public sealed class AzureServiceBusTokenCredentialFactoryShould
         var clientId2 = _fixture.Create<string>();
         
         // Act
-        var credential1 = await _sut.Create(tenantId, clientId1);
-        var credential2 = await _sut.Create(tenantId, clientId2);
+        var credential1 = await _sut.Create(tenantId, clientId1, CancellationToken.None);
+        var credential2 = await _sut.Create(tenantId, clientId2, CancellationToken.None);
         
         // Assert
         credential1.ShouldNotBeSameAs(credential2);
@@ -105,9 +105,9 @@ public sealed class AzureServiceBusTokenCredentialFactoryShould
         var client2 = _fixture.Create<string>();
         
         // Act
-        var credential1 = await _sut.Create(tenant1, client1);
-        var credential2 = await _sut.Create(tenant2, client2);
-        var credential3 = await _sut.Create(tenant1, client1); // Same as credential1
+        var credential1 = await _sut.Create(tenant1, client1, CancellationToken.None);
+        var credential2 = await _sut.Create(tenant2, client2, CancellationToken.None);
+        var credential3 = await _sut.Create(tenant1, client1, CancellationToken.None); // Same as credential1
         
         // Assert
         credential1.ShouldNotBeSameAs(credential2);

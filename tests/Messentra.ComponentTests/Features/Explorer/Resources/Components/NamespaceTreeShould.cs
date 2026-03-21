@@ -149,6 +149,23 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         MockDispatcher.Verify(d => d.Dispatch(It.IsAny<RefreshQueueAction>()), Times.Never);
     }
 
+    [Fact]
+    public void ClickCancelLoadingOnNamespace_DispatchesCancelFetchResourcesAction()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildLoadingNamespaceTree())
+            .Add(x => x.Connections, []));
+
+        // Act
+        cut.Find(".namespace-loading-cancel").Click();
+
+        // Assert
+        MockDispatcher.Verify(
+            d => d.Dispatch(It.Is<CancelFetchResourcesAction>(a => a.ConnectionName == "TestNamespace")),
+            Times.Once);
+    }
+
     // --- Filtering ---
 
     private static ResourceTreeItemData QueueItem(string name) => new() { Text = name };
@@ -235,6 +252,25 @@ public sealed class NamespaceTreeShould : ComponentTestBase
                 Expandable = true,
                 Expanded = true,
                 Children = [queuesGroup, topicsGroup]
+            }
+        ];
+    }
+
+    private static List<ResourceTreeItemData> BuildLoadingNamespaceTree()
+    {
+        var config = BuildConnectionConfig();
+        const string connectionName = "TestNamespace";
+
+        return
+        [
+            new ResourceTreeItemData
+            {
+                Text = connectionName,
+                Value = new NamespaceTreeNode(connectionName, config, IsLoading: true),
+                IsReadonly = true,
+                Expandable = true,
+                Expanded = true,
+                Children = []
             }
         ];
     }

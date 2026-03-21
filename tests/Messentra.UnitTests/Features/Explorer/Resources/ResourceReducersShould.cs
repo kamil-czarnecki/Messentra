@@ -105,6 +105,48 @@ public sealed class ResourceReducersShould
     }
 
     [Fact]
+    public void CancelFetchResourcesAction_RemovesLoadingNamespace()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var loadingEntry = new NamespaceEntry(ConnectionName, config, true, [], []);
+        var state = new ResourceState(
+            Namespaces: [loadingEntry],
+            SelectedResource: null,
+            ExpandedKeys: [$"ns:{ConnectionName}"]);
+        var action = new CancelFetchResourcesAction(ConnectionName);
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
+        newState.Namespaces.ShouldBeEmpty();
+        newState.ExpandedKeys.ShouldNotContain($"ns:{ConnectionName}");
+        newState.SelectedResource.ShouldBeNull();
+    }
+
+    [Fact]
+    public void FetchResourcesCanceledAction_RemovesLoadingNamespace()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var loadingEntry = new NamespaceEntry(ConnectionName, config, true, [], []);
+        var state = new ResourceState(
+            Namespaces: [loadingEntry],
+            SelectedResource: null,
+            ExpandedKeys: [$"ns:{ConnectionName}"]);
+        var action = new FetchResourcesCanceledAction(ConnectionName);
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
+        newState.Namespaces.ShouldBeEmpty();
+        newState.ExpandedKeys.ShouldNotContain($"ns:{ConnectionName}");
+        newState.SelectedResource.ShouldBeNull();
+    }
+
+    [Fact]
     public void SelectResourceAction_SetsSelectedResource()
     {
         // Arrange

@@ -22,7 +22,7 @@ public sealed class AzureServiceBusSenderShould
     public AzureServiceBusSenderShould()
     {
         _clientFactory
-            .Setup(x => x.CreateClient(It.IsAny<string>()))
+            .Setup(x => x.CreateClient(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(_client.Object);
 
         _client
@@ -200,7 +200,11 @@ public sealed class AzureServiceBusSenderShould
             "client-id");
 
         _clientFactory
-            .Setup(x => x.CreateClient("test.servicebus.windows.net", "tenant-id", "client-id"))
+            .Setup(x => x.CreateClient(
+                "test.servicebus.windows.net",
+                "tenant-id",
+                "client-id",
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(_client.Object);
 
         var command = BuildCommand(body: "hello");
@@ -210,7 +214,11 @@ public sealed class AzureServiceBusSenderShould
 
         // Assert
         _clientFactory.Verify(
-            x => x.CreateClient("test.servicebus.windows.net", "tenant-id", "client-id"),
+            x => x.CreateClient(
+                "test.servicebus.windows.net",
+                "tenant-id",
+                "client-id",
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

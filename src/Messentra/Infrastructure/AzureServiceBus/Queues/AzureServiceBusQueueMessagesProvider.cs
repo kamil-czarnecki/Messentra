@@ -27,7 +27,7 @@ public sealed class AzureServiceBusQueueMessagesProvider : AzureServiceBusProvid
         FetchMessagesOptions options,
         CancellationToken cancellationToken)
     {
-        var client = await GetClient(info);
+        var client = await GetClient(info, cancellationToken);
         var receiver = client.CreateReceiver(queueName, new ServiceBusReceiverOptions
         {
             ReceiveMode = GetReceiveMode(options),

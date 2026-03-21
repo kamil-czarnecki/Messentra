@@ -5,11 +5,11 @@ namespace Messentra.Infrastructure.AzureServiceBus.Factories;
 
 public interface IAzureServiceBusAdminClientFactory
 {
-    Task<ServiceBusAdministrationClient> CreateClient(string connectionString);
-    Task<ServiceBusAdministrationClient> CreateClient(
-        string fullyQualifiedNamespace,
+    Task<ServiceBusAdministrationClient> CreateClient(string connectionString, CancellationToken cancellationToken);
+    Task<ServiceBusAdministrationClient> CreateClient(string fullyQualifiedNamespace,
         string tenantId,
-        string clientId);
+        string clientId,
+        CancellationToken cancellationToken);
 }
 
 public sealed class AzureServiceBusAdminClientFactory : IAzureServiceBusAdminClientFactory
@@ -22,7 +22,9 @@ public sealed class AzureServiceBusAdminClientFactory : IAzureServiceBusAdminCli
         _tokenCredentialFactory = tokenCredentialFactory;
     }
 
-    public Task<ServiceBusAdministrationClient> CreateClient(string connectionString)
+    public Task<ServiceBusAdministrationClient> CreateClient(
+        string connectionString,
+        CancellationToken cancellationToken)
     {
         var cacheKey = CacheKey.Create(connectionString);
         var client = _clients.GetOrAdd(cacheKey,
@@ -35,12 +37,13 @@ public sealed class AzureServiceBusAdminClientFactory : IAzureServiceBusAdminCli
     public Task<ServiceBusAdministrationClient> CreateClient(
         string fullyQualifiedNamespace,
         string tenantId,
-        string clientId)
+        string clientId,
+        CancellationToken cancellationToken)
     {
         var cacheKey = CacheKey.Create(fullyQualifiedNamespace, tenantId, clientId);
         var client = _clients.GetOrAdd(cacheKey, _ => new Lazy<Task<ServiceBusAdministrationClient>>(async () =>
         {
-            var token = await _tokenCredentialFactory.Create(tenantId, clientId);
+            var token = await _tokenCredentialFactory.Create(tenantId, clientId, cancellationToken);
             return new ServiceBusAdministrationClient(fullyQualifiedNamespace, token);
         }));
         

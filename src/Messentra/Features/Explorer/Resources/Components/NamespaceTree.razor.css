@@ -45,6 +45,31 @@
     padding: 0;
 }
 
+::deep .namespace-loading-control {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+}
+
+::deep .namespace-loading-cancel {
+    opacity: 0;
+    width: 12px;
+    height: 12px;
+    position: absolute;
+    transition: opacity 0.15s ease;
+}
+
+::deep .namespace-loading-control:hover .namespace-loading-spinner {
+    opacity: 0;
+}
+
+::deep .namespace-loading-control:hover .namespace-loading-cancel {
+    opacity: 1;
+}
+
 ::deep .tree-item-body {
     overflow: hidden;
 }

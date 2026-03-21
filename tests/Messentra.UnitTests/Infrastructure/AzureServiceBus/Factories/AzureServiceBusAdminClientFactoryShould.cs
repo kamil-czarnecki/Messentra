@@ -15,7 +15,7 @@ public sealed class AzureServiceBusAdminClientFactoryShould
     public AzureServiceBusAdminClientFactoryShould()
     {
         _credentialFactory
-            .Setup(x => x.Create(It.IsAny<string>(), It.IsAny<string>()))
+            .Setup(x => x.Create(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Mock.Of<TokenCredential>());
         
         _sut = new AzureServiceBusAdminClientFactory(_credentialFactory.Object);
@@ -28,7 +28,7 @@ public sealed class AzureServiceBusAdminClientFactoryShould
         const string connectionString = "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=testkey";
         
         // Act
-        var client = await _sut.CreateClient(connectionString);
+        var client = await _sut.CreateClient(connectionString, CancellationToken.None);
         
         // Assert
         client.ShouldNotBeNull();
@@ -44,7 +44,7 @@ public sealed class AzureServiceBusAdminClientFactoryShould
         const string clientId = "test-client-id";
         
         // Act
-        var client = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId);
+        var client = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId, CancellationToken.None);
         
         // Assert
         client.ShouldNotBeNull();
@@ -61,8 +61,8 @@ public sealed class AzureServiceBusAdminClientFactoryShould
         const string clientId = "test-client-id";
         
         // Act
-        var clientWithConnectionString = await _sut.CreateClient(connectionString);
-        var clientWithToken = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId);
+        var clientWithConnectionString = await _sut.CreateClient(connectionString, CancellationToken.None);
+        var clientWithToken = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId, CancellationToken.None);
         
         // Assert
         clientWithConnectionString.ShouldNotBeNull();
@@ -77,8 +77,8 @@ public sealed class AzureServiceBusAdminClientFactoryShould
         const string connectionString = "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=testkey";
         
         // Act
-        var client1 = await _sut.CreateClient(connectionString);
-        var client2 = await _sut.CreateClient(connectionString);
+        var client1 = await _sut.CreateClient(connectionString, CancellationToken.None);
+        var client2 = await _sut.CreateClient(connectionString, CancellationToken.None);
         
         // Assert
         client1.ShouldBeSameAs(client2);
@@ -92,8 +92,8 @@ public sealed class AzureServiceBusAdminClientFactoryShould
         const string connectionString2 = "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=testkey2";
         
         // Act
-        var client1 = await _sut.CreateClient(connectionString1);
-        var client2 = await _sut.CreateClient(connectionString2);
+        var client1 = await _sut.CreateClient(connectionString1, CancellationToken.None);
+        var client2 = await _sut.CreateClient(connectionString2, CancellationToken.None);
         
         // Assert
         client1.ShouldNotBeSameAs(client2);
@@ -108,8 +108,8 @@ public sealed class AzureServiceBusAdminClientFactoryShould
         const string clientId = "test-client-id";
         
         // Act
-        var client1 = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId);
-        var client2 = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId);
+        var client1 = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId, CancellationToken.None);
+        var client2 = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId, CancellationToken.None);
         
         // Assert
         client1.ShouldBeSameAs(client2);
@@ -124,12 +124,12 @@ public sealed class AzureServiceBusAdminClientFactoryShould
         const string clientId = "test-client-id";
 
         // Act
-        _ = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId);
-        _ = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId);
+        _ = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId, CancellationToken.None);
+        _ = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId, CancellationToken.None);
 
         // Assert
         _credentialFactory.Verify(
-            x => x.Create(tenantId, clientId),
+            x => x.Create(tenantId, clientId, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -143,8 +143,8 @@ public sealed class AzureServiceBusAdminClientFactoryShould
         const string clientId = "test-client-id";
 
         // Act
-        var client1 = await _sut.CreateClient(fullyQualifiedNamespace1, tenantId, clientId);
-        var client2 = await _sut.CreateClient(fullyQualifiedNamespace2, tenantId, clientId);
+        var client1 = await _sut.CreateClient(fullyQualifiedNamespace1, tenantId, clientId, CancellationToken.None);
+        var client2 = await _sut.CreateClient(fullyQualifiedNamespace2, tenantId, clientId, CancellationToken.None);
 
         // Assert
         client1.ShouldNotBeSameAs(client2);

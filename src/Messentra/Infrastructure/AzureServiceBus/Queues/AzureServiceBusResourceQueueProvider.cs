@@ -7,7 +7,7 @@ public sealed class AzureServiceBusResourceQueueProvider(IAzureServiceBusAdminCl
 {
     public async Task<IReadOnlyCollection<Resource.Queue>> GetAll(ConnectionInfo info, CancellationToken cancellationToken)
     {
-        var client = await GetClient(info);
+        var client = await GetClient(info, cancellationToken);
         var @namespace = GetNamespace(info);
         var queuesProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.QueueProperties>();
         var queuesRuntimeProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.QueueRuntimeProperties>();
@@ -43,7 +43,7 @@ public sealed class AzureServiceBusResourceQueueProvider(IAzureServiceBusAdminCl
 
     public async Task<Resource.Queue> GetByName(ConnectionInfo info, string name, CancellationToken cancellationToken)
     {
-        var client = await GetClient(info);
+        var client = await GetClient(info, cancellationToken);
         var @namespace = GetNamespace(info);
 
         var queue = await client.GetQueueAsync(name, cancellationToken);

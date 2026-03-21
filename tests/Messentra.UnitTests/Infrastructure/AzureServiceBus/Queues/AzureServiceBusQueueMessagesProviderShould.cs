@@ -23,7 +23,7 @@ public sealed class AzureServiceBusQueueMessagesProviderShould
     public AzureServiceBusQueueMessagesProviderShould()
     {
         _clientFactory
-            .Setup(x => x.CreateClient(It.IsAny<string>()))
+            .Setup(x => x.CreateClient(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(_client.Object);
 
         _client

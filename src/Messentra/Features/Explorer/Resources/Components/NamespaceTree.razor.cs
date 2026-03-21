@@ -68,6 +68,11 @@ public partial class NamespaceTree
             DateTime.Now)));
     }
 
+    private void OnCancelFetchResourcesClicked(string connectionName)
+    {
+        _dispatcher.Dispatch(new CancelFetchResourcesAction(connectionName));
+    }
+
     private void ItemSelected(ResourceTreeItemData presenter, bool selected)
     {
         if (!selected)

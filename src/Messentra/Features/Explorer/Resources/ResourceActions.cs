@@ -6,6 +6,8 @@ namespace Messentra.Features.Explorer.Resources;
 public sealed record FetchResourcesAction(string ConnectionName, ConnectionConfig ConnectionConfig);
 public sealed record FetchResourcesSuccessAction(string ConnectionName, ConnectionConfig ConnectionConfig, IReadOnlyCollection<Resource.Queue> Queues, IReadOnlyCollection<Resource.Topic> Topics);
 public sealed record FetchResourcesFailureAction(string ConnectionName, string Error);
+public sealed record CancelFetchResourcesAction(string ConnectionName);
+public sealed record FetchResourcesCanceledAction(string ConnectionName);
 
 public sealed record SelectResourceAction(ResourceTreeNode Node);
 public sealed record DisconnectResourceAction(string ConnectionName);

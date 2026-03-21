@@ -13,6 +13,7 @@ public sealed class ResourceEffects
 {
     private readonly IMediator _mediator;
     private readonly ILogger<ResourceEffects> _logger;
+    private readonly Dictionary<string, CancellationTokenSource> _fetchResourcesCts = new();
 
     public ResourceEffects(IMediator mediator, ILogger<ResourceEffects> logger)
     {
@@ -23,6 +24,22 @@ public sealed class ResourceEffects
     [EffectMethod]
     public async Task HandleFetchResources(FetchResourcesAction action, IDispatcher dispatcher)
     {
+        CancellationTokenSource? previousCts;
+        CancellationTokenSource cts;
+
+        lock (_fetchResourcesCts)
+        {
+            _fetchResourcesCts.TryGetValue(action.ConnectionName, out previousCts);
+            cts = new CancellationTokenSource();
+            _fetchResourcesCts[action.ConnectionName] = cts;
+        }
+
+        if (previousCts is not null)
+        {
+            await previousCts.CancelAsync();
+            previousCts.Dispose();
+        }
+
         try
         {
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
@@ -30,8 +47,8 @@ public sealed class ResourceEffects
                 "Debug",
                 "Fetching resources...",
                 DateTime.Now)));
-            var getQueues = _mediator.Send(new GetAllQueueResourcesQuery(action.ConnectionConfig)).AsTask();
-            var getTopics = _mediator.Send(new GetAllTopicResourcesQuery(action.ConnectionConfig)).AsTask();
+            var getQueues = _mediator.Send(new GetAllQueueResourcesQuery(action.ConnectionConfig), cts.Token).AsTask();
+            var getTopics = _mediator.Send(new GetAllTopicResourcesQuery(action.ConnectionConfig), cts.Token).AsTask();
 
             await Task.WhenAll(getQueues, getTopics);
 
@@ -41,6 +58,15 @@ public sealed class ResourceEffects
                 "Resources fetched successfully.",
                 DateTime.Now)));
             dispatcher.Dispatch(new FetchResourcesSuccessAction(action.ConnectionName, action.ConnectionConfig, getQueues.Result, getTopics.Result));
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                action.ConnectionName,
+                "Info",
+                "Fetching resources canceled.",
+                DateTime.Now)));
+            dispatcher.Dispatch(new FetchResourcesCanceledAction(action.ConnectionName));
         }
         catch (Exception ex)
         {
@@ -53,6 +79,37 @@ public sealed class ResourceEffects
             dispatcher.Dispatch(new FetchResourcesFailureAction(action.ConnectionName, errorSummary));
             _logger.LogError(ex, "Error fetching resources for connection '{ConnectionName}'", action.ConnectionName);
         }
+        finally
+        {
+            lock (_fetchResourcesCts)
+            {
+                if (_fetchResourcesCts.TryGetValue(action.ConnectionName, out var current) && ReferenceEquals(current, cts))
+                    _fetchResourcesCts.Remove(action.ConnectionName);
+            }
+
+            cts.Dispose();
+        }
+    }
+
+    [EffectMethod]
+    public Task HandleCancelFetchResources(CancelFetchResourcesAction action, IDispatcher dispatcher)
+    {
+        CancellationTokenSource? cts;
+
+        lock (_fetchResourcesCts)
+            _fetchResourcesCts.TryGetValue(action.ConnectionName, out cts);
+
+        if (cts is null)
+            return Task.CompletedTask;
+
+        dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+            action.ConnectionName,
+            "Debug",
+            "Canceling resource fetch...",
+            DateTime.Now)));
+
+        cts.Cancel();
+        return Task.CompletedTask;
     }
 
     [EffectMethod]
