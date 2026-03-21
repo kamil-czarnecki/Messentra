@@ -25,6 +25,7 @@ public static class Extensions
             services.AddSingleton<IAzureServiceBusSender, AzureServiceBusSender>();
             services.AddSingleton<IAuthenticationRecordStore, AuthenticationRecordStore>();
             services.AddSingleton<IInteractiveAuthBootstrapper, InteractiveAuthBootstrapper>();
+            services.AddSingleton<IFileSystem, FileSystem>();
         }
     }
 }

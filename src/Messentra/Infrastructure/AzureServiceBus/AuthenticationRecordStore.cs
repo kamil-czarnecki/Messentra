@@ -8,20 +8,28 @@ public interface IAuthenticationRecordStore
 {
     AuthenticationRecord? Get(string key);
     void Save(string key, AuthenticationRecord record);
+    void ClearAll();
 }
 
 public sealed class AuthenticationRecordStore : IAuthenticationRecordStore
 {
+    private readonly IFileSystem _fileSystem;
+
+    public AuthenticationRecordStore(IFileSystem fileSystem)
+    {
+        _fileSystem = fileSystem;
+    }
+
     public AuthenticationRecord? Get(string key)
     {
         var path = GetPath(key);
         
-        if (!File.Exists(path))
+        if (!_fileSystem.FileExists(path))
             return null;
 
         try
         {
-            using var stream = File.OpenRead(path);
+            using var stream = _fileSystem.OpenRead(path);
             
             return AuthenticationRecord.Deserialize(stream);
         }
@@ -39,7 +47,7 @@ public sealed class AuthenticationRecordStore : IAuthenticationRecordStore
         
         try
         {
-            using var stream = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.None);
+            using var stream = _fileSystem.OpenWrite(path);
             
             record.Serialize(stream);
         }
@@ -48,27 +56,50 @@ public sealed class AuthenticationRecordStore : IAuthenticationRecordStore
             TryDelete(path);
         }
     }
-    
-    private static string GetPath(string key)
-    {
-        var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Messentra",
-            "AuthRecords");
 
-        Directory.CreateDirectory(root);
+    public void ClearAll()
+    {
+        var root = GetRootPath();
+
+        if (!_fileSystem.DirectoryExists(root))
+            return;
+        
+        foreach (var file in _fileSystem.EnumerateFiles(root, "*.bin", SearchOption.TopDirectoryOnly))
+        {
+            try
+            {
+                _fileSystem.Delete(file);
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+    }
+
+    private string GetPath(string key)
+    {
+        var root = GetRootPath();
+
+        _fileSystem.CreateDirectory(root);
 
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
         
         return Path.Combine(root, $"{hash}.bin");
     }
+
+    private static string GetRootPath() =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Messentra",
+            "AuthRecords");
     
-    private static void TryDelete(string path)
+    private void TryDelete(string path)
     {
         try
         {
-            if (File.Exists(path))
-                File.Delete(path);
+            if (_fileSystem.FileExists(path))
+                _fileSystem.Delete(path);
         }
         catch
         {
