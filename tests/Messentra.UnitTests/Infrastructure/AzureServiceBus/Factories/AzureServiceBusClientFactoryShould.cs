@@ -91,15 +91,15 @@ public sealed class AzureServiceBusClientFactoryShould
     }
     
     [Fact]
-    public void ReturnDifferentClientsForDifferentKeysWithConnectionString()
+    public async Task ReturnDifferentClientsForDifferentKeysWithConnectionString()
     {
         // Arrange
         const string connectionString1 = "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=testkey";
         const string connectionString2 = "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=testkey2";
         
         // Act
-        var client1 = _sut.CreateClient(connectionString1);
-        var client2 = _sut.CreateClient(connectionString2);
+        var client1 = await _sut.CreateClient(connectionString1);
+        var client2 = await _sut.CreateClient(connectionString2);
         
         // Assert
         client1.ShouldNotBeSameAs(client2);
@@ -122,7 +122,7 @@ public sealed class AzureServiceBusClientFactoryShould
     }
 
     [Fact]
-    public async Task CreateClientWithTokenCredential_CallsCredentialFactoryForEachInvocation()
+    public async Task CreateClientWithTokenCredential_CallsCredentialFactoryOnce()
     {
         // Arrange
         const string fullyQualifiedNamespace = "test.servicebus.windows.net";
