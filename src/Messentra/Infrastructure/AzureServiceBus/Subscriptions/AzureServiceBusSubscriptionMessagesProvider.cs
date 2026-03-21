@@ -29,7 +29,7 @@ public sealed class AzureServiceBusSubscriptionMessagesProvider : AzureServiceBu
         FetchMessagesOptions options,
         CancellationToken cancellationToken)
     {
-        var client = GetClient(info);
+        var client = await GetClient(info);
         var receiver = client.CreateReceiver(topicName, subscriptionName, new ServiceBusReceiverOptions
         {
             ReceiveMode = GetReceiveMode(options),

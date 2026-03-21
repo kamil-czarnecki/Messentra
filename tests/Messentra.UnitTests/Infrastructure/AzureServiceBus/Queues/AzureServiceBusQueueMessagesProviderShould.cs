@@ -24,7 +24,7 @@ public sealed class AzureServiceBusQueueMessagesProviderShould
     {
         _clientFactory
             .Setup(x => x.CreateClient(It.IsAny<string>()))
-            .Returns(_client.Object);
+            .ReturnsAsync(_client.Object);
 
         _client
             .Setup(x => x.CreateReceiver(It.IsAny<string>(), It.IsAny<ServiceBusReceiverOptions>()))

@@ -10,7 +10,7 @@ public sealed class AzureServiceBusResourceSubscriptionProvider(IAzureServiceBus
         string topicName,
         CancellationToken cancellationToken)
     {
-        var client = GetClient(info);
+        var client = await GetClient(info);
         var @namespace = GetNamespace(info);
         var subscriptionsProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.SubscriptionProperties>();
         var subscriptionsRuntimeProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.SubscriptionRuntimeProperties>();
@@ -51,7 +51,7 @@ public sealed class AzureServiceBusResourceSubscriptionProvider(IAzureServiceBus
         string name,
         CancellationToken cancellationToken)
     {
-        var client = GetClient(info);
+        var client = await GetClient(info);
         var @namespace = GetNamespace(info);
 
         var sub = await client.GetSubscriptionAsync(topicName, name, cancellationToken);

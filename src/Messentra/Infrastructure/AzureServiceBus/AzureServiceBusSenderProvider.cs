@@ -17,7 +17,7 @@ public sealed class AzureServiceBusSender : AzureServiceBusProviderBase, IAzureS
 
     public async Task Send(ConnectionInfo info, string entityPath, SendMessageCommand command, CancellationToken cancellationToken)
     {
-        var client = GetClient(info);
+        var client = await GetClient(info);
         var sender = client.CreateSender(entityPath);
 
         var message = new ServiceBusMessage(command.Body);

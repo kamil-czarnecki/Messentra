@@ -23,6 +23,8 @@ public static class Extensions
             services.AddSingleton<IAzureServiceBusQueueMessagesProvider, AzureServiceBusQueueMessagesProvider>();
             services.AddSingleton<IAzureServiceBusSubscriptionMessagesProvider, AzureServiceBusSubscriptionMessagesProvider>();
             services.AddSingleton<IAzureServiceBusSender, AzureServiceBusSender>();
+            services.AddSingleton<IAuthenticationRecordStore, AuthenticationRecordStore>();
+            services.AddSingleton<IInteractiveAuthBootstrapper, InteractiveAuthBootstrapper>();
         }
     }
 }

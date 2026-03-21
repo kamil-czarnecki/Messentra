@@ -5,8 +5,8 @@ namespace Messentra.Infrastructure.AzureServiceBus.Factories;
 
 public interface IAzureServiceBusAdminClientFactory
 {
-    ServiceBusAdministrationClient CreateClient(string connectionString);
-    ServiceBusAdministrationClient CreateClient(
+    Task<ServiceBusAdministrationClient> CreateClient(string connectionString);
+    Task<ServiceBusAdministrationClient> CreateClient(
         string fullyQualifiedNamespace,
         string tenantId,
         string clientId);
@@ -15,32 +15,52 @@ public interface IAzureServiceBusAdminClientFactory
 public sealed class AzureServiceBusAdminClientFactory : IAzureServiceBusAdminClientFactory
 {
     private readonly IAzureServiceBusTokenCredentialFactory _tokenCredentialFactory;
-    private readonly ConcurrentDictionary<CacheKey, ServiceBusAdministrationClient> _clients = new();
+    private readonly ConcurrentDictionary<CacheKey, Lazy<Task<ServiceBusAdministrationClient>>> _clients = new();
 
     public AzureServiceBusAdminClientFactory(IAzureServiceBusTokenCredentialFactory tokenCredentialFactory)
     {
         _tokenCredentialFactory = tokenCredentialFactory;
     }
 
-    public ServiceBusAdministrationClient CreateClient(string connectionString)
+    public Task<ServiceBusAdministrationClient> CreateClient(string connectionString)
     {
         var cacheKey = CacheKey.Create(connectionString);
-        var client = _clients.GetOrAdd(cacheKey, _ => new ServiceBusAdministrationClient(connectionString));
+        var client = _clients.GetOrAdd(cacheKey,
+            _ => new Lazy<Task<ServiceBusAdministrationClient>>(() =>
+                Task.FromResult(new ServiceBusAdministrationClient(connectionString))));
         
-        return client;
+        return GetOrResetOnFailure(cacheKey, client);
     }
     
-    public ServiceBusAdministrationClient CreateClient(
+    public Task<ServiceBusAdministrationClient> CreateClient(
         string fullyQualifiedNamespace,
         string tenantId,
         string clientId)
     {
         var cacheKey = CacheKey.Create(fullyQualifiedNamespace, tenantId, clientId);
-        var tokenCredential = _tokenCredentialFactory.Create(fullyQualifiedNamespace, tenantId, clientId);
-        var client = _clients
-            .GetOrAdd(cacheKey, _ => new ServiceBusAdministrationClient(fullyQualifiedNamespace, tokenCredential));
+        var client = _clients.GetOrAdd(cacheKey, _ => new Lazy<Task<ServiceBusAdministrationClient>>(async () =>
+        {
+            var token = await _tokenCredentialFactory.Create(tenantId, clientId);
+            return new ServiceBusAdministrationClient(fullyQualifiedNamespace, token);
+        }));
         
-        return client;
+        return GetOrResetOnFailure(cacheKey, client);
+    }
+    
+    private async Task<ServiceBusAdministrationClient> GetOrResetOnFailure(
+        CacheKey cacheKey,
+        Lazy<Task<ServiceBusAdministrationClient>> lazyCredential)
+    {
+        try
+        {
+            return await lazyCredential.Value.ConfigureAwait(false);
+        }
+        catch
+        {
+            _clients.TryRemove(new KeyValuePair<CacheKey, Lazy<Task<ServiceBusAdministrationClient>>>(cacheKey, lazyCredential));
+            
+            throw;
+        }
     }
 
     private record CacheKey(string Key)
