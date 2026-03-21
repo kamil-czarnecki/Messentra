@@ -22,7 +22,7 @@ public sealed class FileSystem : IFileSystem
         Directory.EnumerateFiles(path, searchPattern, searchOption);
     public bool FileExists(string path) => File.Exists(path);
     public Stream OpenRead(string path) => File.OpenRead(path);
-    public Stream OpenWrite(string path) => File.OpenWrite(path);
+    public Stream OpenWrite(string path) => new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
 
     public void Delete(string path) => File.Delete(path);
 }
