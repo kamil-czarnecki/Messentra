@@ -5,6 +5,7 @@ using Messentra.Features.Layout.State;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using MudBlazor;
+using MudBlazor.Extensions;
 using Shouldly;
 using Xunit;
 
@@ -322,7 +323,7 @@ public sealed class UpdateNotificationShould : ComponentTestBase
         var cut = Render<UpdateNotification>();
 
         // Assert
-        cut.FindComponent<MudProgressCircular>().Instance.Value.ShouldBe(65.0);
+        cut.FindComponent<MudProgressCircular>().Instance.GetState(x => x.Value).ShouldBe(65.0);
     }
 
     [Fact]

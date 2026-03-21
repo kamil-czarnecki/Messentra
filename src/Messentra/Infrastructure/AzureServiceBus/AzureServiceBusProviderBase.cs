@@ -7,11 +7,11 @@ namespace Messentra.Infrastructure.AzureServiceBus;
 
 public abstract class AzureServiceBusProviderBase(IAzureServiceBusClientFactory clientFactory)
 {
-    protected ServiceBusClient GetClient(ConnectionInfo info) =>
+    protected async Task<ServiceBusClient> GetClient(ConnectionInfo info) =>
         info switch
         {
-            ConnectionInfo.ConnectionString cs => clientFactory.CreateClient(cs.Value),
-            ConnectionInfo.ManagedIdentity mi => clientFactory.CreateClient(
+            ConnectionInfo.ConnectionString cs => await clientFactory.CreateClient(cs.Value),
+            ConnectionInfo.ManagedIdentity mi => await clientFactory.CreateClient(
                 mi.FullyQualifiedNamespace,
                 mi.TenantId,
                 mi.ClientId),

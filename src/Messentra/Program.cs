@@ -3,14 +3,18 @@ using ElectronNET.API.Entities;
 using FluentValidation;
 using Fluxor;
 using Fluxor.Blazor.Web.ReduxDevTools;
+using Mediator;
 using Messentra;
+using Messentra.Features;
 using Messentra.Features.Explorer.Resources;
+using Messentra.Features.Settings.Cache;
 using Messentra.Infrastructure;
 using Messentra.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using Serilog;
 using App = Messentra.Features.App;
+// ReSharper disable AccessToModifiedClosure
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -50,7 +54,11 @@ builder.Services.AddDbContext<MessentraDbContext>();
 
 // Services
 builder.Services.AddInfrastructure();
+builder.Services.AddServices();
 builder.Services.AddScoped<ResourceSelector>();
+
+WebApplication? webApplication = null;
+
 builder.UseElectron(args, async () =>
 {
     // Splash screen
@@ -90,7 +98,17 @@ builder.UseElectron(args, async () =>
         options.AutoHideMenuBar = true;
 
     if (!builder.Environment.IsDevelopment())
-        ElectronMenu.CreateApplicationMenu();
+    {
+        ElectronMenu.CreateApplicationMenu(async () =>
+        {
+            if(webApplication is null)
+                return;
+            
+            using var scope = webApplication.Services.CreateScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            await mediator.Send(new ClearCacheCommand());
+        });
+    }
     
     var browserWindow = await Electron.WindowManager.CreateWindowAsync(options);
 
@@ -109,6 +127,7 @@ builder.UseElectron(args, async () =>
 });
 
 var app = builder.Build();
+webApplication = app;
 
 using (var scope = app.Services.CreateScope())
 {

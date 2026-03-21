@@ -25,7 +25,7 @@ public sealed class AzureServiceBusSubscriptionMessagesProviderShould
     {
         _clientFactory
             .Setup(x => x.CreateClient(It.IsAny<string>()))
-            .Returns(_client.Object);
+            .ReturnsAsync(_client.Object);
 
         _client
             .Setup(x => x.CreateReceiver(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ServiceBusReceiverOptions>()))

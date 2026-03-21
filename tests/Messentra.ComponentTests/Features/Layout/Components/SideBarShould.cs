@@ -1,6 +1,7 @@
 using Bunit;
 using Messentra.Features.Layout.Components;
 using MudBlazor;
+using MudBlazor.Extensions;
 using Shouldly;
 using Xunit;
 
@@ -55,7 +56,7 @@ public sealed class SideBarShould : ComponentTestBase
 
         // Assert
         var drawer = cut.FindComponent<MudDrawer>();
-        drawer.Instance.Open.ShouldBeTrue();
+        drawer.Instance.GetState(x => x.Open).ShouldBeTrue();
         drawer.Instance.Variant.ShouldBe(DrawerVariant.Persistent);
     }
 }

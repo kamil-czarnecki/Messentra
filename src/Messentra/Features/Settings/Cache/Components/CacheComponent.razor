@@ -1,0 +1,19 @@
+<div>
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudStack Spacing="4">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h5">Token Cache</MudText>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Delete"
+                           OnClick="@ClearCache">
+                    Clear
+                </MudButton>
+            </MudStack>
+
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Clear the token cache and restart the application. This is useful in case you need to reauthenticate.
+            </MudText>
+        </MudStack>
+    </MudPaper>
+</div>

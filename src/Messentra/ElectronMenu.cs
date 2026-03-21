@@ -6,7 +6,7 @@ namespace Messentra;
 
 public static class ElectronMenu
 {
-    public static void CreateApplicationMenu()
+    public static void CreateApplicationMenu(Func<Task>? onClearTokenCacheRequested = null)
     {
         var isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
         var menu = new List<MenuItem>();
@@ -37,6 +37,18 @@ public static class ElectronMenu
             Submenu =
             [
                 new MenuItem { Role = MenuRole.close },
+                new MenuItem { Type = MenuType.separator },
+                new MenuItem
+                {
+                    Label = "Clear Token Cache",
+                    Click = () =>
+                    {
+                        if (onClearTokenCacheRequested is null)
+                            return;
+
+                        _ = onClearTokenCacheRequested();
+                    }
+                },
                 ..isMac
                     ? Array.Empty<MenuItem>()
                     : new[]

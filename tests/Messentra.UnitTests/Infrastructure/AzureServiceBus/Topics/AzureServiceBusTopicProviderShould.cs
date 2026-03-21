@@ -29,7 +29,7 @@ public sealed class AzureServiceBusTopicProviderShould
     {
         _clientFactory
             .Setup(x => x.CreateClient(It.IsAny<string>()))
-            .Returns(_adminClient.Object);
+            .ReturnsAsync(_adminClient.Object);
 
         _sut = new AzureServiceBusResourceTopicProvider(_clientFactory.Object, _subscriptionProvider.Object);
     }

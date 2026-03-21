@@ -6,34 +6,86 @@ namespace Messentra.Infrastructure.AzureServiceBus.Factories;
 
 public interface IAzureServiceBusTokenCredentialFactory
 {
-    TokenCredential Create(string fullyQualifiedNamespace, string tenantId, string clientId);
+    Task<TokenCredential> Create(string tenantId, string clientId);
 }
 
 public sealed class AzureServiceBusTokenCredentialFactory : IAzureServiceBusTokenCredentialFactory
 {
-    private readonly ConcurrentDictionary<CacheKey, TokenCredential> _credentials = new();
-    
-    public TokenCredential Create(string fullyQualifiedNamespace, string tenantId, string clientId)
+    private static readonly string[] ServiceBusScopes = ["https://servicebus.azure.net/.default"];
+    private readonly ConcurrentDictionary<CacheKey, Lazy<Task<TokenCredential>>> _credentials = new();
+    private readonly IAuthenticationRecordStore _authenticationRecordStore;
+    private readonly IInteractiveAuthBootstrapper _bootstrapper;
+
+    public AzureServiceBusTokenCredentialFactory(
+        IAuthenticationRecordStore authenticationRecordStore,
+        IInteractiveAuthBootstrapper bootstrapper)
     {
-        var cacheKey = CacheKey.Create(fullyQualifiedNamespace, tenantId, clientId);
-        var tokenCredential = _credentials.GetOrAdd(cacheKey, _ => new InteractiveBrowserCredential(
-            new InteractiveBrowserCredentialOptions
-            {
-                TenantId = tenantId,
-                ClientId = clientId,
-                RedirectUri = new Uri("http://localhost"),
-                TokenCachePersistenceOptions = new TokenCachePersistenceOptions
-                {
-                    Name = "Messentra"
-                }
-            }));
-        
-        return tokenCredential;
+        _authenticationRecordStore = authenticationRecordStore;
+        _bootstrapper = bootstrapper;
     }
-    
+
+    public Task<TokenCredential> Create(string tenantId, string clientId)
+    {
+        var cacheKey = CacheKey.Create(tenantId, clientId);
+        var lazyCredential = _credentials.GetOrAdd(
+            cacheKey,
+            _ => new Lazy<Task<TokenCredential>>(
+                () => CreateCredential(cacheKey, tenantId, clientId),
+                LazyThreadSafetyMode.ExecutionAndPublication));
+
+        return GetOrResetOnFailure(cacheKey, lazyCredential);
+    }
+
+    private async Task<TokenCredential> GetOrResetOnFailure(CacheKey cacheKey, Lazy<Task<TokenCredential>> lazyCredential)
+    {
+        try
+        {
+            return await lazyCredential.Value.ConfigureAwait(false);
+        }
+        catch
+        {
+            _credentials.TryRemove(new KeyValuePair<CacheKey, Lazy<Task<TokenCredential>>>(cacheKey, lazyCredential));
+            
+            throw;
+        }
+    }
+
+    private async Task<TokenCredential> CreateCredential(CacheKey cacheKey, string tenantId, string clientId)
+    {
+        var options = new InteractiveBrowserCredentialOptions
+        {
+            TenantId = tenantId,
+            ClientId = clientId,
+            RedirectUri = new Uri("http://localhost"),
+            TokenCachePersistenceOptions = new TokenCachePersistenceOptions
+            {
+                Name = "Messentra"
+            }
+        };
+        var tokenCredential = new InteractiveBrowserCredential(options);
+        var existingRecord = _authenticationRecordStore.Get(cacheKey.Key);
+
+        if (existingRecord is null)
+        {
+            existingRecord = await _bootstrapper
+                .AuthenticateAsync(
+                    tokenCredential,
+                    new TokenRequestContext(ServiceBusScopes))
+                .ConfigureAwait(false);
+            
+            _authenticationRecordStore.Save(cacheKey.Key, existingRecord);
+        }
+
+        options.AuthenticationRecord = existingRecord;
+
+        return new InteractiveBrowserCredential(options);
+    }
+
     private record CacheKey(string Key)
     {
-        public static CacheKey Create(string fullyQualifiedNamespace, string tenantId, string clientId) =>
-            new($"{fullyQualifiedNamespace}|{tenantId}|{clientId}");
+        public static CacheKey Create(string tenantId, string clientId) =>
+            new($"{Normalize(tenantId)}|{Normalize(clientId)}");
+
+        private static string Normalize(string value) => value.Trim().ToLowerInvariant();
     }
 }

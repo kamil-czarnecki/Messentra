@@ -23,7 +23,7 @@ public sealed class AzureServiceBusSenderShould
     {
         _clientFactory
             .Setup(x => x.CreateClient(It.IsAny<string>()))
-            .Returns(_client.Object);
+            .ReturnsAsync(_client.Object);
 
         _client
             .Setup(x => x.CreateSender(It.IsAny<string>()))
@@ -201,7 +201,7 @@ public sealed class AzureServiceBusSenderShould
 
         _clientFactory
             .Setup(x => x.CreateClient("test.servicebus.windows.net", "tenant-id", "client-id"))
-            .Returns(_client.Object);
+            .ReturnsAsync(_client.Object);
 
         var command = BuildCommand(body: "hello");
 
