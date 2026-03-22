@@ -32,6 +32,20 @@ Built with **Blazor Server**, **Electron.NET**, **MudBlazor**, and **Fluxor**.
 - **Entra ID** - authenticate using Tenant ID + Client ID (Azure AD / Microsoft Entra)
 - Multiple connections managed side by side in the Explorer
 
+### 🧪 Azure Service Bus Emulator Support
+- Use a connection string in this format:
+
+```text
+Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+```
+
+- The `Endpoint` port (for example `:5300`) is important for emulator management operations.
+- Current emulator support includes:
+  - viewing resources
+  - sending messages
+  - fetching messages
+- Limitation: active and dead-letter message counts are currently not supported by the emulator.
+
 ### 🗂️ Resource Explorer
 - Browse **queues**, **topics**, and **subscriptions** in a collapsible tree
 - Live message counts (active / dead-letter) shown inline in the tree

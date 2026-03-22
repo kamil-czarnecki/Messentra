@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Data.Common;
 using Azure.Messaging.ServiceBus;
 
 namespace Messentra.Infrastructure.AzureServiceBus.Factories;
@@ -16,18 +17,24 @@ public interface IAzureServiceBusClientFactory
 public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory, IAsyncDisposable
 {
     private readonly IAzureServiceBusTokenCredentialFactory _credentialFactory;
+    private readonly ILogger<AzureServiceBusClientFactory> _logger;
     private readonly ConcurrentDictionary<CacheKey, Lazy<Task<ServiceBusClient>>> _clients = new();
 
-    public AzureServiceBusClientFactory(IAzureServiceBusTokenCredentialFactory credentialFactory)
+    public AzureServiceBusClientFactory(
+        IAzureServiceBusTokenCredentialFactory credentialFactory,
+        ILogger<AzureServiceBusClientFactory> logger)
     {
         _credentialFactory = credentialFactory;
+        _logger = logger;
     }
 
     public Task<ServiceBusClient> CreateClient(string connectionString, CancellationToken cancellationToken)
     {
-        var key = CacheKey.Create(connectionString);
+        var normalizedConnectionString = RemoveEndpointPortWhenEmulator(connectionString);
+        var key = CacheKey.Create(normalizedConnectionString);
         var client = _clients.GetOrAdd(key,
-            _ => new Lazy<Task<ServiceBusClient>>(() => Task.FromResult(new ServiceBusClient(connectionString))));
+            _ => new Lazy<Task<ServiceBusClient>>(() =>
+                Task.FromResult(new ServiceBusClient(normalizedConnectionString))));
         
         return GetOrResetOnFailure(key, client);
     }
@@ -75,6 +82,46 @@ public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory
             var serviceBusClient = await client.Value.ConfigureAwait(false);
             
             await serviceBusClient.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+    
+    private string RemoveEndpointPortWhenEmulator(string connectionString)
+    {
+        try
+        {
+            var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
+
+            if (!builder.TryGetValue("UseDevelopmentEmulator", out var emulatorValue) ||
+                !bool.TryParse(emulatorValue.ToString(), out var isEmulator) ||
+                !isEmulator ||
+                !builder.TryGetValue("Endpoint", out var endpointValue) ||
+                endpointValue is not string endpoint ||
+                string.IsNullOrWhiteSpace(endpoint))
+            {
+                return connectionString;
+            }
+
+            var endpointToParse = endpoint.EndsWith('/') ? endpoint : endpoint + "/";
+
+            if (!Uri.TryCreate(endpointToParse, UriKind.Absolute, out var endpointUri))
+            {
+                return connectionString;
+            }
+
+            var uriBuilder = new UriBuilder(endpointUri)
+            {
+                Port = -1
+            };
+
+            builder["Endpoint"] = uriBuilder.Uri.GetLeftPart(UriPartial.Authority);
+
+            return builder.ConnectionString;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to normalize connection string for emulator. Returning original connection string.");
+            
+            return connectionString;
         }
     }
     

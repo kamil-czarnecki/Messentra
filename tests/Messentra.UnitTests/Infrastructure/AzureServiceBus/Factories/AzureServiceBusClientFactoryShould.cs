@@ -1,6 +1,7 @@
 using Azure.Core;
 using Azure.Messaging.ServiceBus;
 using Messentra.Infrastructure.AzureServiceBus.Factories;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Shouldly;
 using Xunit;
@@ -10,6 +11,7 @@ namespace Messentra.UnitTests.Infrastructure.AzureServiceBus.Factories;
 public sealed class AzureServiceBusClientFactoryShould
 {
     private readonly Mock<IAzureServiceBusTokenCredentialFactory> _credentialFactory = new();
+    private readonly Mock<ILogger<AzureServiceBusClientFactory>> _logger = new();
     private readonly AzureServiceBusClientFactory _sut;
 
     public AzureServiceBusClientFactoryShould()
@@ -18,7 +20,9 @@ public sealed class AzureServiceBusClientFactoryShould
             .Setup(x => x.Create(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Mock.Of<TokenCredential>());
         
-        _sut = new AzureServiceBusClientFactory(_credentialFactory.Object);
+        _sut = new AzureServiceBusClientFactory(
+            _credentialFactory.Object,
+            _logger.Object);
     }
     
     [Fact]
@@ -176,6 +180,62 @@ public sealed class AzureServiceBusClientFactoryShould
         
         // Assert
         client1.ShouldNotBeSameAs(client2);
+    }
+
+    [Fact]
+    public async Task CreateClientWithConnectionString_WhenEmulatorAndOnlyPortDiffers_ReturnsSameClient()
+    {
+        // Arrange
+        const string connectionStringWithPort5300 =
+            "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;";
+        const string connectionStringWithPort5301 =
+            "Endpoint=sb://localhost:5301;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;";
+
+        // Act
+        var client1 = await _sut.CreateClient(connectionStringWithPort5300, CancellationToken.None);
+        var client2 = await _sut.CreateClient(connectionStringWithPort5301, CancellationToken.None);
+
+        // Assert
+        client1.ShouldBeSameAs(client2);
+    }
+
+    [Fact]
+    public async Task CreateClientWithConnectionString_WhenNotEmulatorAndPortDiffers_ReturnsDifferentClients()
+    {
+        // Arrange
+        const string connectionStringWithPort5300 =
+            "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;";
+        const string connectionStringWithPort5301 =
+            "Endpoint=sb://localhost:5301;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;";
+
+        // Act
+        var client1 = await _sut.CreateClient(connectionStringWithPort5300, CancellationToken.None);
+        var client2 = await _sut.CreateClient(connectionStringWithPort5301, CancellationToken.None);
+
+        // Assert
+        client1.ShouldNotBeSameAs(client2);
+    }
+
+    [Fact]
+    public async Task CreateClientWithConnectionString_WhenConnectionStringBuilderThrows_LogsError()
+    {
+        // Arrange
+        const string invalidConnectionString = "bad-connection-string-without-key-value-pairs";
+
+        // Act
+        await Should.ThrowAsync<Exception>(async () =>
+            await _sut.CreateClient(invalidConnectionString, CancellationToken.None));
+
+        // Assert
+        _logger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) =>
+                    state.ToString()!.Contains("Failed to normalize connection string for emulator", StringComparison.Ordinal)),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 }
 
