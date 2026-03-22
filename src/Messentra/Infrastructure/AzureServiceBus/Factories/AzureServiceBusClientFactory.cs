@@ -17,11 +17,15 @@ public interface IAzureServiceBusClientFactory
 public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory, IAsyncDisposable
 {
     private readonly IAzureServiceBusTokenCredentialFactory _credentialFactory;
+    private readonly ILogger<AzureServiceBusClientFactory> _logger;
     private readonly ConcurrentDictionary<CacheKey, Lazy<Task<ServiceBusClient>>> _clients = new();
 
-    public AzureServiceBusClientFactory(IAzureServiceBusTokenCredentialFactory credentialFactory)
+    public AzureServiceBusClientFactory(
+        IAzureServiceBusTokenCredentialFactory credentialFactory,
+        ILogger<AzureServiceBusClientFactory> logger)
     {
         _credentialFactory = credentialFactory;
+        _logger = logger;
     }
 
     public Task<ServiceBusClient> CreateClient(string connectionString, CancellationToken cancellationToken)
@@ -81,35 +85,44 @@ public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory
         }
     }
     
-    private static string RemoveEndpointPortWhenEmulator(string connectionString)
+    private string RemoveEndpointPortWhenEmulator(string connectionString)
     {
-        var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
-
-        if (!builder.TryGetValue("UseDevelopmentEmulator", out var emulatorValue) ||
-            !bool.TryParse(emulatorValue.ToString(), out var isEmulator) ||
-            !isEmulator ||
-            !builder.TryGetValue("Endpoint", out var endpointValue) ||
-            endpointValue is not string endpoint ||
-            string.IsNullOrWhiteSpace(endpoint))
+        try
         {
+            var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
+
+            if (!builder.TryGetValue("UseDevelopmentEmulator", out var emulatorValue) ||
+                !bool.TryParse(emulatorValue.ToString(), out var isEmulator) ||
+                !isEmulator ||
+                !builder.TryGetValue("Endpoint", out var endpointValue) ||
+                endpointValue is not string endpoint ||
+                string.IsNullOrWhiteSpace(endpoint))
+            {
+                return connectionString;
+            }
+
+            var endpointToParse = endpoint.EndsWith('/') ? endpoint : endpoint + "/";
+
+            if (!Uri.TryCreate(endpointToParse, UriKind.Absolute, out var endpointUri))
+            {
+                return connectionString;
+            }
+
+            var uriBuilder = new UriBuilder(endpointUri)
+            {
+                Port = -1
+            };
+
+            builder["Endpoint"] = uriBuilder.Uri.GetLeftPart(UriPartial.Authority);
+
+            return builder.ConnectionString;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to normalize connection string for emulator. Returning original connection string.");
+            
             return connectionString;
         }
-
-        var endpointToParse = endpoint.EndsWith('/') ? endpoint : endpoint + "/";
-        
-        if (!Uri.TryCreate(endpointToParse, UriKind.Absolute, out var endpointUri))
-        {
-            return connectionString;
-        }
-
-        var uriBuilder = new UriBuilder(endpointUri)
-        {
-            Port = -1
-        };
-
-        builder["Endpoint"] = uriBuilder.Uri.GetLeftPart(UriPartial.Authority);
-
-        return builder.ConnectionString;
     }
     
     private record CacheKey(string Key)
