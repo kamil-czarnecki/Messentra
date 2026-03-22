@@ -105,20 +105,9 @@ public partial class ConnectionsComponent
     {
         return connection.ConnectionConfig.ConnectionType switch
         {
-            ConnectionType.ConnectionString => MaskConnectionString(connection.ConnectionConfig.ConnectionString ?? ""),
+            ConnectionType.ConnectionString => connection.ConnectionConfig.ConnectionString ?? "",
             ConnectionType.EntraId => connection.ConnectionConfig.Namespace ?? "",
             _ => ""
         };
-    }
-
-    private static string MaskConnectionString(string connectionString)
-    {
-        if (string.IsNullOrEmpty(connectionString))
-            return string.Empty;
-
-        var separatorIndex = connectionString.IndexOf("/;", StringComparison.Ordinal);
-        var visiblePart = connectionString[..separatorIndex];
-        
-        return visiblePart;
     }
 }

@@ -177,5 +177,39 @@ public sealed class AzureServiceBusClientFactoryShould
         // Assert
         client1.ShouldNotBeSameAs(client2);
     }
+
+    [Fact]
+    public async Task CreateClientWithConnectionString_WhenEmulatorAndOnlyPortDiffers_ReturnsSameClient()
+    {
+        // Arrange
+        const string connectionStringWithPort5300 =
+            "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;";
+        const string connectionStringWithPort5301 =
+            "Endpoint=sb://localhost:5301;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;";
+
+        // Act
+        var client1 = await _sut.CreateClient(connectionStringWithPort5300, CancellationToken.None);
+        var client2 = await _sut.CreateClient(connectionStringWithPort5301, CancellationToken.None);
+
+        // Assert
+        client1.ShouldBeSameAs(client2);
+    }
+
+    [Fact]
+    public async Task CreateClientWithConnectionString_WhenNotEmulatorAndPortDiffers_ReturnsDifferentClients()
+    {
+        // Arrange
+        const string connectionStringWithPort5300 =
+            "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;";
+        const string connectionStringWithPort5301 =
+            "Endpoint=sb://localhost:5301;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;";
+
+        // Act
+        var client1 = await _sut.CreateClient(connectionStringWithPort5300, CancellationToken.None);
+        var client2 = await _sut.CreateClient(connectionStringWithPort5301, CancellationToken.None);
+
+        // Assert
+        client1.ShouldNotBeSameAs(client2);
+    }
 }
 

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Data.Common;
 using Azure.Messaging.ServiceBus;
 
 namespace Messentra.Infrastructure.AzureServiceBus.Factories;
@@ -25,9 +26,11 @@ public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory
 
     public Task<ServiceBusClient> CreateClient(string connectionString, CancellationToken cancellationToken)
     {
-        var key = CacheKey.Create(connectionString);
+        var normalizedConnectionString = RemoveEndpointPortWhenEmulator(connectionString);
+        var key = CacheKey.Create(normalizedConnectionString);
         var client = _clients.GetOrAdd(key,
-            _ => new Lazy<Task<ServiceBusClient>>(() => Task.FromResult(new ServiceBusClient(connectionString))));
+            _ => new Lazy<Task<ServiceBusClient>>(() =>
+                Task.FromResult(new ServiceBusClient(normalizedConnectionString))));
         
         return GetOrResetOnFailure(key, client);
     }
@@ -76,6 +79,37 @@ public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory
             
             await serviceBusClient.DisposeAsync().ConfigureAwait(false);
         }
+    }
+    
+    private static string RemoveEndpointPortWhenEmulator(string connectionString)
+    {
+        var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
+
+        if (!builder.TryGetValue("UseDevelopmentEmulator", out var emulatorValue) ||
+            !bool.TryParse(emulatorValue.ToString(), out var isEmulator) ||
+            !isEmulator ||
+            !builder.TryGetValue("Endpoint", out var endpointValue) ||
+            endpointValue is not string endpoint ||
+            string.IsNullOrWhiteSpace(endpoint))
+        {
+            return connectionString;
+        }
+
+        var endpointToParse = endpoint.EndsWith('/') ? endpoint : endpoint + "/";
+        
+        if (!Uri.TryCreate(endpointToParse, UriKind.Absolute, out var endpointUri))
+        {
+            return connectionString;
+        }
+
+        var uriBuilder = new UriBuilder(endpointUri)
+        {
+            Port = -1
+        };
+
+        builder["Endpoint"] = uriBuilder.Uri.GetLeftPart(UriPartial.Authority);
+
+        return builder.ConnectionString;
     }
     
     private record CacheKey(string Key)
