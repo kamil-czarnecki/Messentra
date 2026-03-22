@@ -1,6 +1,7 @@
 using Fluxor;
 using Mediator;
 using Messentra.Features.Explorer.Messages.SendMessage;
+using Messentra.Features.Layout.State;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 
@@ -29,6 +30,15 @@ public partial class ResourceDetails
         QueueTreeNode q => q.Resource.Name,
         TopicTreeNode t => t.Resource.Name,
         SubscriptionTreeNode s => s.Resource.Name,
+        NamespaceTreeNode n => n.ConnectionName,
+        _ => string.Empty
+    };
+    
+    private string ConnectionName => SelectedResource switch
+    {
+        QueueTreeNode q => q.ConnectionName,
+        TopicTreeNode t => t.ConnectionName,
+        SubscriptionTreeNode s => s.ConnectionName,
         NamespaceTreeNode n => n.ConnectionName,
         _ => string.Empty
     };
@@ -94,7 +104,23 @@ public partial class ResourceDetails
 
         if (result is { Canceled: false, Data: SendMessageCommand command })
         {
+            _dispatcher.Dispatch(new LogActivityAction(
+                new ActivityLogEntry(
+                    ConnectionName,
+                    "Debug",
+                    $"Sending message to {ResourceName}.",
+                    DateTime.Now)));
+            
             await _mediator.Send(command);
+            
+            _dispatcher.Dispatch(new LogActivityAction(
+                new ActivityLogEntry(
+                    ConnectionName,
+                    "Info",
+                    $"Message sent to {ResourceName}.",
+                    DateTime.Now)));
+            
+            RefreshResource();
         }
     }
 }

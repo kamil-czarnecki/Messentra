@@ -26,7 +26,7 @@
                         </MudChip>
                     </MudStack>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Send" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenSendMessageDialog">
+                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Send" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenSendMessageDialog" Disabled="@(IsRefreshing || SelectedResource is NamespaceTreeNode or QueuesTreeNode or TopicsTreeNode or SubscriptionTreeNode)">
                             <MudText Typo="Typo.body2">Send</MudText>
                         </MudButton>
                         <MudIconButton Icon="@Icons.Material.Filled.Refresh" Ripple="false" Size="Size.Small"
