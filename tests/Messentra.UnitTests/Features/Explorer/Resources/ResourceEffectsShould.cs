@@ -87,7 +87,7 @@ public sealed class ResourceEffectsShould
 
         // Act
         var fetchTask = _sut.HandleFetchResources(fetchAction, _dispatcher.Object);
-        await Task.Delay(25);
+        await Task.Delay(25, TestContext.Current.CancellationToken);
         await _sut.HandleCancelFetchResources(new CancelFetchResourcesAction(ConnectionName), _dispatcher.Object);
         await fetchTask;
 

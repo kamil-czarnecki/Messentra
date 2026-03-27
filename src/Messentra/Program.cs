@@ -50,7 +50,20 @@ builder.Services.AddMediator(opts =>
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Database
-builder.Services.AddDbContext<MessentraDbContext>();
+builder.Services.AddDbContext<MessentraDbContext>((serviceProvider, options) =>
+{
+    var environment = serviceProvider.GetRequiredService<IHostEnvironment>();
+    var dbDirectory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Messentra");
+
+    Directory.CreateDirectory(dbDirectory);
+
+    var dbName = environment.IsDevelopment() ? "Messentra_test.db" : "Messentra.db";
+    var dbPath = Path.Combine(dbDirectory, dbName);
+
+    options.UseSqlite($"Data Source={dbPath}");
+});
 
 // Services
 builder.Services.AddInfrastructure();

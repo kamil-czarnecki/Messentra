@@ -1,3 +1,6 @@
+using System.Reflection;
+using Messentra.Features.Jobs;
+using Messentra.Features.Jobs.Stages;
 using Messentra.Infrastructure.AutoUpdater;
 using Messentra.Infrastructure.AzureServiceBus;
 using Messentra.Infrastructure.AzureServiceBus.Factories;
@@ -26,6 +29,27 @@ public static class Extensions
             services.AddSingleton<IAuthenticationRecordStore, AuthenticationRecordStore>();
             services.AddSingleton<IInteractiveAuthBootstrapper, InteractiveAuthBootstrapper>();
             services.AddSingleton<IFileSystem, FileSystem>();
+            services.AddSingleton<IJobCancellationRegistry, JobCancellationRegistry>();
+            services.AddSingleton<IJobRunner, JobRunner>();
+            
+            services.AddAllStages();
+        }
+        
+        private void AddAllStages(Assembly? assembly = null)
+        {
+            assembly ??= Assembly.GetExecutingAssembly();
+
+            var stageTypes = assembly.GetTypes()
+                .Where(t => t is { IsAbstract: false, IsInterface: false })
+                .SelectMany(t => t.GetInterfaces()
+                    .Where(i => i.IsGenericType && (i.GetGenericTypeDefinition() == typeof(IStage<>) || i.GetGenericTypeDefinition() == typeof(IStage<,>)))
+                    .Select(i => new { StageType = t, InterfaceType = i }))
+                .ToList();
+
+            foreach (var stage in stageTypes)
+            {
+                services.AddScoped(stage.StageType);
+            }
         }
     }
 }

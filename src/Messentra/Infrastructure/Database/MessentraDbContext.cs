@@ -14,18 +14,15 @@ public class MessentraDbContext : DbContext
     
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        if (optionsBuilder.IsConfigured) 
+        if (optionsBuilder.IsConfigured)
             return;
-        
+
         var dbDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Messentra");
-        
-        if (!Directory.Exists(dbDirectory))
-        {
-            Directory.CreateDirectory(dbDirectory);
-        }
-        
+
+        Directory.CreateDirectory(dbDirectory);
+
         var dbPath = Path.Combine(dbDirectory, "Messentra.db");
 
         optionsBuilder.UseSqlite($"Data Source={dbPath}");
