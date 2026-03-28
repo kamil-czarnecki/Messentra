@@ -35,7 +35,7 @@ public sealed class CreateJsonFromMessagesStage<TJob> : IStage<TJob, CreateJsonS
         
         _fileSystem.CreateDirectory(root);
         await using var stream = _fileSystem.OpenWrite(path, bufferSize: 65536, useAsync: true);
-        await using var jsonWriter = new Utf8JsonWriter(stream);
+        await using var jsonWriter = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         var baseQuery = _dbContext.Set<FetchedMessagesBatch>()
             .Where(x => x.JobId == job.Id)
             .OrderBy(x => x.Id)

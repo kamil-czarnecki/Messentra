@@ -9,14 +9,14 @@ public abstract class TypedJob<TRequest, TResponse> : Job
     {
         get => string.IsNullOrEmpty(InputRaw)
             ? default
-            : JsonSerializer.Deserialize<TRequest>(InputRaw, JsonSerializerOptions.Default);
-        init => InputRaw = JsonSerializer.Serialize(value, JsonSerializerOptions.Default);
+            : JsonSerializer.Deserialize<TRequest>(InputRaw, Infrastructure.Database.JsonSerializerOptions.Default);
+        init => InputRaw = JsonSerializer.Serialize(value, Infrastructure.Database.JsonSerializerOptions.Default);
     }
     public TResponse? Output
     {
         get => string.IsNullOrEmpty(OutputRaw)
             ? default
-            : JsonSerializer.Deserialize<TResponse>(OutputRaw, JsonSerializerOptions.Default);
-        protected set => OutputRaw = JsonSerializer.Serialize(value, JsonSerializerOptions.Default);
+            : JsonSerializer.Deserialize<TResponse>(OutputRaw, Infrastructure.Database.JsonSerializerOptions.Default);
+        protected set => OutputRaw = JsonSerializer.Serialize(value, Infrastructure.Database.JsonSerializerOptions.Default);
     }
 }

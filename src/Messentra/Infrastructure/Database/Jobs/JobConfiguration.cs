@@ -26,8 +26,8 @@ public sealed class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(x => x.Status).HasConversion<EnumToStringConverter<JobStatus>>().HasMaxLength(50);
         builder.Property(x => x.StageProgress)
             .HasConversion(
-                v => System.Text.Json.JsonSerializer.Serialize(v, System.Text.Json.JsonSerializerOptions.Default),
-                v => System.Text.Json.JsonSerializer.Deserialize<StageProgress>(v, System.Text.Json.JsonSerializerOptions.Default)!)
+                v => System.Text.Json.JsonSerializer.Serialize(v, JsonSerializerOptions.Default),
+                v => System.Text.Json.JsonSerializer.Deserialize<StageProgress>(v, JsonSerializerOptions.Default)!)
             .IsRequired()
             .HasMaxLength(1000);
         builder.Property(x => x.CurrentStageIndex).HasDefaultValue(0).IsRequired();
