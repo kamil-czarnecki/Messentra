@@ -31,6 +31,7 @@ public static class Extensions
             services.AddSingleton<IInteractiveAuthBootstrapper, InteractiveAuthBootstrapper>();
             services.AddSingleton<IFileSystem, FileSystem>();
             services.AddSingleton<IJobCancellationRegistry, JobCancellationRegistry>();
+            services.AddSingleton<IJobProgressNotifier, JobProgressNotifier>();
             services.AddSingleton<IJobRunner, JobRunner>();
             services.AddSingleton<IBackgroundJobQueue, BackgroundJobQueue>();
             services.AddHostedService<JobWorker>();

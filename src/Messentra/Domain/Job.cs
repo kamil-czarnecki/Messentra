@@ -3,7 +3,7 @@ namespace Messentra.Domain;
 public abstract class Job
 {
     public long Id { get; init; }
-    protected string Type { get; init; } = null!;
+    public string Type { get; init; } = null!;
     public required string Label { get; init; }
     public JobStatus Status { get; private set; } = JobStatus.Queued;
 
@@ -34,7 +34,7 @@ public abstract class Job
         StageProgress = new StageProgress(stage, progress);
         UpdatedAt = DateTime.UtcNow;
         
-        var update = new JobProgressUpdate(Id, Status, StageProgress, RetryCount, LastError);
+        var update = new JobProgressUpdate(Id, Status, StageProgress, RetryCount, LastError, OutputRaw);
         
         ProgressReporter.Report(update);
     }
@@ -57,7 +57,7 @@ public abstract class Job
                 break;
         }
 
-        var update = new JobProgressUpdate(Id, Status, StageProgress, RetryCount, LastError);
+        var update = new JobProgressUpdate(Id, Status, StageProgress, RetryCount, LastError, OutputRaw);
         
         ProgressReporter.Report(update);
     }
@@ -67,7 +67,7 @@ public abstract class Job
         RetryCount = newRetryCount;
         UpdatedAt = DateTime.UtcNow;
         
-        ProgressReporter.Report(new JobProgressUpdate(Id, Status, StageProgress, RetryCount, LastError));
+        ProgressReporter.Report(new JobProgressUpdate(Id, Status, StageProgress, RetryCount, LastError, OutputRaw));
     }
 }
 
@@ -76,7 +76,8 @@ public sealed record JobProgressUpdate(
     JobStatus Status,
     StageProgress? StageProgress,
     int RetryCount = 0,
-    string? LastError = null
+    string? LastError = null,
+    string? OutputRaw = null
 );
 
 public sealed record StageProgress(string Stage, int Progress);

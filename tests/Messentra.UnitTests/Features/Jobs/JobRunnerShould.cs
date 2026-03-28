@@ -114,7 +114,7 @@ public sealed class JobRunnerShould : InMemoryDbTestBase
         serviceScopeMock.Setup(x => x.ServiceProvider).Returns(serviceProviderMock.Object);
         serviceFactoryMock.Setup(x => x.CreateScope()).Returns(serviceScopeMock.Object);
         
-        return new JobRunner(serviceFactoryMock.Object);
+        return new JobRunner(serviceFactoryMock.Object, new JobProgressNotifier());
     }
 
     private ExportMessagesJob CreateJob()

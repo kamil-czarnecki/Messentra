@@ -17,10 +17,12 @@ public sealed class JobRunner : IJobRunner
         .GetMethod(nameof(ExecuteStageWithRetryGeneric), BindingFlags.Static | BindingFlags.NonPublic)!;
 
     private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IJobProgressNotifier _jobProgressNotifier;
 
-    public JobRunner(IServiceScopeFactory serviceScopeFactory)
+    public JobRunner(IServiceScopeFactory serviceScopeFactory, IJobProgressNotifier jobProgressNotifier)
     {
         _serviceScopeFactory = serviceScopeFactory;
+        _jobProgressNotifier = jobProgressNotifier;
     }
 
     public async Task Run(long jobId, CancellationToken cancellationToken)
@@ -34,6 +36,8 @@ public sealed class JobRunner : IJobRunner
         {
             throw new InvalidOperationException($"Job '{jobId}' was not found.");
         }
+        
+        job.Subscribe(_jobProgressNotifier.Publish);
 
         var jobCts = registry.Register(job.Id);
         var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(jobCts.Token, cancellationToken);

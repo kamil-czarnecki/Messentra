@@ -20,11 +20,6 @@ public sealed class GetJobsQueryHandler : IQueryHandler<GetJobsQuery, IReadOnlyL
             .OrderByDescending(x => x.CreatedAt)
             .Take(100)
             .ToListAsync(cancellationToken);
-
-        foreach (var job in jobs)
-        {
-            job.Subscribe(query.OnProgressUpdate);
-        }
         
         return jobs;
     }

@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Messentra.Domain;
 using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Jobs;
@@ -23,7 +22,7 @@ public sealed class GetJobsQueryHandlerShould : InMemoryDbTestBase
         DbContext.Set<Job>().AddRange(oldest, newest, middle);
         await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var query = new GetJobsQuery(_ => { });
+        var query = new GetJobsQuery();
 
         // Act
         var result = await sut.Handle(query, TestContext.Current.CancellationToken);
@@ -45,7 +44,7 @@ public sealed class GetJobsQueryHandlerShould : InMemoryDbTestBase
         }
 
         await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var query = new GetJobsQuery(_ => { });
+        var query = new GetJobsQuery();
 
         // Act
         var result = await sut.Handle(query, TestContext.Current.CancellationToken);
@@ -60,43 +59,7 @@ public sealed class GetJobsQueryHandlerShould : InMemoryDbTestBase
         result.ShouldNotContain(x => x.Label == "job-3");
         result.ShouldNotContain(x => x.Label == "job-4");
     }
-
-    [Fact]
-    public async Task SubscribeReturnedJobsToProgressCallback_WhenHandlingQuery()
-    {
-        // Arrange
-        var sut = new GetJobsQueryHandler(DbContext);
-        DbContext.Set<Job>().AddRange(
-            CreateJob("job-1", new DateTime(2026, 3, 28, 10, 0, 0, DateTimeKind.Utc)),
-            CreateJob("job-2", new DateTime(2026, 3, 28, 11, 0, 0, DateTimeKind.Utc)));
-        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
-
-        var updates = new ConcurrentBag<JobProgressUpdate>();
-        var updatesReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var query = new GetJobsQuery(update =>
-        {
-            updates.Add(update);
-            
-            if (updates.Count == 2)
-            {
-                updatesReceived.TrySetResult();
-            }
-        });
-
-        // Act
-        var result = await sut.Handle(query, TestContext.Current.CancellationToken);
-        result[0].UpdateProgress("stage-a", 10);
-        result[1].UpdateProgress("stage-b", 20);
-        await updatesReceived.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
-
-        // Assert
-        updates.Count.ShouldBe(2);
-        updates.Select(x => x.Id).ShouldContain(result[0].Id);
-        updates.Select(x => x.Id).ShouldContain(result[1].Id);
-        updates.Select(x => x.StageProgress!.Stage).ShouldContain("stage-a");
-        updates.Select(x => x.StageProgress!.Stage).ShouldContain("stage-b");
-    }
-
+    
     private static ImportMessagesJob CreateJob(string label, DateTime createdAt) =>
         new()
         {
