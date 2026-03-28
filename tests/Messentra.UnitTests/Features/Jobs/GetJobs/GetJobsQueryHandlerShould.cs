@@ -14,7 +14,7 @@ public sealed class GetJobsQueryHandlerShould : InMemoryDbTestBase
     public async Task ReturnJobsOrderedByCreatedAtDescending_WhenJobsExist()
     {
         // Arrange
-        var sut = new GetJobsQueryHandler(DbContext);
+        var sut = new GetJobsQueryHandler(new TestDbContextFactory(DbContext));
         var oldest = CreateJob("job-oldest", new DateTime(2026, 3, 28, 10, 0, 0, DateTimeKind.Utc));
         var newest = CreateJob("job-newest", new DateTime(2026, 3, 28, 12, 0, 0, DateTimeKind.Utc));
         var middle = CreateJob("job-middle", new DateTime(2026, 3, 28, 11, 0, 0, DateTimeKind.Utc));
@@ -35,7 +35,7 @@ public sealed class GetJobsQueryHandlerShould : InMemoryDbTestBase
     public async Task ReturnOnly100NewestJobs_WhenMoreThan100JobsExist()
     {
         // Arrange
-        var sut = new GetJobsQueryHandler(DbContext);
+        var sut = new GetJobsQueryHandler(new TestDbContextFactory(DbContext));
         var baseTime = new DateTime(2026, 3, 28, 10, 0, 0, DateTimeKind.Utc);
 
         for (var i = 0; i < 105; i++)

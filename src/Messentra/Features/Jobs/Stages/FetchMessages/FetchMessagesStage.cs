@@ -27,7 +27,10 @@ public sealed class FetchMessagesStage<TJob> : IStage<TJob> where TJob : Job, IH
 
     public async Task Run(TJob job, CancellationToken ct)
     {
-        job.UpdateProgress(Stage, 0);
+        var currentProgress = job.StageProgress.Stage == Stage
+            ? job.StageProgress.Progress
+            : 0;
+        job.UpdateProgress(Stage, currentProgress);
         
         var config = job.GetMessageFetchConfiguration();
         var connectionInfo = config.ConnectionConfig.ToConnectionInfo();

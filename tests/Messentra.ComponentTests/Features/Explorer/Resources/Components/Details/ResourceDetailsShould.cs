@@ -1,7 +1,11 @@
 using Bunit;
+using Mediator;
 using Messentra.Domain;
+using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components.Details;
+using Messentra.Features.Jobs;
+using Messentra.Features.Jobs.ExportMessages.EnqueueExportMessages;
 using Messentra.Infrastructure.AzureServiceBus;
 using Moq;
 using MudBlazor;
@@ -87,5 +91,72 @@ public sealed class ResourceDetailsShould : ComponentTestBase
 
         // Assert
         MockDispatcher.Verify(x => x.Dispatch(It.IsAny<RefreshQueueAction>()), Times.Once);
+    }
+
+    [Fact]
+    public void KeepExportDisabled_WhenOverviewTabIsActive()
+    {
+        // Arrange
+        var node = BuildQueueNode();
+
+        // Act
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
+
+        // Assert
+        cut.Find("button[title='Export']").HasAttribute("disabled").ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task EnableExport_WhenMessagesTabIsActive()
+    {
+        // Arrange
+        var node = BuildQueueNode();
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
+
+        // Act
+        await cut.Find(".mud-tab:contains('Messages')").ClickAsync();
+
+        // Assert
+        cut.Find("button[title='Export']").HasAttribute("disabled").ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task EnqueueDlqExportAndShowJobsInfo_WhenExportConfirmedFromDeadLetterTab()
+    {
+        // Arrange
+        var node = BuildQueueNode();
+        MockMediator
+            .Setup(x => x.Send(It.IsAny<EnqueueExportMessagesCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Unit.Value);
+
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
+        await cut.Find(".mud-tab:contains('Dead-letter')").ClickAsync();
+
+        // Act
+        cut.Find("button[title='Export']").Click();
+        var confirmClickTask = MudDialog.Find("button:contains('Export')").ClickAsync();
+        await cut.WaitForAssertionAsync(() => MudDialog.Find("button:contains('OK')"));
+        MudDialog.Markup.ShouldContain("Export Started");
+        MudDialog.Markup.ShouldContain("Go to Jobs menu to monitor progress");
+        MudDialog.Find("button:contains('OK')").Click();
+        await confirmClickTask;
+
+        // Assert
+        MockMediator.Verify(
+            x => x.Send(
+                It.Is<EnqueueExportMessagesCommand>(command => IsDeadLetterQueueExport(command)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+    }
+
+    private static bool IsDeadLetterQueueExport(EnqueueExportMessagesCommand command)
+    {
+        if (command.Request.Target is not ResourceTarget.Queue queueTarget)
+            return false;
+
+        return queueTarget.QueueName == "my-queue" &&
+               queueTarget.SubQueue == SubQueue.DeadLetter &&
+               command.Request.TotalNumberOfMessagesToFetch == 2;
     }
 }

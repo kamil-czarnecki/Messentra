@@ -18,7 +18,7 @@ public sealed class EnqueueExportMessagesCommandHandlerShould : InMemoryDbTestBa
     {
         // Arrange
         var queueMock = new Mock<IBackgroundJobQueue>();
-        var sut = new EnqueueExportMessagesCommandHandler(DbContext, queueMock.Object);
+        var sut = new EnqueueExportMessagesCommandHandler(new TestDbContextFactory(DbContext), queueMock.Object);
 
         var request = new ExportMessagesJobRequest(
             ConnectionConfig.CreateConnectionString("Endpoint=sb://tests/"),

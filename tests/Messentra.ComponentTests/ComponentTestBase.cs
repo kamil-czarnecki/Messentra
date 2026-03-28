@@ -4,6 +4,7 @@ using Bunit;
 using Fluxor;
 using Mediator;
 using Messentra.Features.Explorer.Resources;
+using Messentra.Features.Jobs;
 using Messentra.Infrastructure;
 using Messentra.Infrastructure.AutoUpdater;
 using Microsoft.AspNetCore.Components;
@@ -33,6 +34,7 @@ public class ComponentTestBase : BunitContext
         Services.AddSingleton<FakeAutoUpdaterService>();
         Services.AddSingleton<IAutoUpdaterService>(sp => sp.GetRequiredService<FakeAutoUpdaterService>());
         Services.AddSingleton(Mock.Of<IFileSystem>());
+        Services.AddSingleton(Mock.Of<IJobProgressNotifier>());
         JSInterop.Mode = JSRuntimeMode.Loose;
         RegisterStateTypes();
         RegisterResourceSelector();

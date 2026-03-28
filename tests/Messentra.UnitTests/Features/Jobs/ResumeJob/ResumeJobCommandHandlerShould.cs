@@ -16,7 +16,7 @@ public sealed class ResumeJobCommandHandlerShould : InMemoryDbTestBase
     {
         // Arrange
         var queue = new Mock<IBackgroundJobQueue>();
-        var sut = new ResumeJobCommandHandler(DbContext, queue.Object);
+        var sut = new ResumeJobCommandHandler(new TestDbContextFactory(DbContext), queue.Object);
         var job = CreateJob("paused-job", JobStatus.Paused);
 
         DbContext.Set<Job>().Add(job);
@@ -39,7 +39,7 @@ public sealed class ResumeJobCommandHandlerShould : InMemoryDbTestBase
     {
         // Arrange
         var queue = new Mock<IBackgroundJobQueue>();
-        var sut = new ResumeJobCommandHandler(DbContext, queue.Object);
+        var sut = new ResumeJobCommandHandler(new TestDbContextFactory(DbContext), queue.Object);
         var job = CreateJob("running-job", JobStatus.Running);
 
         DbContext.Set<Job>().Add(job);

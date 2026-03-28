@@ -11,7 +11,10 @@ public partial class JobsPage
     private readonly IDispatcher _dispatcher;
     private readonly IFileSystem _fileSystem;
 
-    public JobsPage(IState<JobState> jobsState, IDispatcher dispatcher, IFileSystem fileSystem)
+    public JobsPage(
+        IState<JobState> jobsState,
+        IDispatcher dispatcher,
+        IFileSystem fileSystem)
     {
         _jobsState = jobsState;
         _dispatcher = dispatcher;
@@ -22,7 +25,7 @@ public partial class JobsPage
     {
         base.OnAfterRender(firstRender);
 
-        if (firstRender && !_jobsState.Value.IsLoading && !_jobsState.Value.IsLoaded)
+        if (firstRender && !_jobsState.Value.IsLoading)
         {
             _dispatcher.Dispatch(new FetchJobsAction());
         }

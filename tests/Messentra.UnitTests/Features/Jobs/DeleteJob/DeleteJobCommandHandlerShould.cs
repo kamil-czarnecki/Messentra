@@ -50,13 +50,14 @@ public sealed class DeleteJobCommandHandlerShould : InMemoryDbTestBase
         _fileSystem.Setup(x => x.GetRootPath()).Returns(root);
         _fileSystem.Setup(x => x.DirectoryExists(expectedPath)).Returns(true);
 
-        var sut = new DeleteJobCommandHandler(DbContext, _fileSystem.Object);
+        var sut = new DeleteJobCommandHandler(new TestDbContextFactory(DbContext), _fileSystem.Object);
 
         // Act
         var result = await sut.Handle(new DeleteJobCommand(job.Id), TestContext.Current.CancellationToken);
 
         // Assert
         result.ShouldBeTrue();
+        DbContext.ChangeTracker.Clear();
         (await DbContext.Set<Job>().FindAsync([job.Id], TestContext.Current.CancellationToken)).ShouldBeNull();
         DbContext.Set<FetchedMessagesBatch>().Count(x => x.JobId == job.Id).ShouldBe(0);
         _fileSystem.Verify(x => x.DeleteDirectory(expectedPath, true), Times.Once);
@@ -70,7 +71,7 @@ public sealed class DeleteJobCommandHandlerShould : InMemoryDbTestBase
         await DbContext.Set<Job>().AddAsync(job, TestContext.Current.CancellationToken);
         await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var sut = new DeleteJobCommandHandler(DbContext, _fileSystem.Object);
+        var sut = new DeleteJobCommandHandler(new TestDbContextFactory(DbContext), _fileSystem.Object);
 
         // Act
         var result = await sut.Handle(new DeleteJobCommand(job.Id), TestContext.Current.CancellationToken);

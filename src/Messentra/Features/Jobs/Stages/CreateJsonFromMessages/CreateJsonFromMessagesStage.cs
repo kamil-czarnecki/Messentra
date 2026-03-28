@@ -25,7 +25,10 @@ public sealed class CreateJsonFromMessagesStage<TJob> : IStage<TJob, CreateJsonS
 
     public async Task Run(TJob job, CancellationToken ct = default)
     {
-        job.UpdateProgress(Stage, 0);
+        var currentProgress = job.StageProgress.Stage == Stage
+            ? job.StageProgress.Progress
+            : 0;
+        job.UpdateProgress(Stage, currentProgress);
         
         var root = Path.Combine(
             _fileSystem.GetRootPath(),
@@ -34,8 +37,6 @@ public sealed class CreateJsonFromMessagesStage<TJob> : IStage<TJob, CreateJsonS
         var path = Path.Combine(root, $"{job.Label}.json");
         
         _fileSystem.CreateDirectory(root);
-        await using var stream = _fileSystem.OpenWrite(path, bufferSize: 65536, useAsync: true);
-        await using var jsonWriter = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         var baseQuery = _dbContext.Set<FetchedMessagesBatch>()
             .Where(x => x.JobId == job.Id)
             .OrderBy(x => x.Id)
@@ -44,6 +45,8 @@ public sealed class CreateJsonFromMessagesStage<TJob> : IStage<TJob, CreateJsonS
             .Select(x => x.MessagesCount)
             .SumAsync(ct);
 
+        await using var stream = _fileSystem.OpenWrite(path, bufferSize: 65536, useAsync: true);
+        await using var jsonWriter = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         jsonWriter.WriteStartArray();
 
         if (totalMessages == 0)

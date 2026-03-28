@@ -7,26 +7,20 @@ using Messentra.Features.Jobs.ResumeJob;
 
 namespace Messentra.Features.Jobs;
 
-public sealed class JobEffects : IDisposable
+public sealed class JobEffects
 {
     private readonly IMediator _mediator;
-    private readonly IJobProgressNotifier _jobProgressNotifier;
     private readonly ILogger<JobEffects> _logger;
-    private readonly Lock _lock = new();
-    private IDisposable? _subscription;
 
-    public JobEffects(IMediator mediator, IJobProgressNotifier jobProgressNotifier, ILogger<JobEffects> logger)
+    public JobEffects(IMediator mediator, ILogger<JobEffects> logger)
     {
         _mediator = mediator;
-        _jobProgressNotifier = jobProgressNotifier;
         _logger = logger;
     }
 
     [EffectMethod]
-    public async Task HandleFetchJobs(FetchJobsAction action, IDispatcher dispatcher)
+    public async Task HandleFetchJobs(FetchJobsAction _, IDispatcher dispatcher)
     {
-        EnsureProgressSubscription(dispatcher);
-
         try
         {
             var jobs = await _mediator.Send(new GetJobsQuery(), CancellationToken.None);
@@ -36,20 +30,6 @@ public sealed class JobEffects : IDisposable
         {
             _logger.LogError(ex, "Failed to fetch jobs.");
             dispatcher.Dispatch(new FetchJobsFailureAction());
-        }
-    }
-
-    private void EnsureProgressSubscription(IDispatcher dispatcher)
-    {
-        lock (_lock)
-        {
-            if (_subscription is not null)
-                return;
-
-            _subscription = _jobProgressNotifier.Subscribe(update =>
-            {
-                dispatcher.Dispatch(new JobProgressReceivedAction(update));
-            });
         }
     }
 
@@ -101,15 +81,6 @@ public sealed class JobEffects : IDisposable
         {
             _logger.LogError(ex, "Failed to delete job {JobId}.", action.JobId);
             dispatcher.Dispatch(new DeleteJobFailureAction(action.JobId));
-        }
-    }
-
-    public void Dispose()
-    {
-        lock (_lock)
-        {
-            _subscription?.Dispose();
-            _subscription = null;
         }
     }
 }

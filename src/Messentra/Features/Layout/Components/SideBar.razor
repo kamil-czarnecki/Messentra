@@ -1,3 +1,4 @@
+@using Messentra.Domain
 <div>
     <MudDrawer Open="true"
                Variant="@DrawerVariant.Persistent"
@@ -14,11 +15,25 @@
                         Class="pt-3">
                 @foreach (var link in _links)
                 {
-                    <MudNavLink Href="@link.Href"
-                                Icon="@(link.IsDisabled ? Icons.Material.Outlined.Block : link.Icon)"
-                                Disabled="@link.IsDisabled">
-                        <MudText>@link.Title</MudText>
-                    </MudNavLink>
+                    @if (link.Href == "/jobs")
+                    {
+                        var runningJobsCount = _jobState.Value.Jobs.Count(j => j.Status is JobStatus.Queued or JobStatus.Running);
+                        <MudNavLink Href="@link.Href"
+                                    Icon="@(link.IsDisabled ? Icons.Material.Outlined.Block : link.Icon)"
+                                    Disabled="@link.IsDisabled">
+                            <MudBadge Class="mud-width-full" Content="@runningJobsCount" Color="Color.Secondary" Origin="Origin.CenterRight"  Visible="@(runningJobsCount > 0)">
+                                <MudText>@link.Title</MudText>
+                            </MudBadge>
+                        </MudNavLink>
+                    }
+                    else
+                    {
+                        <MudNavLink Href="@link.Href"
+                                    Icon="@(link.IsDisabled ? Icons.Material.Outlined.Block : link.Icon)"
+                                    Disabled="@link.IsDisabled">
+                            <MudText>@link.Title</MudText>
+                        </MudNavLink>
+                    }
                 }
             </MudNavMenu>
 

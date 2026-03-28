@@ -1,6 +1,10 @@
 using Fluxor;
 using Mediator;
+using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Messages.SendMessage;
+using Messentra.Features.Jobs;
+using Messentra.Features.Jobs.ExportMessages;
+using Messentra.Features.Jobs.ExportMessages.EnqueueExportMessages;
 using Messentra.Features.Layout.State;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
@@ -15,6 +19,7 @@ public partial class ResourceDetails
     private readonly IDialogService _dialogService;
     private readonly IMediator _mediator;
     private readonly IDispatcher _dispatcher;
+    private int _activeDetailsTabIndex;
 
     public ResourceDetails(IDialogService dialogService, IMediator mediator, IDispatcher dispatcher)
     {
@@ -24,6 +29,12 @@ public partial class ResourceDetails
     }
 
     private bool IsRefreshing => SelectedResource is { IsLoading: true };
+    private bool IsMessagesOrDeadLetterTab => _activeDetailsTabIndex is 2 or 3;
+    private SubQueue ActiveSubQueue => _activeDetailsTabIndex == 3 ? SubQueue.DeadLetter : SubQueue.Active;
+    private bool CanExportMessages =>
+        !IsRefreshing &&
+        IsMessagesOrDeadLetterTab &&
+        SelectedResource is QueueTreeNode or SubscriptionTreeNode;
 
     private string ResourceName => SelectedResource switch
     {
@@ -123,4 +134,61 @@ public partial class ResourceDetails
             RefreshResource();
         }
     }
+
+    private async Task OpenExportDialog()
+    {
+        if (!CanExportMessages || SelectedResource is null)
+            return;
+
+        var queueLabel = ActiveSubQueue == SubQueue.DeadLetter ? "DLQ " : string.Empty;
+        var confirm = await _dialogService.ShowMessageBoxAsync(
+            "Export Messages",
+            $"This will export {queueLabel}messages from '{ResourceName}'. No messages will be lost. Continue?",
+            yesText: "Export",
+            cancelText: "Cancel");
+
+        if (confirm != true)
+            return;
+
+        var target = CreateExportTarget();
+        if (target is null)
+            return;
+
+        var totalMessages = GetTotalMessagesInSelectedSubQueue();
+
+        await _mediator.Send(new EnqueueExportMessagesCommand(new ExportMessagesJobRequest(
+            SelectedResource.ConnectionConfig,
+            target,
+            totalMessages)));
+        
+        _dispatcher.Dispatch(new FetchJobsAction());
+        _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+            ConnectionName,
+            "Info",
+            $"Export job enqueued for '{ResourceName}' ({ActiveSubQueue}). Go to Jobs menu to monitor progress.",
+            DateTime.Now)));
+    }
+
+    private ResourceTarget? CreateExportTarget() =>
+        SelectedResource switch
+        {
+            QueueTreeNode queueNode => new ResourceTarget.Queue(queueNode.Resource.Name, ActiveSubQueue),
+            SubscriptionTreeNode subscriptionNode => new ResourceTarget.TopicSubscription(
+                subscriptionNode.Resource.TopicName,
+                subscriptionNode.Resource.Name,
+                ActiveSubQueue),
+            _ => null
+        };
+
+    private long GetTotalMessagesInSelectedSubQueue() =>
+        SelectedResource switch
+        {
+            QueueTreeNode queueNode => ActiveSubQueue == SubQueue.DeadLetter
+                ? queueNode.Resource.Overview.MessageInfo.DeadLetter
+                : queueNode.Resource.Overview.MessageInfo.Active,
+            SubscriptionTreeNode subscriptionNode => ActiveSubQueue == SubQueue.DeadLetter
+                ? subscriptionNode.Resource.Overview.MessageInfo.DeadLetter
+                : subscriptionNode.Resource.Overview.MessageInfo.Active,
+            _ => 0
+        };
 }

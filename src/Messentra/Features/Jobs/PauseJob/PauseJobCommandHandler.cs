@@ -7,18 +7,19 @@ namespace Messentra.Features.Jobs.PauseJob;
 
 public sealed class PauseJobCommandHandler : ICommandHandler<PauseJobCommand, bool>
 {
-    private readonly MessentraDbContext _dbContext;
+    private readonly IDbContextFactory<MessentraDbContext> _dbContextFactory;
     private readonly IJobCancellationRegistry _jobCancellationRegistry;
 
-    public PauseJobCommandHandler(MessentraDbContext dbContext, IJobCancellationRegistry jobCancellationRegistry)
+    public PauseJobCommandHandler(IDbContextFactory<MessentraDbContext> dbContextFactory, IJobCancellationRegistry jobCancellationRegistry)
     {
-        _dbContext = dbContext;
+        _dbContextFactory = dbContextFactory;
         _jobCancellationRegistry = jobCancellationRegistry;
     }
 
     public async ValueTask<bool> Handle(PauseJobCommand command, CancellationToken cancellationToken)
     {
-        var status = await _dbContext.Set<Job>()
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var status = await dbContext.Set<Job>()
             .Where(x => x.Id == command.JobId)
             .Select(x => x.Status)
             .SingleOrDefaultAsync(cancellationToken);

@@ -21,7 +21,6 @@ public sealed class JobEffectsShould
     {
         // Arrange
         var mediator = new Mock<IMediator>();
-        var notifier = new Mock<IJobProgressNotifier>();
         var logger = new Mock<ILogger<JobEffects>>();
         var dispatcher = new Mock<IDispatcher>();
         var expectedJobs = new List<Job> { CreateExportJob(1, "job-1") };
@@ -29,9 +28,8 @@ public sealed class JobEffectsShould
         mediator
             .Setup(x => x.Send(It.IsAny<GetJobsQuery>(), CancellationToken.None))
             .ReturnsAsync(expectedJobs);
-
-        notifier.Setup(x => x.Subscribe(It.IsAny<Action<JobProgressUpdate>>())).Returns(Mock.Of<IDisposable>());
-        var sut = new JobEffects(mediator.Object, notifier.Object, logger.Object);
+        
+        var sut = new JobEffects(mediator.Object, logger.Object);
 
         // Act
         await sut.HandleFetchJobs(new FetchJobsAction(), dispatcher.Object);
@@ -49,7 +47,6 @@ public sealed class JobEffectsShould
     {
         // Arrange
         var mediator = new Mock<IMediator>();
-        var notifier = new Mock<IJobProgressNotifier>();
         var logger = new Mock<ILogger<JobEffects>>();
         var dispatcher = new Mock<IDispatcher>();
         var expectedException = new InvalidOperationException("boom");
@@ -57,9 +54,8 @@ public sealed class JobEffectsShould
         mediator
             .Setup(x => x.Send(It.IsAny<GetJobsQuery>(), CancellationToken.None))
             .ThrowsAsync(expectedException);
-
-        notifier.Setup(x => x.Subscribe(It.IsAny<Action<JobProgressUpdate>>())).Returns(Mock.Of<IDisposable>());
-        var sut = new JobEffects(mediator.Object, notifier.Object, logger.Object);
+        
+        var sut = new JobEffects(mediator.Object, logger.Object);
 
         // Act
         await sut.HandleFetchJobs(new FetchJobsAction(), dispatcher.Object);
@@ -82,7 +78,6 @@ public sealed class JobEffectsShould
     {
         // Arrange
         var mediator = new Mock<IMediator>();
-        var notifier = new Mock<IJobProgressNotifier>();
         var logger = new Mock<ILogger<JobEffects>>();
         var dispatcher = new Mock<IDispatcher>();
         const long jobId = 42;
@@ -91,7 +86,7 @@ public sealed class JobEffectsShould
             .Setup(x => x.Send(It.Is<PauseJobCommand>(c => c.JobId == jobId), CancellationToken.None))
             .ReturnsAsync(true);
 
-        var sut = new JobEffects(mediator.Object, notifier.Object, logger.Object);
+        var sut = new JobEffects(mediator.Object, logger.Object);
 
         // Act
         await sut.HandlePauseJob(new PauseJobAction(jobId), dispatcher.Object);
@@ -106,7 +101,6 @@ public sealed class JobEffectsShould
     {
         // Arrange
         var mediator = new Mock<IMediator>();
-        var notifier = new Mock<IJobProgressNotifier>();
         var logger = new Mock<ILogger<JobEffects>>();
         var dispatcher = new Mock<IDispatcher>();
         const long jobId = 42;
@@ -115,7 +109,7 @@ public sealed class JobEffectsShould
             .Setup(x => x.Send(It.Is<PauseJobCommand>(c => c.JobId == jobId), CancellationToken.None))
             .ThrowsAsync(new InvalidOperationException("pause-error"));
 
-        var sut = new JobEffects(mediator.Object, notifier.Object, logger.Object);
+        var sut = new JobEffects(mediator.Object, logger.Object);
 
         // Act
         await sut.HandlePauseJob(new PauseJobAction(jobId), dispatcher.Object);
@@ -129,7 +123,6 @@ public sealed class JobEffectsShould
     {
         // Arrange
         var mediator = new Mock<IMediator>();
-        var notifier = new Mock<IJobProgressNotifier>();
         var logger = new Mock<ILogger<JobEffects>>();
         var dispatcher = new Mock<IDispatcher>();
         const long jobId = 77;
@@ -138,7 +131,7 @@ public sealed class JobEffectsShould
             .Setup(x => x.Send(It.Is<ResumeJobCommand>(c => c.JobId == jobId), CancellationToken.None))
             .ReturnsAsync(true);
 
-        var sut = new JobEffects(mediator.Object, notifier.Object, logger.Object);
+        var sut = new JobEffects(mediator.Object, logger.Object);
 
         // Act
         await sut.HandleResumeJob(new ResumeJobAction(jobId), dispatcher.Object);
@@ -153,7 +146,6 @@ public sealed class JobEffectsShould
     {
         // Arrange
         var mediator = new Mock<IMediator>();
-        var notifier = new Mock<IJobProgressNotifier>();
         var logger = new Mock<ILogger<JobEffects>>();
         var dispatcher = new Mock<IDispatcher>();
         const long jobId = 77;
@@ -162,7 +154,7 @@ public sealed class JobEffectsShould
             .Setup(x => x.Send(It.Is<ResumeJobCommand>(c => c.JobId == jobId), CancellationToken.None))
             .ThrowsAsync(new InvalidOperationException("resume-error"));
 
-        var sut = new JobEffects(mediator.Object, notifier.Object, logger.Object);
+        var sut = new JobEffects(mediator.Object, logger.Object);
 
         // Act
         await sut.HandleResumeJob(new ResumeJobAction(jobId), dispatcher.Object);
@@ -176,7 +168,6 @@ public sealed class JobEffectsShould
     {
         // Arrange
         var mediator = new Mock<IMediator>();
-        var notifier = new Mock<IJobProgressNotifier>();
         var logger = new Mock<ILogger<JobEffects>>();
         var dispatcher = new Mock<IDispatcher>();
         const long jobId = 88;
@@ -185,7 +176,7 @@ public sealed class JobEffectsShould
             .Setup(x => x.Send(It.Is<DeleteJobCommand>(c => c.JobId == jobId), CancellationToken.None))
             .ReturnsAsync(true);
 
-        var sut = new JobEffects(mediator.Object, notifier.Object, logger.Object);
+        var sut = new JobEffects(mediator.Object, logger.Object);
 
         // Act
         await sut.HandleDeleteJob(new DeleteJobAction(jobId), dispatcher.Object);
@@ -200,7 +191,6 @@ public sealed class JobEffectsShould
     {
         // Arrange
         var mediator = new Mock<IMediator>();
-        var notifier = new Mock<IJobProgressNotifier>();
         var logger = new Mock<ILogger<JobEffects>>();
         var dispatcher = new Mock<IDispatcher>();
         const long jobId = 88;
@@ -209,7 +199,7 @@ public sealed class JobEffectsShould
             .Setup(x => x.Send(It.Is<DeleteJobCommand>(c => c.JobId == jobId), CancellationToken.None))
             .ThrowsAsync(new InvalidOperationException("delete-error"));
 
-        var sut = new JobEffects(mediator.Object, notifier.Object, logger.Object);
+        var sut = new JobEffects(mediator.Object, logger.Object);
 
         // Act
         await sut.HandleDeleteJob(new DeleteJobAction(jobId), dispatcher.Object);

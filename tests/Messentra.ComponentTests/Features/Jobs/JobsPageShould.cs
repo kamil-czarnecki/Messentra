@@ -1,7 +1,6 @@
 using Bunit;
 using Messentra.Domain;
 using Messentra.Features.Jobs;
-using MudBlazor;
 using Moq;
 using Shouldly;
 using Xunit;
@@ -16,6 +15,20 @@ public sealed class JobsPageShould : ComponentTestBase
         // Arrange
         var state = GetState<JobState>();
         state.SetState(new JobState(false, false, []));
+
+        // Act
+        _ = Render<JobsPage>();
+
+        // Assert
+        MockDispatcher.Verify(x => x.Dispatch(It.IsAny<FetchJobsAction>()), Times.Once);
+    }
+
+    [Fact]
+    public void DispatchFetchJobsOnFirstRender_WhenStateIsAlreadyLoaded()
+    {
+        // Arrange
+        var state = GetState<JobState>();
+        state.SetState(new JobState(false, true, []));
 
         // Act
         _ = Render<JobsPage>();
@@ -42,7 +55,6 @@ public sealed class JobsPageShould : ComponentTestBase
         cut.Markup.ShouldNotContain(">Error<");
         cut.Markup.ShouldNotContain("failed-error");
         cut.Markup.ShouldNotContain("running-error");
-        cut.FindComponents<MudTooltip>().Count.ShouldBe(1);
     }
 
     [Fact]

@@ -1,18 +1,27 @@
 using Fluxor;
+using Messentra.Features.Jobs;
 using Messentra.Features.Settings.Connections;
-using Microsoft.AspNetCore.Components;
 using MudBlazor;
 
 namespace Messentra.Features.Layout;
 
-public partial class MainLayout
+public partial class MainLayout : IDisposable
 {
-    [Inject] private IState<ConnectionState> ConnectionsState { get; set; } = null!;
-    [Inject] private IDispatcher Dispatcher { get; set; } = null!;
+    private readonly IState<ConnectionState> _connectionsState;
+    private readonly IDispatcher _dispatcher;
+    private readonly IJobProgressNotifier _jobProgressNotifier;
     private bool _isDarkMode = false;
     private bool _isActivityLogExpanded;
     private MudTheme? _theme = null;
+    private IDisposable? _progressSubscription;
 
+    public MainLayout(IState<ConnectionState> connectionsState, IDispatcher dispatcher, IJobProgressNotifier jobProgressNotifier)
+    {
+        _connectionsState = connectionsState;
+        _dispatcher = dispatcher;
+        _jobProgressNotifier = jobProgressNotifier;
+    }
+    
     private string MainContentClass => _isActivityLogExpanded
         ? "mud-height-full activity-log-expanded"
         : "mud-height-full activity-log-collapsed";
@@ -37,9 +46,17 @@ public partial class MainLayout
     {
         base.OnAfterRender(firstRender);
 
-        if (firstRender && !ConnectionsState.Value.IsLoaded && !ConnectionsState.Value.IsLoading)
+        if (firstRender && !_connectionsState.Value.IsLoaded && !_connectionsState.Value.IsLoading)
         {
-            Dispatcher.Dispatch(new FetchConnectionsAction());
+            _dispatcher.Dispatch(new FetchConnectionsAction());
+        }
+
+        if (firstRender)
+        {
+            _progressSubscription = _jobProgressNotifier.Subscribe(update =>
+            {
+                _dispatcher.Dispatch(new JobProgressReceivedAction(update));
+            });
         }
     }
 
@@ -107,4 +124,9 @@ public partial class MainLayout
         true => Icons.Material.Rounded.AutoMode,
         false => Icons.Material.Outlined.DarkMode,
     };
+
+    public void Dispose()
+    {
+        _progressSubscription?.Dispose();
+    }
 }

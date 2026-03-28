@@ -39,19 +39,25 @@ public sealed class AzureServiceBusSubscriptionMessagesProvider : AzureServiceBu
         });
         var sender = client.CreateSender(topicName);
         var messages = new List<ServiceBusReceivedMessage>();
+        long? nextPeekSequence = options.StartSequence;
 
         while (messages.Count < options.MessageCount)
         {
             var remaining = options.MessageCount - messages.Count;
 
             var batch = options.Mode == FetchMode.Peek
-                ? await receiver.PeekMessagesAsync(options.MessageCount, options.StartSequence, cancellationToken)
+                ? await receiver.PeekMessagesAsync(Math.Min(remaining, 1000), nextPeekSequence, cancellationToken)
                 : await receiver.ReceiveMessagesAsync(Math.Min(remaining, 1000), options.WaitTime, cancellationToken);
 
             if (batch.Count == 0)
                 break;
 
             messages.AddRange(batch);
+
+            if (options.Mode == FetchMode.Peek)
+            {
+                nextPeekSequence = batch[^1].SequenceNumber + 1;
+            }
         }
 
         return messages.Select(x => Map(receiver, sender, x)).ToList();

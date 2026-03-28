@@ -23,7 +23,7 @@ public sealed class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(x => x.Label).HasMaxLength(200).IsRequired();
         builder.Property("InputRaw").HasMaxLength(5000);
         builder.Property("OutputRaw").HasMaxLength(5000);
-        builder.Property(x => x.Status).HasConversion<EnumToStringConverter<JobStatus>>().HasMaxLength(50);
+        builder.Property(x => x.Status).HasConversion<EnumToStringConverter<JobStatus>>().HasMaxLength(50).IsRequired();
         builder.Property(x => x.StageProgress)
             .HasConversion(
                 v => System.Text.Json.JsonSerializer.Serialize(v, JsonSerializerOptions.Default),

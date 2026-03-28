@@ -223,6 +223,29 @@ public sealed class AzureServiceBusSubscriptionMessagesProviderShould
     }
 
     [Fact]
+    public async Task Get_PeekMode_FetchesMultipleBatchesUsingAdvancedSequence()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var options = new FetchMessagesOptions(FetchMode.Peek, FetchReceiveMode.PeekLock, 4, null, TimeSpan.FromSeconds(10));
+        var firstBatch = CreateMessages(2, startSequenceNumber: 10);
+        var secondBatch = CreateMessages(2, startSequenceNumber: 12);
+
+        _receiver
+            .SetupSequence(x => x.PeekMessagesAsync(It.IsAny<int>(), It.IsAny<long?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(firstBatch)
+            .ReturnsAsync(secondBatch);
+
+        // Act
+        var result = await _sut.Get(info, TopicName, SubscriptionName, options, CancellationToken.None);
+
+        // Assert
+        result.Count.ShouldBe(4);
+        _receiver.Verify(x => x.PeekMessagesAsync(4, null, It.IsAny<CancellationToken>()), Times.Once);
+        _receiver.Verify(x => x.PeekMessagesAsync(2, 12, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task Get_ReturnsEmptyCollection_WhenFirstBatchIsEmpty()
     {
         // Arrange
@@ -289,11 +312,12 @@ public sealed class AzureServiceBusSubscriptionMessagesProviderShould
         _client.Verify(x => x.CreateReceiver("specific-topic", "specific-sub", It.IsAny<ServiceBusReceiverOptions>()), Times.Once);
     }
 
-    private static IReadOnlyList<ServiceBusReceivedMessage> CreateMessages(int count) =>
+    private static IReadOnlyList<ServiceBusReceivedMessage> CreateMessages(int count, long startSequenceNumber = 0) =>
         Enumerable.Range(0, count)
             .Select(i => ServiceBusModelFactory.ServiceBusReceivedMessage(
                 body: BinaryData.FromString($"message-{i}"),
-                messageId: $"id-{i}"))
+                messageId: $"id-{i}",
+                sequenceNumber: startSequenceNumber + i))
             .ToList();
 }
 

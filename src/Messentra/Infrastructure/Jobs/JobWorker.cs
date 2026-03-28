@@ -1,4 +1,6 @@
 using Messentra.Features.Jobs;
+using Messentra.Infrastructure.Database;
+using Microsoft.EntityFrameworkCore;
 
 namespace Messentra.Infrastructure.Jobs;
 
@@ -7,20 +9,24 @@ public sealed class JobWorker : BackgroundService
     private readonly IJobRunner _jobRunner;
     private readonly IBackgroundJobQueue _queue;
     private readonly ILogger<JobWorker> _logger;
+    private readonly IServiceScopeFactory? _serviceScopeFactory;
 
     public JobWorker(
         IJobRunner jobRunner,
         IBackgroundJobQueue queue,
-        ILogger<JobWorker> logger)
+        ILogger<JobWorker> logger,
+        IServiceScopeFactory? serviceScopeFactory = null)
     {
         _jobRunner = jobRunner;
         _queue = queue;
         _logger = logger;
-        _jobRunner = jobRunner;
+        _serviceScopeFactory = serviceScopeFactory;
     }
     
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        await PauseRunningJobsAtStartup(stoppingToken);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             var jobId = await _queue.Dequeue(stoppingToken);
@@ -34,5 +40,31 @@ public sealed class JobWorker : BackgroundService
                 _logger.LogError(ex, "Unexpected job worker failure for job {JobId}", jobId);
             }
         }
+    }
+
+    private async Task PauseRunningJobsAtStartup(CancellationToken cancellationToken)
+    {
+        if (_serviceScopeFactory is null)
+            return;
+
+        using var scope = _serviceScopeFactory.CreateScope();
+        var dbContext = scope.ServiceProvider.GetService<MessentraDbContext>();
+
+        if (dbContext is null)
+            return;
+
+        var runningJobs = await dbContext.Set<Domain.Job>()
+            .Where(x => x.Status == Domain.JobStatus.Running)
+            .ToListAsync(cancellationToken);
+
+        if (runningJobs.Count == 0)
+            return;
+
+        foreach (var job in runningJobs)
+        {
+            job.UpdateStatus(Domain.JobStatus.Paused);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -16,7 +16,7 @@ public sealed class PauseJobCommandHandlerShould : InMemoryDbTestBase
     {
         // Arrange
         var registry = new Mock<IJobCancellationRegistry>();
-        var sut = new PauseJobCommandHandler(DbContext, registry.Object);
+        var sut = new PauseJobCommandHandler(new TestDbContextFactory(DbContext), registry.Object);
         var job = CreateJob("running-job", JobStatus.Running);
 
         DbContext.Set<Job>().Add(job);
@@ -35,7 +35,7 @@ public sealed class PauseJobCommandHandlerShould : InMemoryDbTestBase
     {
         // Arrange
         var registry = new Mock<IJobCancellationRegistry>();
-        var sut = new PauseJobCommandHandler(DbContext, registry.Object);
+        var sut = new PauseJobCommandHandler(new TestDbContextFactory(DbContext), registry.Object);
         var job = CreateJob("paused-job", JobStatus.Paused);
 
         DbContext.Set<Job>().Add(job);
