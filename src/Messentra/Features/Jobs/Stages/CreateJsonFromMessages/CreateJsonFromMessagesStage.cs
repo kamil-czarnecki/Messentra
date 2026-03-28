@@ -27,11 +27,13 @@ public sealed class CreateJsonFromMessagesStage<TJob> : IStage<TJob, CreateJsonS
     {
         job.UpdateProgress(Stage, 0);
         
-        var path = Path.Combine(
+        var root = Path.Combine(
             _fileSystem.GetRootPath(),
             "Jobs",
-            job.Id.ToString(),
-            $"{job.Label}.json");
+            job.Id.ToString());
+        var path = Path.Combine(root, $"{job.Label}.json");
+        
+        _fileSystem.CreateDirectory(root);
         await using var stream = _fileSystem.OpenWrite(path, bufferSize: 65536, useAsync: true);
         await using var jsonWriter = new Utf8JsonWriter(stream);
         var baseQuery = _dbContext.Set<FetchedMessagesBatch>()
