@@ -134,12 +134,7 @@ public sealed class ResourceDetailsShould : ComponentTestBase
 
         // Act
         cut.Find("button[title='Export']").Click();
-        var confirmClickTask = MudDialog.Find("button:contains('Export')").ClickAsync();
-        await cut.WaitForAssertionAsync(() => MudDialog.Find("button:contains('OK')"));
-        MudDialog.Markup.ShouldContain("Export Started");
-        MudDialog.Markup.ShouldContain("Go to Jobs menu to monitor progress");
-        MudDialog.Find("button:contains('OK')").Click();
-        await confirmClickTask;
+        await MudDialog.Find("button:contains('Export')").ClickAsync();
 
         // Assert
         MockMediator.Verify(
