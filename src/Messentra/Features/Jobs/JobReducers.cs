@@ -47,4 +47,26 @@ public static class JobReducers
 
         return state with { Jobs = jobs };
     }
+
+    [ReducerMethod]
+    public static JobState Reduce(JobState state, ResumeJobSuccessAction action)
+    {
+        var jobs = state.Jobs
+            .Select(job => job.Id == action.JobId
+                ? job with { Status = Domain.JobStatus.Queued, LastError = null }
+                : job)
+            .ToList();
+
+        return state with { Jobs = jobs };
+    }
+
+    [ReducerMethod]
+    public static JobState Reduce(JobState state, DeleteJobSuccessAction action)
+    {
+        var jobs = state.Jobs
+            .Where(x => x.Id != action.JobId)
+            .ToList();
+
+        return state with { Jobs = jobs };
+    }
 }

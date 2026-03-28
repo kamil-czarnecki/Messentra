@@ -7,7 +7,7 @@ public partial class SideBar
     private readonly IReadOnlyCollection<Link> _links = new List<Link>
     {
         new("Explorer", "/explorer", Icons.Material.Filled.Layers),
-        new("Jobs", "/jobs", Icons.Material.Filled.Sync, true),
+        new("Jobs", "/jobs", Icons.Material.Filled.Sync),
         new("Options", "/options", Icons.Material.Filled.Cable)
     };
     

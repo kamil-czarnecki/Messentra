@@ -20,7 +20,7 @@ public sealed class EnqueueExportMessagesCommandHandler : ICommandHandler<Enqueu
         var now  = DateTime.UtcNow;
         var exportJob = new ExportMessagesJob
         {
-            Label = $"ExportMessagesJob-{now:yyyyMMddHHmmss}",
+            Label = GetLabel(command),
             Input = command.Request,
             CreatedAt = now,
             MaxRetries = 3
@@ -32,5 +32,18 @@ public sealed class EnqueueExportMessagesCommandHandler : ICommandHandler<Enqueu
         await _backgroundJobQueue.Enqueue(exportJob.Id, cancellationToken);
         
         return Unit.Value;
+    }
+    
+    private static string GetLabel(EnqueueExportMessagesCommand command)
+    {
+        var targetResource = command.Request.Target switch
+        {
+            ResourceTarget.Queue queue => $"{queue.QueueName}-{queue.SubQueue}",
+            ResourceTarget.TopicSubscription topicSubscription =>
+                $"{topicSubscription.TopicName}-{topicSubscription.SubscriptionName}-{topicSubscription.SubQueue}",
+            _ => throw new InvalidOperationException("Unknown resource target type")
+        };
+        
+        return $"ExportMessagesJob-{targetResource}";
     }
 }

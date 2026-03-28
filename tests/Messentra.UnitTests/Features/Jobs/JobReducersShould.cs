@@ -124,6 +124,69 @@ public sealed class JobReducersShould
         stillUntouchedJob.ShouldBe(untouchedJob);
     }
 
+    [Fact]
+    public void UpdateOnlyMatchingJobToQueued_WhenReducingResumeJobSuccessAction()
+    {
+        // Arrange
+        var pausedJob = new JobListItem(
+            Id: 10,
+            Type: nameof(ImportMessagesJob),
+            Label: "paused",
+            Status: JobStatus.Paused,
+            StageProgress: new StageProgress("Fetch", 40),
+            RetryCount: 1,
+            MaxRetries: 3,
+            LastError: "temporary",
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            StartedAt: DateTime.UtcNow,
+            CompletedAt: null,
+            Output: null);
+
+        var untouchedJob = pausedJob with { Id = 11, Status = JobStatus.Running, LastError = "keep" };
+        var state = new JobState(false, true, [pausedJob, untouchedJob]);
+
+        // Act
+        var result = JobReducers.Reduce(state, new ResumeJobSuccessAction(pausedJob.Id));
+
+        // Assert
+        var updated = result.Jobs.Single(x => x.Id == pausedJob.Id);
+        updated.Status.ShouldBe(JobStatus.Queued);
+        updated.LastError.ShouldBeNull();
+
+        var unchanged = result.Jobs.Single(x => x.Id == untouchedJob.Id);
+        unchanged.ShouldBe(untouchedJob);
+    }
+
+    [Fact]
+    public void RemoveOnlyMatchingJob_WhenReducingDeleteJobSuccessAction()
+    {
+        // Arrange
+        var first = new JobListItem(
+            Id: 100,
+            Type: nameof(ImportMessagesJob),
+            Label: "first",
+            Status: JobStatus.Queued,
+            StageProgress: new StageProgress("Fetch", 0),
+            RetryCount: 0,
+            MaxRetries: 3,
+            LastError: null,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            StartedAt: null,
+            CompletedAt: null,
+            Output: null);
+        var second = first with { Id = 101, Label = "second" };
+        var state = new JobState(false, true, [first, second]);
+
+        // Act
+        var result = JobReducers.Reduce(state, new DeleteJobSuccessAction(first.Id));
+
+        // Assert
+        result.Jobs.Count.ShouldBe(1);
+        result.Jobs.Single().ShouldBe(second);
+    }
+
     private static ExportMessagesJob CreateExportJob(long id, string label, string pathToJson)
     {
         var job = new ExportMessagesJob

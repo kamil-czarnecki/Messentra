@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Collections.Concurrent;
 using AutoFixture;
 using Messentra.Domain;
 using Messentra.Features.Jobs.Stages;
@@ -20,7 +21,7 @@ public sealed class CreateJsonFromMessagesStageShould : InMemoryDbTestBase
     public async Task WriteEmptyJsonArrayAndComplete_WhenNoFetchedMessagesExist()
     {
         // Arrange
-        var progressValues = new List<int>();
+        var progressValues = new ConcurrentQueue<int>();
         var job = CreateJob(id: _fixture.Create<long>(), label: "export-empty", progressValues);
         var rootPath = "/tmp/messentra-tests";
         var expectedPath = Path.Combine(rootPath, "Jobs", job.Id.ToString(), $"{job.Label}.json");
@@ -41,7 +42,8 @@ public sealed class CreateJsonFromMessagesStageShould : InMemoryDbTestBase
         job.CompletedResult!.FilePath.ShouldBe(expectedPath);
         job.StageProgress.Stage.ShouldBe("Creating JSON");
         job.StageProgress.Progress.ShouldBe(100);
-        progressValues.ShouldBe([0, 100]);
+        await WaitForProgressCountAsync(progressValues, 2, TestContext.Current.CancellationToken);
+        progressValues.ToArray().ShouldBe([0, 100]);
 
         outputStream.Position = 0;
         using var document = await JsonDocument.ParseAsync(outputStream, cancellationToken: TestContext.Current.CancellationToken);
@@ -56,7 +58,7 @@ public sealed class CreateJsonFromMessagesStageShould : InMemoryDbTestBase
     public async Task WriteMessagesInBatchOrderAndUpdateProgress_WhenFetchedMessagesExist()
     {
         // Arrange
-        var progressValues = new List<int>();
+        var progressValues = new ConcurrentQueue<int>();
         var job = CreateJob(id: _fixture.Create<long>(), label: "export-messages", progressValues);
         var rootPath = "/tmp/messentra-tests";
         var expectedPath = Path.Combine(rootPath, "Jobs", job.Id.ToString(), $"{job.Label}.json");
@@ -105,7 +107,8 @@ public sealed class CreateJsonFromMessagesStageShould : InMemoryDbTestBase
         job.CompletedResult!.FilePath.ShouldBe(expectedPath);
         job.StageProgress.Stage.ShouldBe("Creating JSON");
         job.StageProgress.Progress.ShouldBe(100);
-        progressValues.ShouldBe([0, 66, 100]);
+        await WaitForProgressCountAsync(progressValues, 3, TestContext.Current.CancellationToken);
+        progressValues.ToArray().ShouldBe([0, 66, 100]);
 
         outputStream.Position = 0;
         using var document = await JsonDocument.ParseAsync(outputStream, cancellationToken: TestContext.Current.CancellationToken);
@@ -122,7 +125,7 @@ public sealed class CreateJsonFromMessagesStageShould : InMemoryDbTestBase
         _fileSystem.Verify(x => x.OpenWrite(expectedPath, 65536, true), Times.Once);
     }
 
-    private TestJob CreateJob(long id, string label, List<int> progressValues)
+    private TestJob CreateJob(long id, string label, ConcurrentQueue<int> progressValues)
     {
         var job = new TestJob
         {
@@ -135,11 +138,21 @@ public sealed class CreateJsonFromMessagesStageShould : InMemoryDbTestBase
         {
             if (update.StageProgress is not null)
             {
-                progressValues.Add(update.StageProgress.Progress);
+                progressValues.Enqueue(update.StageProgress.Progress);
             }
         });
 
         return job;
+    }
+
+    private static async Task WaitForProgressCountAsync(ConcurrentQueue<int> progressValues, int expectedCount, CancellationToken cancellationToken)
+    {
+        var start = DateTime.UtcNow;
+
+        while (progressValues.Count < expectedCount && DateTime.UtcNow - start < TimeSpan.FromSeconds(1))
+        {
+            await Task.Delay(10, cancellationToken);
+        }
     }
 
     private static ServiceBusMessageDto CreateServiceBusMessage(string messageId, string body) =>

@@ -6,6 +6,7 @@ public interface IFileSystem
 {
     string GetRootPath();
     void CreateDirectory(string path);
+    void DeleteDirectory(string path, bool recursive);
     bool DirectoryExists(string path);
     IEnumerable<string> EnumerateFiles(string path, string searchPattern, SearchOption searchOption);
     bool FileExists(string path);
@@ -25,6 +26,7 @@ public sealed class FileSystem : IFileSystem
     }
 
     public void CreateDirectory(string path) => Directory.CreateDirectory(path);
+    public void DeleteDirectory(string path, bool recursive) => Directory.Delete(path, recursive);
     public bool DirectoryExists(string path) => Directory.Exists(path);
     public IEnumerable<string> EnumerateFiles(string path, string searchPattern, SearchOption searchOption) =>
         Directory.EnumerateFiles(path, searchPattern, searchOption);
