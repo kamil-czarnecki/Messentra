@@ -1,8 +1,10 @@
 using AutoFixture;
 using Messentra.Domain;
+using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.ExportMessages;
-using Messentra.Features.Jobs.Stages;
+using Messentra.Features.Jobs.Stages.CreateJsonFromMessages;
+using Messentra.Features.Jobs.Stages.FetchMessages;
 using Shouldly;
 using Xunit;
 
@@ -24,7 +26,7 @@ public sealed class ExportMessagesJobShould
         // Assert
         stages.Count.ShouldBe(2);
         stages[0].ShouldBe(typeof(FetchMessagesStage<ExportMessagesJob>));
-        stages[1].ShouldBe(typeof(CreateJsonStage<ExportMessagesJob>));
+        stages[1].ShouldBe(typeof(CreateJsonFromMessagesStage<ExportMessagesJob>));
     }
 
     [Fact]
@@ -32,7 +34,7 @@ public sealed class ExportMessagesJobShould
     {
         // Arrange
         var connectionDto = CreateConnectionConfig();
-        var target = new ResourceTarget.Queue("queue1");
+        var target = new ResourceTarget.Queue("queue1", SubQueue.Active);
         var sut = CreateJob(connectionDto, target);
 
         // Act
@@ -60,7 +62,7 @@ public sealed class ExportMessagesJobShould
     public void SetOutputPath_WhenCreateJsonStageCompleted()
     {
         // Arrange
-        var sut = CreateJob(CreateConnectionConfig(), new ResourceTarget.Queue("queue1"));
+        var sut = CreateJob(CreateConnectionConfig(), new ResourceTarget.Queue("queue1", SubQueue.Active));
 
         // Act
         sut.StageCompleted(new CreateJsonStageResult("/tmp/export.json"));
@@ -76,7 +78,7 @@ public sealed class ExportMessagesJobShould
             Id = _fixture.Create<long>(),
             Label = _fixture.Create<string>(),
             CreatedAt = DateTime.UtcNow,
-            Input = input is null || target is null ? null : new ExportMessagesJobRequest(input, target)
+            Input = input is null || target is null ? null : new ExportMessagesJobRequest(input, target, 100)
         };
 
     private ConnectionConfig CreateConnectionConfig() =>
