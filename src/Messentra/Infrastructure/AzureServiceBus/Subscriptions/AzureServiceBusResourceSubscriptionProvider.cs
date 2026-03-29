@@ -10,12 +10,13 @@ public sealed class AzureServiceBusResourceSubscriptionProvider(IAzureServiceBus
         string topicName,
         CancellationToken cancellationToken)
     {
-        var client = await GetClient(info, cancellationToken);
-        var @namespace = GetNamespace(info);
-        var subscriptionsProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.SubscriptionProperties>();
-        var subscriptionsRuntimeProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.SubscriptionRuntimeProperties>();
-        var subscriptionsPropertiesTask = Task.Run(
-            async () =>
+        return await ExecuteWithClientRecovery(info, async client =>
+        {
+            var @namespace = GetNamespace(info);
+            var subscriptionsProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.SubscriptionProperties>();
+            var subscriptionsRuntimeProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.SubscriptionRuntimeProperties>();
+            var subscriptionsPropertiesTask = Task.Run(
+                async () =>
             {
                 await foreach (var sub in client.GetSubscriptionsAsync(topicName, cancellationToken))
                 {
@@ -23,8 +24,8 @@ public sealed class AzureServiceBusResourceSubscriptionProvider(IAzureServiceBus
                 }
             },
             cancellationToken);
-        var subscriptionsRuntimePropertiesTask = Task.Run(
-            async () =>
+            var subscriptionsRuntimePropertiesTask = Task.Run(
+                async () =>
             {
                 await foreach (var sub in client.GetSubscriptionsRuntimePropertiesAsync(topicName, cancellationToken))
                 {
@@ -32,10 +33,10 @@ public sealed class AzureServiceBusResourceSubscriptionProvider(IAzureServiceBus
                 }
             },
             cancellationToken);
-        
-        await Task.WhenAll(subscriptionsPropertiesTask, subscriptionsRuntimePropertiesTask);
 
-        return subscriptionsProperties.Select(x =>
+            await Task.WhenAll(subscriptionsPropertiesTask, subscriptionsRuntimePropertiesTask);
+
+            return subscriptionsProperties.Select(x =>
             {
                 var subscription = x.Value;
                 var runtimeProps = subscriptionsRuntimeProperties[subscription.SubscriptionName];
@@ -43,6 +44,7 @@ public sealed class AzureServiceBusResourceSubscriptionProvider(IAzureServiceBus
                 return MapToSubscription(subscription, runtimeProps, topicName, @namespace);
             })
             .ToList();
+        }, cancellationToken);
     }
 
     public async Task<Resource.Subscription> GetByName(
@@ -51,13 +53,15 @@ public sealed class AzureServiceBusResourceSubscriptionProvider(IAzureServiceBus
         string name,
         CancellationToken cancellationToken)
     {
-        var client = await GetClient(info, cancellationToken);
-        var @namespace = GetNamespace(info);
+        return await ExecuteWithClientRecovery(info, async client =>
+        {
+            var @namespace = GetNamespace(info);
 
-        var sub = await client.GetSubscriptionAsync(topicName, name, cancellationToken);
-        var runtimeProps = await client.GetSubscriptionRuntimePropertiesAsync(topicName, name, cancellationToken);
+            var sub = await client.GetSubscriptionAsync(topicName, name, cancellationToken);
+            var runtimeProps = await client.GetSubscriptionRuntimePropertiesAsync(topicName, name, cancellationToken);
 
-        return MapToSubscription(sub.Value, runtimeProps.Value, topicName, @namespace);
+            return MapToSubscription(sub.Value, runtimeProps.Value, topicName, @namespace);
+        }, cancellationToken);
     }
 
     private static Resource.Subscription MapToSubscription(

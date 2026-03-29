@@ -1,3 +1,5 @@
+using System.Net.Sockets;
+using Azure;
 using Azure.Messaging.ServiceBus;
 using Messentra.Features.Explorer.Messages;
 using Messentra.Infrastructure.AzureServiceBus.Factories;
@@ -7,6 +9,39 @@ namespace Messentra.Infrastructure.AzureServiceBus;
 
 public abstract class AzureServiceBusProviderBase(IAzureServiceBusClientFactory clientFactory)
 {
+    protected async Task ExecuteWithClientRecovery(
+        ConnectionInfo info,
+        Func<ServiceBusClient, Task> operation,
+        CancellationToken cancellationToken)
+    {
+        await ExecuteWithClientRecovery(
+            info,
+            async client =>
+            {
+                await operation(client);
+                return true;
+            },
+            cancellationToken);
+    }
+
+    protected async Task<TResult> ExecuteWithClientRecovery<TResult>(
+        ConnectionInfo info,
+        Func<ServiceBusClient, Task<TResult>> operation,
+        CancellationToken cancellationToken)
+    {
+        var client = await GetClient(info, cancellationToken);
+
+        try
+        {
+            return await operation(client);
+        }
+        catch (Exception ex) when (ShouldInvalidateClient(ex))
+        {
+            await InvalidateClient(info);
+            throw;
+        }
+    }
+
     protected async Task<ServiceBusClient> GetClient(ConnectionInfo info, CancellationToken cancellationToken) =>
         info switch
         {
@@ -18,6 +53,30 @@ public abstract class AzureServiceBusProviderBase(IAzureServiceBusClientFactory 
                 cancellationToken),
             _ => throw new InvalidOperationException("Invalid connection info type")
         };
+
+    private Task InvalidateClient(ConnectionInfo info) =>
+        info switch
+        {
+            ConnectionInfo.ConnectionString cs => clientFactory.InvalidateClient(cs.Value),
+            ConnectionInfo.ManagedIdentity mi => clientFactory.InvalidateClient(
+                mi.FullyQualifiedNamespace,
+                mi.TenantId,
+                mi.ClientId),
+            _ => throw new InvalidOperationException("Invalid connection info type")
+        };
+
+    private static bool ShouldInvalidateClient(Exception ex)
+    {
+        return ex switch
+        {
+            UnauthorizedAccessException => true,
+            ServiceBusException serviceBusException => !serviceBusException.IsTransient,
+            RequestFailedException requestFailedException => requestFailedException.Status is 401 or 403,
+            SocketException or IOException or HttpRequestException => true,
+            TimeoutException => false,
+            _ => ex.InnerException is not null && ShouldInvalidateClient(ex.InnerException)
+        };
+    }
     
     protected static ServiceBusReceiveMode GetReceiveMode(FetchMessagesOptions options) =>
         options switch

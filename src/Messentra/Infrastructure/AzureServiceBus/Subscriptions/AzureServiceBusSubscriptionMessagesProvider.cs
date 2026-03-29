@@ -29,38 +29,40 @@ public sealed class AzureServiceBusSubscriptionMessagesProvider : AzureServiceBu
         FetchMessagesOptions options,
         CancellationToken cancellationToken)
     {
-        var client = await GetClient(info, cancellationToken);
-        var receiver = client.CreateReceiver(topicName, subscriptionName, new ServiceBusReceiverOptions
+        return await ExecuteWithClientRecovery(info, async client =>
         {
-            ReceiveMode = GetReceiveMode(options),
-            SubQueue = options.SubQueue == Features.Explorer.Messages.SubQueue.DeadLetter
-                ? SubQueue.DeadLetter
-                : SubQueue.None
-        });
-        var sender = client.CreateSender(topicName);
-        var messages = new List<ServiceBusReceivedMessage>();
-        long? nextPeekSequence = options.StartSequence;
-
-        while (messages.Count < options.MessageCount)
-        {
-            var remaining = options.MessageCount - messages.Count;
-
-            var batch = options.Mode == FetchMode.Peek
-                ? await receiver.PeekMessagesAsync(Math.Min(remaining, 1000), nextPeekSequence, cancellationToken)
-                : await receiver.ReceiveMessagesAsync(Math.Min(remaining, 1000), options.WaitTime, cancellationToken);
-
-            if (batch.Count == 0)
-                break;
-
-            messages.AddRange(batch);
-
-            if (options.Mode == FetchMode.Peek)
+            var receiver = client.CreateReceiver(topicName, subscriptionName, new ServiceBusReceiverOptions
             {
-                nextPeekSequence = batch[^1].SequenceNumber + 1;
-            }
-        }
+                ReceiveMode = GetReceiveMode(options),
+                SubQueue = options.SubQueue == Features.Explorer.Messages.SubQueue.DeadLetter
+                    ? SubQueue.DeadLetter
+                    : SubQueue.None
+            });
+            var sender = client.CreateSender(topicName);
+            var messages = new List<ServiceBusReceivedMessage>();
+            long? nextPeekSequence = options.StartSequence;
 
-        return messages.Select(x => Map(receiver, sender, x)).ToList();
+            while (messages.Count < options.MessageCount)
+            {
+                var remaining = options.MessageCount - messages.Count;
+
+                var batch = options.Mode == FetchMode.Peek
+                    ? await receiver.PeekMessagesAsync(Math.Min(remaining, 1000), nextPeekSequence, cancellationToken)
+                    : await receiver.ReceiveMessagesAsync(Math.Min(remaining, 1000), options.WaitTime, cancellationToken);
+
+                if (batch.Count == 0)
+                    break;
+
+                messages.AddRange(batch);
+
+                if (options.Mode == FetchMode.Peek)
+                {
+                    nextPeekSequence = batch[^1].SequenceNumber + 1;
+                }
+            }
+
+            return messages.Select(x => Map(receiver, sender, x)).ToList();
+        }, cancellationToken);
     }
 }
 

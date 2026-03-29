@@ -7,6 +7,7 @@ namespace Messentra.Infrastructure.AzureServiceBus.Factories;
 public interface IAzureServiceBusTokenCredentialFactory
 {
     Task<TokenCredential> Create(string tenantId, string clientId, CancellationToken cancellationToken);
+    void Invalidate(string tenantId, string clientId);
 }
 
 public sealed class AzureServiceBusTokenCredentialFactory : IAzureServiceBusTokenCredentialFactory
@@ -34,6 +35,12 @@ public sealed class AzureServiceBusTokenCredentialFactory : IAzureServiceBusToke
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
         return GetOrResetOnFailure(cacheKey, lazyCredential);
+    }
+
+    public void Invalidate(string tenantId, string clientId)
+    {
+        var cacheKey = CacheKey.Create(tenantId, clientId);
+        _credentials.TryRemove(cacheKey, out _);
     }
 
     private async Task<TokenCredential> GetOrResetOnFailure(CacheKey cacheKey, Lazy<Task<TokenCredential>> lazyCredential)

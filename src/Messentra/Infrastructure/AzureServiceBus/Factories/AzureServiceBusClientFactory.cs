@@ -12,6 +12,8 @@ public interface IAzureServiceBusClientFactory
         string tenantId,
         string clientId,
         CancellationToken cancellationToken);
+    Task InvalidateClient(string connectionString);
+    Task InvalidateClient(string fullyQualifiedNamespace, string tenantId, string clientId);
 }
 
 public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory, IAsyncDisposable
@@ -56,6 +58,21 @@ public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory
         return GetOrResetOnFailure(key, client);
     }
 
+    public Task InvalidateClient(string connectionString)
+    {
+        var normalizedConnectionString = RemoveEndpointPortWhenEmulator(connectionString);
+        var key = CacheKey.Create(normalizedConnectionString);
+
+        return RemoveAndDispose(key);
+    }
+
+    public async Task InvalidateClient(string fullyQualifiedNamespace, string tenantId, string clientId)
+    {
+        var key = CacheKey.Create(fullyQualifiedNamespace, tenantId, clientId);
+        await RemoveAndDispose(key).ConfigureAwait(false);
+        _credentialFactory.Invalidate(tenantId, clientId);
+    }
+
     private async Task<ServiceBusClient> GetOrResetOnFailure(
         CacheKey cacheKey,
         Lazy<Task<ServiceBusClient>> lazyCredential)
@@ -69,6 +86,25 @@ public sealed class AzureServiceBusClientFactory : IAzureServiceBusClientFactory
             _clients.TryRemove(new KeyValuePair<CacheKey, Lazy<Task<ServiceBusClient>>>(cacheKey, lazyCredential));
 
             throw;
+        }
+    }
+
+    private async Task RemoveAndDispose(CacheKey cacheKey)
+    {
+        if (!_clients.TryRemove(cacheKey, out var existing))
+            return;
+
+        if (!existing.IsValueCreated)
+            return;
+
+        try
+        {
+            var client = await existing.Value.ConfigureAwait(false);
+            await client.DisposeAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // Ignore dispose/creation errors while forcing cache invalidation.
         }
     }
 
