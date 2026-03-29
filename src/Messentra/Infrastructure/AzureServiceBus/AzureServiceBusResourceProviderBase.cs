@@ -1,3 +1,5 @@
+using System.Net.Sockets;
+using Azure;
 using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 using Messentra.Infrastructure.AzureServiceBus.Factories;
@@ -17,11 +19,7 @@ public abstract class AzureServiceBusResourceProviderBase(IAzureServiceBusAdminC
         {
             return await operation(client);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch
+        catch (Exception ex) when (ShouldInvalidateClient(ex))
         {
             InvalidateClient(info);
             throw;
@@ -55,6 +53,19 @@ public abstract class AzureServiceBusResourceProviderBase(IAzureServiceBusAdminC
             default:
                 throw new InvalidOperationException("Invalid connection info type");
         }
+    }
+
+    private static bool ShouldInvalidateClient(Exception ex)
+    {
+        return ex switch
+        {
+            UnauthorizedAccessException => true,
+            ServiceBusException serviceBusException => !serviceBusException.IsTransient,
+            RequestFailedException requestFailedException => requestFailedException.Status is 401 or 403,
+            SocketException or IOException or HttpRequestException => true,
+            TimeoutException => false,
+            _ => ex.InnerException is not null && ShouldInvalidateClient(ex.InnerException)
+        };
     }
 
     protected static string GetNamespace(ConnectionInfo info) =>

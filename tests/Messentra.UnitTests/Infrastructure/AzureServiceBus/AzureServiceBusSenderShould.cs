@@ -253,52 +253,69 @@ public sealed class AzureServiceBusSenderShould
     }
 
     [Fact]
-    public async Task Send_WhenFirstAttemptFails_InvalidatesClientAndRetriesOnce()
+    public async Task Send_WhenSendFailsWithNonTransientError_DoesNotInvalidateClientAndDoesNotRetry()
     {
         // Arrange
         var info = new ConnectionInfo.ConnectionString(ConnectionString);
         var command = BuildCommand(body: "hello");
 
         _sender
-            .SetupSequence(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("transient send failure"))
-            .Returns(Task.CompletedTask);
-
-        _clientFactory
-            .Setup(x => x.InvalidateClient(ConnectionString))
-            .Returns(Task.CompletedTask);
-
-        // Act
-        await _sut.Send(info, EntityPath, command, CancellationToken.None);
-
-        // Assert
-        _clientFactory.Verify(x => x.CreateClient(ConnectionString, It.IsAny<CancellationToken>()), Times.Exactly(2));
-        _clientFactory.Verify(x => x.InvalidateClient(ConnectionString), Times.Once);
-        _sender.Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
-    }
-
-    [Fact]
-    public async Task Send_WhenRetryAlsoFails_InvalidatesClientTwiceAndThrows()
-    {
-        // Arrange
-        var info = new ConnectionInfo.ConnectionString(ConnectionString);
-        var command = BuildCommand(body: "hello");
-
-        _sender
-            .SetupSequence(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("first failure"))
-            .ThrowsAsync(new InvalidOperationException("retry failure"));
-
-        _clientFactory
-            .Setup(x => x.InvalidateClient(ConnectionString))
-            .Returns(Task.CompletedTask);
+            .Setup(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("non transient send failure"));
 
         // Act
         await Should.ThrowAsync<InvalidOperationException>(() => _sut.Send(info, EntityPath, command, CancellationToken.None));
 
         // Assert
-        _sender.Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
-        _clientFactory.Verify(x => x.InvalidateClient(ConnectionString), Times.Exactly(2));
+        _clientFactory.Verify(x => x.CreateClient(ConnectionString, It.IsAny<CancellationToken>()), Times.Once);
+        _clientFactory.Verify(x => x.InvalidateClient(ConnectionString), Times.Never);
+        _sender.Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Send_WhenSendFailsWithTransientError_InvalidatesClientAndDoesNotRetry()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var command = BuildCommand(body: "hello");
+
+        _sender
+            .Setup(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("transient connection issue"));
+
+        _clientFactory
+            .Setup(x => x.InvalidateClient(ConnectionString))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await Should.ThrowAsync<HttpRequestException>(() => _sut.Send(info, EntityPath, command, CancellationToken.None));
+
+        // Assert
+        _sender.Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+        _clientFactory.Verify(x => x.InvalidateClient(ConnectionString), Times.Once);
+    }
+
+    [Fact]
+    public async Task Send_WhenSendFailsWithUnauthorizedAccess_InvalidatesClientAndDoesNotRetry()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var command = BuildCommand(body: "hello");
+
+        _sender
+            .Setup(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new UnauthorizedAccessException("ip blocked"));
+
+        _clientFactory
+            .Setup(x => x.InvalidateClient(ConnectionString))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await Should.ThrowAsync<UnauthorizedAccessException>(() => _sut.Send(info, EntityPath, command, CancellationToken.None));
+
+        // Assert
+        _sender.Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+        _clientFactory.Verify(x => x.InvalidateClient(ConnectionString), Times.Once);
     }
 
     private static SendMessageCommand BuildCommand(
