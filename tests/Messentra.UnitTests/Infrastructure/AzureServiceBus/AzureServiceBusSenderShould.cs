@@ -108,7 +108,7 @@ public sealed class AzureServiceBusSenderShould
             to: "to-address",
             replyTo: "reply-address",
             contentType: "application/json",
-            applicationProperties: new Dictionary<string, string> { ["key1"] = "val1", ["key2"] = "val2" });
+            applicationProperties: new Dictionary<string, object> { ["key1"] = "val1", ["key2"] = "val2" });
 
         ServiceBusMessage? captured = null;
         _sender
@@ -165,7 +165,7 @@ public sealed class AzureServiceBusSenderShould
     {
         // Arrange
         var info = new ConnectionInfo.ConnectionString(ConnectionString);
-        var props = new Dictionary<string, string>
+        var props = new Dictionary<string, object>
         {
             ["prop-a"] = "value-a",
             ["prop-b"] = "value-b",
@@ -188,6 +188,36 @@ public sealed class AzureServiceBusSenderShould
         captured.ApplicationProperties["prop-a"].ShouldBe("value-a");
         captured.ApplicationProperties["prop-b"].ShouldBe("value-b");
         captured.ApplicationProperties["prop-c"].ShouldBe("value-c");
+    }
+
+    [Fact]
+    public async Task Send_ApplicationProperties_ForwardsTypedValues()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var when = new DateTime(2026, 3, 29, 0, 0, 0, DateTimeKind.Utc);
+        var props = new Dictionary<string, object>
+        {
+            ["num"] = 3.5m,
+            ["flag"] = true,
+            ["when"] = when
+        };
+        var command = BuildCommand(body: "body", applicationProperties: props);
+
+        ServiceBusMessage? captured = null;
+        _sender
+            .Setup(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Callback<ServiceBusMessage, CancellationToken>((m, _) => captured = m)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _sut.Send(info, EntityPath, command, CancellationToken.None);
+
+        // Assert
+        captured.ShouldNotBeNull();
+        captured.ApplicationProperties["num"].ShouldBeOfType<decimal>().ShouldBe(3.5m);
+        captured.ApplicationProperties["flag"].ShouldBeOfType<bool>().ShouldBeTrue();
+        captured.ApplicationProperties["when"].ShouldBeOfType<DateTime>().ShouldBe(when);
     }
 
     [Fact]
@@ -235,7 +265,7 @@ public sealed class AzureServiceBusSenderShould
         string? to = null,
         string? replyTo = null,
         string? contentType = null,
-        IReadOnlyDictionary<string, string>? applicationProperties = null) =>
+        IReadOnlyDictionary<string, object>? applicationProperties = null) =>
         new(
             ResourceTreeNode: null!,
             Body: body,
@@ -250,6 +280,6 @@ public sealed class AzureServiceBusSenderShould
             To: to,
             ReplyTo: replyTo,
             ContentType: contentType,
-            ApplicationProperties: applicationProperties ?? new Dictionary<string, string>());
+            ApplicationProperties: applicationProperties ?? new Dictionary<string, object>());
 }
 

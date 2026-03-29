@@ -1,3 +1,46 @@
 ::deep .custom-props-table th {
     border: 0;
 }
+
+::deep .custom-props-table td {
+    vertical-align: middle;
+}
+
+::deep .custom-prop-key-cell {
+    width: 34%;
+}
+
+::deep .custom-prop-type-cell {
+    width: 20%;
+}
+
+::deep .custom-prop-value-cell {
+    width: 40%;
+}
+
+::deep .custom-prop-action-cell {
+    width: 6%;
+    text-align: right;
+}
+
+::deep .custom-prop-input {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+::deep .custom-prop-date-time-wrap {
+    align-items: center;
+}
+
+::deep .custom-prop-date {
+    min-width: 150px;
+}
+
+::deep .custom-prop-time {
+    min-width: 120px;
+}
+
+::deep .custom-prop-boolean-wrap {
+    display: flex;
+    align-items: center;
+}

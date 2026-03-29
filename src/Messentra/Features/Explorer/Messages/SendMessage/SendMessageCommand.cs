@@ -17,5 +17,5 @@ public sealed record SendMessageCommand(
     string? To,
     string? ReplyTo,
     string? ContentType,
-    IReadOnlyDictionary<string, string> ApplicationProperties) : ICommand<SendMessageResult>;
+    IReadOnlyDictionary<string, object> ApplicationProperties) : ICommand<SendMessageResult>;
 

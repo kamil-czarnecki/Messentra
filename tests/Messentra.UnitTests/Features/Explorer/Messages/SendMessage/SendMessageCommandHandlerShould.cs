@@ -192,7 +192,7 @@ public sealed class SendMessageCommandHandlerShould
             To: null,
             ReplyTo: null,
             ContentType: null,
-            ApplicationProperties: new Dictionary<string, string>());
+            ApplicationProperties: new Dictionary<string, object>());
 
     private static Resource.Queue CreateQueue(string name) =>
         new(

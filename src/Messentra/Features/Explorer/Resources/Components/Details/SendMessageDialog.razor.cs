@@ -39,7 +39,9 @@ public partial class SendMessageDialog
     {
         var appProperties = _customProperties
             .Where(p => !string.IsNullOrWhiteSpace(p.Key))
-            .ToDictionary(p => p.Key, p => p.Value);
+            .ToDictionary(
+                p => p.Key.Trim(),
+                GetCustomPropertyValue);
 
         var command = new SendMessageCommand(
             ResourceTreeNode: ResourceTreeNode,
@@ -86,9 +88,48 @@ public partial class SendMessageDialog
     private static string? NullIfEmpty(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value;
 
+    private static object GetCustomPropertyValue(CustomProperty property) =>
+        property.Type switch
+        {
+            CustomPropertyType.String => property.Value.Trim(),
+            CustomPropertyType.Number => property.NumberValue ?? 0,
+            CustomPropertyType.Boolean => property.BooleanValue,
+            CustomPropertyType.Date => property.DateValue is { } date
+                ? DateTime.SpecifyKind(date.Date + (property.TimeValue ?? TimeSpan.Zero), DateTimeKind.Utc)
+                : DateTime.UtcNow,
+            _ => property.Value.Trim()
+        };
+
     private sealed class CustomProperty
     {
         public string Key { get; set; } = string.Empty;
         public string Value { get; set; } = string.Empty;
+        public decimal? NumberValue { get; set; }
+        public bool BooleanValue { get; set; }
+        public DateTime? DateValue { get; set; }
+        public TimeSpan? TimeValue { get; set; }
+
+        public CustomPropertyType Type
+        {
+            get;
+            set
+            {
+                field = value;
+                if (field != CustomPropertyType.Date || DateValue is not null || TimeValue is not null)
+                    return;
+
+                var now = DateTime.UtcNow;
+                DateValue = now.Date;
+                TimeValue = now.TimeOfDay;
+            }
+        } = CustomPropertyType.String;
+    }
+
+    private enum CustomPropertyType
+    {
+        String,
+        Number,
+        Boolean,
+        Date
     }
 }
