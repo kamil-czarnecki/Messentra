@@ -7,6 +7,7 @@ using Messentra.Infrastructure.AzureServiceBus.Factories;
 using Messentra.Infrastructure.AzureServiceBus.Queues;
 using Messentra.Infrastructure.AzureServiceBus.Subscriptions;
 using Messentra.Infrastructure.AzureServiceBus.Topics;
+using Messentra.Infrastructure.Jobs;
 
 namespace Messentra.Infrastructure;
 
@@ -30,7 +31,10 @@ public static class Extensions
             services.AddSingleton<IInteractiveAuthBootstrapper, InteractiveAuthBootstrapper>();
             services.AddSingleton<IFileSystem, FileSystem>();
             services.AddSingleton<IJobCancellationRegistry, JobCancellationRegistry>();
+            services.AddSingleton<IJobProgressNotifier, JobProgressNotifier>();
             services.AddSingleton<IJobRunner, JobRunner>();
+            services.AddSingleton<IBackgroundJobQueue, BackgroundJobQueue>();
+            services.AddHostedService<JobWorker>();
             
             services.AddAllStages();
         }

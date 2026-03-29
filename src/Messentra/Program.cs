@@ -50,7 +50,7 @@ builder.Services.AddMediator(opts =>
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Database
-builder.Services.AddDbContext<MessentraDbContext>((serviceProvider, options) =>
+builder.Services.AddDbContextFactory<MessentraDbContext>((serviceProvider, options) =>
 {
     var environment = serviceProvider.GetRequiredService<IHostEnvironment>();
     var dbDirectory = Path.Combine(

@@ -1,7 +1,7 @@
 using AutoFixture;
 using Messentra.Domain;
+using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Jobs;
-using Messentra.Features.Jobs.ExportMessages;
 using Messentra.Features.Jobs.ImportMessages;
 using Shouldly;
 using Xunit;
@@ -16,7 +16,7 @@ public sealed class ImportMessagesJobShould
     public void ExposeNoStages_WhenCreated()
     {
         // Arrange
-        var sut = CreateJob(new ResourceTarget.Queue("queue1"));
+        var sut = CreateJob(new ResourceTarget.Queue("queue1", SubQueue.Active));
 
         // Act
         var stages = sut.Stages;
@@ -29,7 +29,7 @@ public sealed class ImportMessagesJobShould
     public void RoundTripQueueTarget_WhenInputInitialized()
     {
         // Arrange
-        var target = new ResourceTarget.Queue("queue1");
+        var target = new ResourceTarget.Queue("queue1", SubQueue.Active);
         var sut = CreateJob(target);
 
         // Act
@@ -44,7 +44,7 @@ public sealed class ImportMessagesJobShould
     public void RoundTripTopicSubscriptionTarget_WhenInputInitialized()
     {
         // Arrange
-        var target = new ResourceTarget.TopicSubscription("topic-a", "sub-a");
+        var target = new ResourceTarget.TopicSubscription("topic-a", "sub-a", SubQueue.Active);
         var sut = CreateJob(target);
 
         // Act

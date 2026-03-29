@@ -44,7 +44,7 @@ public sealed class SideBarShould : ComponentTestBase
         // Assert
         var navLinks = cut.FindComponents<MudNavLink>();
         navLinks[0].Instance.Disabled.ShouldBeFalse();
-        navLinks[1].Instance.Disabled.ShouldBeTrue();
+        navLinks[1].Instance.Disabled.ShouldBeFalse();
         navLinks[2].Instance.Disabled.ShouldBeFalse();
     }
 

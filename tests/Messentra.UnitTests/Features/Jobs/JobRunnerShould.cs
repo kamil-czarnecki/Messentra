@@ -1,11 +1,13 @@
 using AutoFixture;
 using Messentra.Domain;
+using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.ExportMessages;
 using Messentra.Features.Jobs.Stages;
 using Messentra.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Shouldly;
 using Xunit;
@@ -113,7 +115,7 @@ public sealed class JobRunnerShould : InMemoryDbTestBase
         serviceScopeMock.Setup(x => x.ServiceProvider).Returns(serviceProviderMock.Object);
         serviceFactoryMock.Setup(x => x.CreateScope()).Returns(serviceScopeMock.Object);
         
-        return new JobRunner(serviceFactoryMock.Object);
+        return new JobRunner(serviceFactoryMock.Object, new JobProgressNotifier(Mock.Of<ILogger<JobProgressNotifier>>()));
     }
 
     private ExportMessagesJob CreateJob()
@@ -123,7 +125,7 @@ public sealed class JobRunnerShould : InMemoryDbTestBase
             Id = _fixture.Create<long>(),
             Label = _fixture.Create<string>(),
             CreatedAt = DateTime.UtcNow,
-            Input = new ExportMessagesJobRequest(CreateConnectionConfig(), new ResourceTarget.Queue("queue1"))
+            Input = new ExportMessagesJobRequest(CreateConnectionConfig(), new ResourceTarget.Queue("queue1", SubQueue.Active), 100)
         };
     }
 

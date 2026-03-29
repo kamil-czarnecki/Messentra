@@ -111,6 +111,35 @@ namespace Messentra.Migrations
                     b.UseTphMappingStrategy();
                 });
 
+            modelBuilder.Entity("Messentra.Features.Jobs.Stages.FetchMessages.FetchedMessagesBatch", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("JobId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("LastSequence")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Messages")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MessagesCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobId", "LastSequence");
+
+                    b.ToTable("FetchedMessagesBatches", (string)null);
+                });
+
             modelBuilder.Entity("Messentra.Features.Jobs.ExportMessages.ExportMessagesJob", b =>
                 {
                     b.HasBaseType("Messentra.Domain.Job");

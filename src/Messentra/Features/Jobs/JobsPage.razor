@@ -1,5 +1,117 @@
 @page "/jobs"
+@using Messentra.Domain
 
-<MudPaper Elevation="0" Class="pa-6" Style="background-color: white; min-height: 80vh;">
-    <MudText Typo="Typo.h5">DLQ Retry Jobs</MudText>
-</MudPaper>
+<div class="mud-height-full">
+    <MudPaper Elevation="0" Class="pa-6 jobs-paper">
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h5">Jobs</MudText>
+
+            @if (_jobsState.Value.IsLoading && !_jobsState.Value.IsLoaded)
+            {
+                <MudStack AlignItems="AlignItems.Center" Class="pa-8">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Loading jobs...</MudText>
+                </MudStack>
+            }
+            else if (!_jobsState.Value.Jobs.Any())
+            {
+                <MudText Typo="Typo.body1" Color="Color.Secondary">No jobs found.</MudText>
+            }
+            else
+            {
+                <MudTable Items="@_jobsState.Value.Jobs" Hover="true" Striped="true" Dense="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Id</MudTh>
+                        <MudTh>Label</MudTh>
+                        <MudTh>Created On</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Current Stage</MudTh>
+                        <MudTh>Progress</MudTh>
+                        <MudTh Class="text-right">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Id">@context.Id</MudTd>
+                        <MudTd DataLabel="Label">@context.Label</MudTd>
+                        <MudTd DataLabel="Created On">@context.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</MudTd>
+                        <MudTd DataLabel="Status">
+                            @if (context.Status == JobStatus.Failed && !string.IsNullOrWhiteSpace(context.LastError))
+                            {
+                                <MudTooltip Text="@context.LastError">
+                                    <MudChip T="string" Color="@GetStatusColor(context.Status)" Variant="Variant.Filled" Size="Size.Small">
+                                        @context.Status
+                                    </MudChip>
+                                </MudTooltip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="@GetStatusColor(context.Status)" Variant="Variant.Filled" Size="Size.Small">
+                                    @context.Status
+                                </MudChip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Stage">@context.StageProgress.Stage</MudTd>
+                        <MudTd DataLabel="Progress">
+                            <MudStack Spacing="1">
+                                <MudProgressLinear Color="Color.Primary" Value="@context.StageProgress.Progress" Min="0" Max="100" />
+                                <MudText Typo="Typo.caption">@($"{context.StageProgress.Progress}%")</MudText>
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="Actions" Class="text-right">
+                            <MudStack Row="true" Spacing="1">
+                                @if (context.Status == JobStatus.Running)
+                                {
+                                    <MudTooltip Text="Pause">
+                                         <MudIconButton Icon="@Icons.Material.Filled.Pause"
+                                                        Size="Size.Small"
+                                                        OnClick="@(() => Pause(context.Id))"
+                                                        title="Pause" />
+                                    </MudTooltip>
+                                }
+
+                                @if (context.Status == JobStatus.Paused)
+                                {
+                                    <MudTooltip Text="Resume">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PlayArrow"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => Resume(context.Id))"
+                                                       title="Resume" />
+                                    </MudTooltip>
+                                }
+                                
+                                @if (context.Status == JobStatus.Failed)
+                                {
+                                    <MudTooltip Text="Retry">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => Resume(context.Id))"
+                                                       title="Retry" />
+                                    </MudTooltip>
+                                }
+
+                                @if (context is { Status: JobStatus.Completed, Output: JobOutput.ExportMessagesJobOutput exportOutput })
+                                {
+                                    <MudTooltip Text="Download">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Download"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => DownloadAsync(exportOutput.FilePath))"
+                                                       title="Download" />
+                                    </MudTooltip>
+                                }
+
+                                @if (context.Status != JobStatus.Running)
+                                {
+                                    <MudTooltip Text="Delete">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => Delete(context.Id))"
+                                                       title="Delete" />
+                                    </MudTooltip>
+                                }
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudStack>
+    </MudPaper>
+</div>

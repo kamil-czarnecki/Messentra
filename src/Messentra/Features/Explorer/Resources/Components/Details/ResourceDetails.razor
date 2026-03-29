@@ -29,13 +29,16 @@
                         <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Send" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenSendMessageDialog" Disabled="@(IsRefreshing || SelectedResource is NamespaceTreeNode or QueuesTreeNode or TopicsTreeNode or SubscriptionTreeNode)">
                             <MudText Typo="Typo.body2">Send</MudText>
                         </MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FileDownload" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenExportDialog" Disabled="@(!CanExportMessages)" title="Export">
+                            <MudText Typo="Typo.body2">Export</MudText>
+                        </MudButton>
                         <MudIconButton Icon="@Icons.Material.Filled.Refresh" Ripple="false" Size="Size.Small"
                                        Disabled="@(IsRefreshing || SelectedResource is NamespaceTreeNode or QueuesTreeNode or TopicsTreeNode)"
                                        OnClick="@RefreshResource" />
                     </MudStack>
                 </MudStack>
                 <MudDivider Class="border-2"/>
-                <MudTabs Class="small-tabs" Color="Color.Surface" MinimumTabWidth="100px" Ripple="false" Elevation="0" Rounded="false" ApplyEffectsToContainer="true">
+                <MudTabs Class="small-tabs" Color="Color.Surface" MinimumTabWidth="100px" Ripple="false" Elevation="0" Rounded="false" ApplyEffectsToContainer="true" @bind-ActivePanelIndex="@_activeDetailsTabIndex">
                     <MudTabPanel Text="Overview" Class="pa-0">
                         <OverviewTab Resource="SelectedResource"/>
                     </MudTabPanel>

@@ -4,6 +4,7 @@ using Messentra.Features.Jobs.ImportMessages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using DatabaseJsonSerializerOptions = Messentra.Infrastructure.Database.JsonSerializerOptions;
 
 namespace Messentra.Infrastructure.Database.Jobs;
 
@@ -23,11 +24,11 @@ public sealed class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(x => x.Label).HasMaxLength(200).IsRequired();
         builder.Property("InputRaw").HasMaxLength(5000);
         builder.Property("OutputRaw").HasMaxLength(5000);
-        builder.Property(x => x.Status).HasConversion<EnumToStringConverter<JobStatus>>().HasMaxLength(50);
+        builder.Property(x => x.Status).HasConversion<EnumToStringConverter<JobStatus>>().HasMaxLength(50).IsRequired();
         builder.Property(x => x.StageProgress)
             .HasConversion(
-                v => System.Text.Json.JsonSerializer.Serialize(v, System.Text.Json.JsonSerializerOptions.Default),
-                v => System.Text.Json.JsonSerializer.Deserialize<StageProgress>(v, System.Text.Json.JsonSerializerOptions.Default)!)
+                v => System.Text.Json.JsonSerializer.Serialize(v, DatabaseJsonSerializerOptions.Default),
+                v => System.Text.Json.JsonSerializer.Deserialize<StageProgress>(v, DatabaseJsonSerializerOptions.Default)!)
             .IsRequired()
             .HasMaxLength(1000);
         builder.Property(x => x.CurrentStageIndex).HasDefaultValue(0).IsRequired();
