@@ -61,7 +61,9 @@ public sealed class ResumeJobCommandHandlerShould : InMemoryDbTestBase
             CreatedAt = DateTime.UtcNow,
             Input = new ImportMessagesJobRequest(
                 ConnectionConfig.CreateConnectionString("Endpoint=sb://tests/"),
-                new ResourceTarget.Queue("orders", SubQueue.Active))
+                new ResourceTarget.Queue("orders", SubQueue.Active),
+                "/tmp/import.json",
+                "hash")
         };
 
         job.UpdateStatus(status);

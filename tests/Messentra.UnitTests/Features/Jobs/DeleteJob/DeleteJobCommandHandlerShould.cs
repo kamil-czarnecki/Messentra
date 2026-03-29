@@ -3,6 +3,7 @@ using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.DeleteJob;
 using Messentra.Features.Jobs.ImportMessages;
+using Messentra.Features.Jobs.Stages.ImportMessages;
 using Messentra.Features.Jobs.Stages;
 using Messentra.Features.Jobs.Stages.FetchMessages;
 using Messentra.Infrastructure;
@@ -43,6 +44,17 @@ public sealed class DeleteJobCommandHandlerShould : InMemoryDbTestBase
                 CreatedOn = DateTime.UtcNow
             }
         ], TestContext.Current.CancellationToken);
+
+        await DbContext.Set<ImportedMessage>().AddAsync(
+            new ImportedMessage
+            {
+                JobId = job.Id,
+                Position = 1,
+                Message = CreateServiceBusMessage("import-a"),
+                IsSent = false,
+                CreatedOn = DateTime.UtcNow
+            },
+            TestContext.Current.CancellationToken);
         await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var root = "/tmp/messentra-tests";
@@ -60,6 +72,7 @@ public sealed class DeleteJobCommandHandlerShould : InMemoryDbTestBase
         DbContext.ChangeTracker.Clear();
         (await DbContext.Set<Job>().FindAsync([job.Id], TestContext.Current.CancellationToken)).ShouldBeNull();
         DbContext.Set<FetchedMessagesBatch>().Count(x => x.JobId == job.Id).ShouldBe(0);
+        DbContext.Set<ImportedMessage>().Count(x => x.JobId == job.Id).ShouldBe(0);
         _fileSystem.Verify(x => x.DeleteDirectory(expectedPath, true), Times.Once);
     }
 
@@ -90,7 +103,9 @@ public sealed class DeleteJobCommandHandlerShould : InMemoryDbTestBase
             CreatedAt = DateTime.UtcNow,
             Input = new ImportMessagesJobRequest(
                 ConnectionConfig.CreateConnectionString("Endpoint=sb://tests/"),
-                new ResourceTarget.Queue("orders", SubQueue.Active))
+                new ResourceTarget.Queue("orders", SubQueue.Active),
+                "/tmp/import.json",
+                "hash")
         };
 
         job.UpdateStatus(status);

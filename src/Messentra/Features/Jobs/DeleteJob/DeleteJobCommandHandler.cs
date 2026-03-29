@@ -1,5 +1,6 @@
 using Mediator;
 using Messentra.Domain;
+using Messentra.Features.Jobs.Stages.ImportMessages;
 using Messentra.Features.Jobs.Stages.FetchMessages;
 using Messentra.Infrastructure;
 using Messentra.Infrastructure.Database;
@@ -29,6 +30,10 @@ public sealed class DeleteJobCommandHandler : ICommandHandler<DeleteJobCommand, 
             return false;
 
         await dbContext.Set<FetchedMessagesBatch>()
+            .Where(x => x.JobId == command.JobId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await dbContext.Set<ImportedMessage>()
             .Where(x => x.JobId == command.JobId)
             .ExecuteDeleteAsync(cancellationToken);
         

@@ -220,7 +220,9 @@ public sealed class JobReducersShould
                     ConnectionType.ConnectionString,
                     new ConnectionStringConfig("Endpoint=sb://local/;SharedAccessKeyName=name;SharedAccessKey=key"),
                     null),
-                new ResourceTarget.Queue("queue-2", SubQueue.Active))
+                new ResourceTarget.Queue("queue-2", SubQueue.Active),
+                "/tmp/import.json",
+                "hash")
         };
     }
 }

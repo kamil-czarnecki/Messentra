@@ -32,6 +32,9 @@
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FileDownload" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenExportDialog" Disabled="@(!CanExportMessages)" title="Export">
                             <MudText Typo="Typo.body2">Export</MudText>
                         </MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FileUpload" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenImportDialog" Disabled="@(!CanImportMessages)" title="Import">
+                            <MudText Typo="Typo.body2">Import</MudText>
+                        </MudButton>
                         <MudIconButton Icon="@Icons.Material.Filled.Refresh" Ripple="false" Size="Size.Small"
                                        Disabled="@(IsRefreshing || SelectedResource is NamespaceTreeNode or QueuesTreeNode or TopicsTreeNode)"
                                        OnClick="@RefreshResource" />
