@@ -65,7 +65,7 @@
                                                   Immediate="true"/>
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudText Typo="Typo.body2"message-tabs>PARTITION KEY</MudText>
+                                    <MudText Typo="Typo.body2">PARTITION KEY</MudText>
                                     <MudTextField @bind-Value="_partitionKey"
                                                   Variant="Variant.Outlined"
                                                   Margin="Margin.Dense"
@@ -74,7 +74,7 @@
                                                   Immediate="true"/>
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudText Typo="Typo.body2"message-tabs>SCHEDULED TIME (UTC)</MudText>
+                                    <MudText Typo="Typo.body2">SCHEDULED TIME (UTC)</MudText>
                                     <MudDatePicker @bind-Date="_scheduledDate"
                                                    Variant="Variant.Outlined"
                                                    Margin="Margin.Dense"
@@ -83,7 +83,7 @@
                                                    Editable="true"/>
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudText Typo="Typo.body2"message-tabs>MESSAGE ID</MudText>
+                                    <MudText Typo="Typo.body2">MESSAGE ID</MudText>
                                     <MudTextField @bind-Value="_messageId"
                                                   Variant="Variant.Outlined"
                                                   Margin="Margin.Dense"
@@ -92,7 +92,7 @@
                                                   Immediate="true"/>
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudText Typo="Typo.body2"message-tabs>CONTENT TYPE</MudText>
+                                    <MudText Typo="Typo.body2">CONTENT TYPE</MudText>
                                     <MudTextField @bind-Value="_contentType"
                                                   Variant="Variant.Outlined"
                                                   Margin="Margin.Dense"
@@ -101,7 +101,7 @@
                                                   Immediate="true"/>
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudText Typo="Typo.body2"message-tabs>SESSION ID</MudText>
+                                    <MudText Typo="Typo.body2">SESSION ID</MudText>
                                     <MudTextField @bind-Value="_sessionId"
                                                   Variant="Variant.Outlined"
                                                   Margin="Margin.Dense"
@@ -110,7 +110,7 @@
                                                   Immediate="true"/>
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudText Typo="Typo.body2"message-tabs>REPLY-TO SESSION ID</MudText>
+                                    <MudText Typo="Typo.body2">REPLY-TO SESSION ID</MudText>
                                     <MudTextField @bind-Value="_replyToSessionId"
                                                   Variant="Variant.Outlined"
                                                   Margin="Margin.Dense"
@@ -119,7 +119,7 @@
                                                   Immediate="true"/>
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudText Typo="Typo.body2"message-tabs>TO</MudText>
+                                    <MudText Typo="Typo.body2">TO</MudText>
                                     <MudTextField @bind-Value="_to"
                                                   Variant="Variant.Outlined"
                                                   Margin="Margin.Dense"
@@ -128,7 +128,7 @@
                                                   Immediate="true"/>
                                 </MudItem>
                                 <MudItem xs="6">
-                                    <MudText Typo="Typo.body2"message-tabs>REPLY-TO</MudText>
+                                    <MudText Typo="Typo.body2">REPLY-TO</MudText>
                                     <MudTextField @bind-Value="_replyTo"
                                                   Variant="Variant.Outlined"
                                                   Margin="Margin.Dense"
@@ -136,7 +136,7 @@
                                                   Immediate="true"/>
                                 </MudItem>
                                 <MudItem xs="12">
-                                    <MudText Typo="Typo.body2"message-tabs>TIME TO LIVE</MudText>
+                                    <MudText Typo="Typo.body2">TIME TO LIVE</MudText>
                                     <MudTextField @bind-Value="_timeToLiveText"
                                                   Variant="Variant.Outlined"
                                                   Margin="Margin.Dense"
@@ -165,9 +165,9 @@
                             <MudSimpleTable Dense="true" Hover="false" Elevation="0">
                                 <thead>
                                 <tr>
-                                    <th class="">KEY</th>
-                                    <th>VALUE</th>
+                                    <th>KEY</th>
                                     <th>TYPE</th>
+                                    <th>VALUE</th>
                                     <th></th>
                                 </tr>
                                 </thead>
@@ -175,10 +175,47 @@
                                 @foreach (var prop in _customProperties)
                                 {
                                     <tr>
-                                        <td><MudTextField Typo="Typo.body2" @bind-Value="prop.Key" Variant="Variant.Text" Margin="Margin.Dense" Placeholder="New Key..." Immediate="true" /></td>
-                                        <td><MudTextField Typo="Typo.body2" @bind-Value="prop.Value" Variant="Variant.Text" Margin="Margin.Dense" Placeholder="New Value..." Immediate="true" /></td>
-                                        <td><MudText Typo="Typo.body2">String</MudText></td>
-                                        <td><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" Color="Color.Primary" OnClick="@(() => RemoveCustomProperty(prop))"/></td>
+                                        <td class="custom-prop-key-cell">
+                                            <MudTextField Typo="Typo.body2" @bind-Value="prop.Key" Variant="Variant.Text" Margin="Margin.Dense" Placeholder="New Key..." Immediate="true" Class="custom-prop-input" />
+                                        </td>
+                                        <td class="custom-prop-type-cell">
+                                            <MudSelect T="CustomPropertyType"
+                                                       @bind-Value="prop.Type"
+                                                       Variant="Variant.Text"
+                                                       Margin="Margin.Dense"
+                                                       Dense="true"
+                                                       Class="custom-prop-input">
+                                                <MudSelectItem Value="CustomPropertyType.String">String</MudSelectItem>
+                                                <MudSelectItem Value="CustomPropertyType.Number">Number</MudSelectItem>
+                                                <MudSelectItem Value="CustomPropertyType.Boolean">Boolean</MudSelectItem>
+                                                <MudSelectItem Value="CustomPropertyType.Date">Date</MudSelectItem>
+                                            </MudSelect>
+                                        </td>
+                                        <td class="custom-prop-value-cell">
+                                            @switch (prop.Type)
+                                            {
+                                                case CustomPropertyType.String:
+                                                    <MudTextField Typo="Typo.body2" @bind-Value="prop.Value" Variant="Variant.Text" Margin="Margin.Dense" Placeholder="New Value..." Immediate="true" Class="custom-prop-input" />
+                                                    break;
+                                                case CustomPropertyType.Number:
+                                                    <MudNumericField T="decimal?" Typo="Typo.body2" @bind-Value="prop.NumberValue" Variant="Variant.Text" Margin="Margin.Dense" Placeholder="0" HideSpinButtons="false" Class="custom-prop-input" />
+                                                    break;
+                                                case CustomPropertyType.Boolean:
+                                                    <div class="custom-prop-boolean-wrap">
+                                                        <MudSwitch T="bool" @bind-Value="prop.BooleanValue" Color="Color.Primary" />
+                                                    </div>
+                                                    break;
+                                                case CustomPropertyType.Date:
+                                                    <MudStack Row="true" Spacing="1" Class="custom-prop-date-time-wrap">
+                                                        <MudDatePicker @bind-Date="prop.DateValue" Variant="Variant.Text" Margin="Margin.Dense" Class="custom-prop-input custom-prop-date" />
+                                                        <MudTimePicker @bind-Time="prop.TimeValue" Variant="Variant.Text" Margin="Margin.Dense" Class="custom-prop-input custom-prop-time" />
+                                                    </MudStack>
+                                                    break;
+                                                default:
+                                                    throw new ArgumentOutOfRangeException();
+                                            }
+                                        </td>
+                                        <td class="custom-prop-action-cell"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" Color="Color.Primary" OnClick="@(() => RemoveCustomProperty(prop))"/></td>
                                     </tr>
                                 }
                                 </tbody>

@@ -234,7 +234,7 @@ public sealed class ConnectionDialogShould : ComponentTestBase
 
         // Assert
         nameField.IsValid().ShouldBeFalse();
-        cut.Markup.ShouldContain("Connection Name is required");
+        cut.Markup.ShouldContain("Connection name is required");
     }
 
     [Fact]
