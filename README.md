@@ -97,7 +97,7 @@ Actions available on fetched messages vary by fetch mode:
 ### 📦 Import & Export Messages
 - **Export** messages from a queue or subscription to a JSON file for backup, replay, or sharing between environments
 - **Import** messages from a JSON file into a selected queue or topic using the built-in template format
-- **Import and export** run as background jobs, with status and outputs visible on the Jobs page
+- **Import and export** run as background jobs, with their status visible on the Jobs page. Export jobs provide a downloadable file output; import jobs currently only report status (no output payload).
 - **Disclaimer:** Import may introduce duplicate messages.
 
 ### ⌨️ Keyboard Shortcuts
