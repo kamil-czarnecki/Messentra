@@ -94,6 +94,12 @@ Actions available on fetched messages vary by fetch mode:
 - Full broker properties: Label, Message ID, Correlation ID, Partition Key, Session ID, Reply-To Session ID, To, Reply-To, Content Type, Time-To-Live, Scheduled Enqueue Time
 - Custom **application properties** (key/value pairs)
 
+### 📦 Import & Export Messages
+- **Export** messages from a queue or subscription to a JSON file for backup, replay, or sharing between environments
+- **Import** messages from a JSON file into a selected queue or topic using the built-in template format
+- **Import and export** run as background jobs, with their status visible on the Jobs page. Export jobs provide a downloadable file output; import jobs currently only report status (no output payload).
+- **Disclaimer:** Import may introduce duplicate messages.
+
 ### ⌨️ Keyboard Shortcuts
 
 | Shortcut | Context | Action |
@@ -120,6 +126,9 @@ Actions available on fetched messages vary by fetch mode:
 
 ### Messages
 ![Messentra message inspector - fetching, searching and viewing Service Bus messages with body and properties](docs/messages.png)
+
+### Jobs
+![Messentra jobs screen - tracking import and export background jobs with progress and actions](docs/jobs.png)
 
 ### Connections
 ![Messentra connection manager - adding Connection String and Entra ID connections](docs/connections.png)

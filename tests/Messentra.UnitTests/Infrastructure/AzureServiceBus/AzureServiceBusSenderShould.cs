@@ -1,5 +1,6 @@
 using Azure.Messaging.ServiceBus;
 using Messentra.Features.Explorer.Messages.SendMessage;
+using Messentra.Features.Jobs.Stages;
 using Messentra.Infrastructure.AzureServiceBus;
 using Messentra.Infrastructure.AzureServiceBus.Factories;
 using Moq;
@@ -316,6 +317,66 @@ public sealed class AzureServiceBusSenderShould
         // Assert
         _sender.Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Once);
         _clientFactory.Verify(x => x.InvalidateClient(ConnectionString), Times.Once);
+    }
+
+    [Fact]
+    public async Task Send_ImportedMessage_MapsBodyAndCoreProperties()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var dto = new ServiceBusMessageDto(
+            Message: new { key = "value" },
+            Properties: new ServiceBusProperties(
+                ContentType: "application/json",
+                CorrelationId: "corr-1",
+                Subject: "subject-1",
+                MessageId: "msg-1",
+                To: "to-1",
+                ReplyTo: "reply-1",
+                TimeToLive: TimeSpan.FromMinutes(2),
+                ReplyToSessionId: null,
+                SessionId: null,
+                PartitionKey: null,
+                ScheduledEnqueueTime: null,
+                TransactionPartitionKey: null,
+                EnqueuedTimeUtc: null),
+            ApplicationProperties: new Dictionary<string, object>
+            {
+                ["tenant"] = "alpha"
+            });
+
+        ServiceBusMessage? captured = null;
+        _sender
+            .Setup(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Callback<ServiceBusMessage, CancellationToken>((m, _) => captured = m)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _sut.Send(info, EntityPath, dto, CancellationToken.None);
+
+        // Assert
+        captured.ShouldNotBeNull();
+        captured.Body.ToString().ShouldContain("\"key\"");
+        captured.Body.ToString().ShouldContain("\"value\"");
+        captured.ContentType.ShouldBe("application/json");
+        captured.CorrelationId.ShouldBe("corr-1");
+        captured.Subject.ShouldBe("subject-1");
+        captured.MessageId.ShouldBe("msg-1");
+        captured.ApplicationProperties["tenant"].ShouldBe("alpha");
+    }
+
+    [Fact]
+    public async Task SendBatchChunk_ReturnsZeroAndSkipsClient_WhenNoMessagesProvided()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+
+        // Act
+        var result = await _sut.SendBatchChunk(info, EntityPath, [], CancellationToken.None);
+
+        // Assert
+        result.ShouldBe(0);
+        _client.Verify(x => x.CreateSender(It.IsAny<string>()), Times.Never);
     }
 
     private static SendMessageCommand BuildCommand(

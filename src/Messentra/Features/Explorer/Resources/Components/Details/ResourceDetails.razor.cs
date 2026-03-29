@@ -5,8 +5,12 @@ using Messentra.Features.Explorer.Messages.SendMessage;
 using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.ExportMessages;
 using Messentra.Features.Jobs.ExportMessages.EnqueueExportMessages;
+using Messentra.Features.Jobs.ImportMessages;
+using Messentra.Features.Jobs.ImportMessages.EnqueueImportMessages;
 using Messentra.Features.Layout.State;
+using Messentra.Infrastructure;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
 using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources.Components.Details;
@@ -19,23 +23,30 @@ public partial class ResourceDetails
     private readonly IDialogService _dialogService;
     private readonly IMediator _mediator;
     private readonly IDispatcher _dispatcher;
+    private readonly IFileSystem _fileSystem;
     private int _activeDetailsTabIndex;
 
-    public ResourceDetails(IDialogService dialogService, IMediator mediator, IDispatcher dispatcher)
+    public ResourceDetails(IDialogService dialogService, IMediator mediator, IDispatcher dispatcher, IFileSystem fileSystem)
     {
         _dialogService = dialogService;
         _mediator = mediator;
         _dispatcher = dispatcher;
+        _fileSystem = fileSystem;
     }
 
     private bool IsRefreshing => SelectedResource is { IsLoading: true };
     private bool IsMessagesOrDeadLetterTab => _activeDetailsTabIndex is 2 or 3;
+    private bool IsMessagesTab => _activeDetailsTabIndex == 2;
     private SubQueue ActiveSubQueue => _activeDetailsTabIndex == 3 ? SubQueue.DeadLetter : SubQueue.Active;
     private bool CanExportMessages =>
         !IsRefreshing &&
         IsMessagesOrDeadLetterTab &&
         SelectedResource is QueueTreeNode or SubscriptionTreeNode &&
         GetTotalMessagesInSelectedSubQueue() > 0;
+    private bool CanImportMessages =>
+        !IsRefreshing &&
+        IsMessagesTab &&
+        SelectedResource is QueueTreeNode or SubscriptionTreeNode;
 
     private string ResourceName => SelectedResource switch
     {
@@ -170,6 +181,49 @@ public partial class ResourceDetails
             DateTime.Now)));
     }
 
+    private async Task OpenImportDialog()
+    {
+        if (!CanImportMessages || SelectedResource is null)
+            return;
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await _dialogService.ShowAsync<ImportMessagesDialog>("Import Messages", options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+            return;
+
+        if (result.Data is not ImportMessagesDialogResult importDialogResult)
+            return;
+
+        var target = CreateExportTarget();
+        if (target is null)
+            return;
+
+        var sourceFilePath = await SaveImportFile(importDialogResult.File);
+
+        await _mediator.Send(new EnqueueImportMessagesCommand(new ImportMessagesJobRequest(
+            SelectedResource.ConnectionConfig,
+            target,
+            sourceFilePath,
+            string.Empty,
+            importDialogResult.GenerateNewMessageId)));
+
+        _dispatcher.Dispatch(new FetchJobsAction());
+        _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+            ConnectionName,
+            "Info",
+            $"Import job enqueued for '{ResourceName}' ({ActiveSubQueue}). Go to Jobs menu to monitor progress.",
+            DateTime.Now)));
+    }
+
     private ResourceTarget? CreateExportTarget() =>
         SelectedResource switch
         {
@@ -192,4 +246,22 @@ public partial class ResourceDetails
                 : subscriptionNode.Resource.Overview.MessageInfo.Active,
             _ => 0
         };
+
+    private async Task<string> SaveImportFile(IBrowserFile file)
+    {
+        var root = Path.Combine(_fileSystem.GetRootPath(), "Jobs", "Imports");
+        _fileSystem.CreateDirectory(root);
+
+        var fileName = string.IsNullOrWhiteSpace(file.Name)
+            ? $"import-{Guid.NewGuid():N}.json"
+            : $"{Path.GetFileNameWithoutExtension(file.Name)}-{Guid.NewGuid():N}.json";
+        var destinationPath = Path.Combine(root, fileName);
+
+        await using var source = file.OpenReadStream(1024L * 1024L * 1024L);
+        await using var destination = _fileSystem.OpenWrite(destinationPath, useAsync: true);
+        await source.CopyToAsync(destination);
+        await destination.FlushAsync();
+
+        return destinationPath;
+    }
 }

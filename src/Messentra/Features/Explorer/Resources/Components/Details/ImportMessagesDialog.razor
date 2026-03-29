@@ -1,0 +1,50 @@
+@using Messentra.Features.Explorer.Resources.Components.Details.Tabs
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.body2">
+                Select a JSON file.
+            </MudText>
+
+            <MudFileUpload T="IBrowserFile"
+                           Accept=".json"
+                           @bind-Files="_selectedFile"
+                           Hidden="true">
+                <CustomContent Context="fileUpload">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.CloudUpload"
+                               OnClick="@(() => fileUpload.OpenFilePickerAsync())">
+                        Browse files
+                    </MudButton>
+                </CustomContent>
+            </MudFileUpload>
+
+            <MudDivider />
+
+            <MudCheckBox @bind-Value="_generateNewMessageId"
+                         Label="Generate new message id for each imported message"
+                         Color="Color.Primary" />
+
+            <MudExpansionPanels Elevation="0" Outlined="true" Dense="true" MultiExpansion="false">
+                <MudExpansionPanel Text="Example JSON template">
+                    <JsonViewer Json="@TemplateJson" />
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(_selectedFile is null)"
+                   OnClick="@Submit"
+                   StartIcon="@Icons.Material.Filled.FileUpload">
+            Import
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+

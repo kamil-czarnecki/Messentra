@@ -67,7 +67,9 @@ public sealed class GetJobsQueryHandlerShould : InMemoryDbTestBase
             CreatedAt = createdAt,
             Input = new ImportMessagesJobRequest(
                 ConnectionConfig.CreateConnectionString("Endpoint=sb://tests/"),
-                new ResourceTarget.Queue("orders", SubQueue.Active))
+                new ResourceTarget.Queue("orders", SubQueue.Active),
+                "/tmp/import.json",
+                "hash")
         };
 }
 

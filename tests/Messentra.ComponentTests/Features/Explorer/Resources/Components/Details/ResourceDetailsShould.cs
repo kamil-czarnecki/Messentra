@@ -108,6 +108,19 @@ public sealed class ResourceDetailsShould : ComponentTestBase
     }
 
     [Fact]
+    public void KeepImportDisabled_WhenOverviewTabIsActive()
+    {
+        // Arrange
+        var node = BuildQueueNode();
+
+        // Act
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
+
+        // Assert
+        cut.Find("button[title='Import']").HasAttribute("disabled").ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task EnableExport_WhenMessagesTabIsActive()
     {
         // Arrange
@@ -119,6 +132,34 @@ public sealed class ResourceDetailsShould : ComponentTestBase
 
         // Assert
         cut.Find("button[title='Export']").HasAttribute("disabled").ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task EnableImport_WhenMessagesTabIsActive()
+    {
+        // Arrange
+        var node = BuildQueueNode();
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
+
+        // Act
+        await cut.Find(".mud-tab:contains('Messages')").ClickAsync();
+
+        // Assert
+        cut.Find("button[title='Import']").HasAttribute("disabled").ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task KeepImportDisabled_WhenDeadLetterTabIsActive()
+    {
+        // Arrange
+        var node = BuildQueueNode();
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
+
+        // Act
+        await cut.Find(".mud-tab:contains('Dead-letter')").ClickAsync();
+
+        // Assert
+        cut.Find("button[title='Import']").HasAttribute("disabled").ShouldBeTrue();
     }
 
     [Fact]

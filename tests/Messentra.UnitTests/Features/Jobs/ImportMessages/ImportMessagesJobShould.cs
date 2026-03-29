@@ -3,6 +3,8 @@ using Messentra.Domain;
 using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.ImportMessages;
+using Messentra.Features.Jobs.Stages.ImportMessagesFromJson;
+using Messentra.Features.Jobs.Stages.SendImportedMessages;
 using Shouldly;
 using Xunit;
 
@@ -13,7 +15,7 @@ public sealed class ImportMessagesJobShould
     private readonly Fixture _fixture = new();
 
     [Fact]
-    public void ExposeNoStages_WhenCreated()
+    public void ExposeExpectedStagesInOrder_WhenCreated()
     {
         // Arrange
         var sut = CreateJob(new ResourceTarget.Queue("queue1", SubQueue.Active));
@@ -22,7 +24,9 @@ public sealed class ImportMessagesJobShould
         var stages = sut.Stages;
 
         // Assert
-        stages.ShouldBeEmpty();
+        stages.Count.ShouldBe(2);
+        stages[0].ShouldBe(typeof(PrepareMessagesFromJsonStage<ImportMessagesJob>));
+        stages[1].ShouldBe(typeof(SendImportedMessagesStage<ImportMessagesJob>));
     }
 
     [Fact]
@@ -30,7 +34,7 @@ public sealed class ImportMessagesJobShould
     {
         // Arrange
         var target = new ResourceTarget.Queue("queue1", SubQueue.Active);
-        var sut = CreateJob(target);
+        var sut = CreateJob(target, generateNewMessageId: true);
 
         // Act
         var input = sut.Input;
@@ -38,6 +42,9 @@ public sealed class ImportMessagesJobShould
         // Assert
         input.ShouldNotBeNull();
         input.Target.ShouldBe(target);
+        input.SourceFilePath.ShouldBe("/tmp/import.json");
+        input.SourceFileHash.ShouldBe("HASH");
+        input.GenerateNewMessageId.ShouldBeTrue();
     }
 
     [Fact]
@@ -53,15 +60,18 @@ public sealed class ImportMessagesJobShould
         // Assert
         input.ShouldNotBeNull();
         input.Target.ShouldBe(target);
+        input.SourceFilePath.ShouldBe("/tmp/import.json");
+        input.SourceFileHash.ShouldBe("HASH");
+        input.GenerateNewMessageId.ShouldBeFalse();
     }
 
-    private ImportMessagesJob CreateJob(ResourceTarget target) =>
+    private ImportMessagesJob CreateJob(ResourceTarget target, bool generateNewMessageId = false) =>
         new()
         {
             Id = _fixture.Create<long>(),
             Label = _fixture.Create<string>(),
             CreatedAt = DateTime.UtcNow,
-            Input = new ImportMessagesJobRequest(CreateConnectionConfig(), target)
+            Input = new ImportMessagesJobRequest(CreateConnectionConfig(), target, "/tmp/import.json", "HASH", generateNewMessageId)
         };
 
     private ConnectionConfig CreateConnectionConfig() =>
