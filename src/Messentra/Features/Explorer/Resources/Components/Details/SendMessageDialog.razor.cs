@@ -37,11 +37,7 @@ public partial class SendMessageDialog
 
     private void Submit()
     {
-        var appProperties = _customProperties
-            .Where(p => !string.IsNullOrWhiteSpace(p.Key))
-            .ToDictionary(
-                p => p.Key.Trim(),
-                GetCustomPropertyValue);
+        var appProperties = BuildApplicationProperties();
 
         var command = new SendMessageCommand(
             ResourceTreeNode: ResourceTreeNode,
@@ -60,6 +56,19 @@ public partial class SendMessageDialog
             ApplicationProperties: appProperties);
 
         MudDialog.Close(DialogResult.Ok(command));
+    }
+
+    private Dictionary<string, object> BuildApplicationProperties()
+    {
+        var appProperties = new Dictionary<string, object>();
+
+        foreach (var property in _customProperties.Where(p => !string.IsNullOrWhiteSpace(p.Key)))
+        {
+            var trimmedKey = property.Key.Trim();
+            appProperties[trimmedKey] = GetCustomPropertyValue(property);
+        }
+
+        return appProperties;
     }
 
     private void FormatJson()

@@ -85,4 +85,36 @@ public sealed class SendMessageDialogShould : ComponentTestBase
         result.Canceled.ShouldBeFalse();
         result.Data.ShouldBeOfType<SendMessageCommand>();
     }
+
+    [Fact]
+    public async Task ResolveDuplicateCustomPropertyKeysWithLastWriteWins_WhenSubmitting()
+    {
+        // Arrange
+        var cut = RenderDialog<SendMessageDialog>(
+            p => p[nameof(SendMessageDialog.ResourceTreeNode)] = BuildQueueNode(),
+            out var dialogRef);
+
+        await cut.Find("button:contains('ADD ROW')").ClickAsync();
+        await cut.Find("button:contains('ADD ROW')").ClickAsync();
+
+        var rows = cut.FindAll("tbody tr");
+        rows.Count.ShouldBe(2);
+
+        await rows[0].QuerySelector(".custom-prop-key-cell input")!.InputAsync(" dup ");
+        await rows[0].QuerySelector(".custom-prop-value-cell input")!.InputAsync("first");
+        await rows[1].QuerySelector(".custom-prop-key-cell input")!.InputAsync("dup");
+        await rows[1].QuerySelector(".custom-prop-value-cell input")!.InputAsync("second");
+
+        // Act
+        await cut.Find("button:contains('Send')").ClickAsync();
+
+        // Assert
+        var result = await dialogRef.Result;
+        result.ShouldNotBeNull();
+        result.Canceled.ShouldBeFalse();
+
+        var command = result.Data.ShouldBeOfType<SendMessageCommand>();
+        command.ApplicationProperties.Count.ShouldBe(1);
+        command.ApplicationProperties["dup"].ShouldBe("second");
+    }
 }
