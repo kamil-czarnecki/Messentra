@@ -164,6 +164,26 @@ public sealed class AzureServiceBusClientFactoryShould
         client.ShouldNotBeNull();
         _credentialFactory.Verify(x => x.Create(tenantId, clientId, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
+
+    [Fact]
+    public async Task InvalidateClientForManagedIdentity_RecreatesClientAndCredential()
+    {
+        // Arrange
+        const string fullyQualifiedNamespace = "test.servicebus.windows.net";
+        const string tenantId = "test-tenant-id";
+        const string clientId = "test-client-id";
+
+        var client1 = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId, CancellationToken.None);
+
+        // Act
+        await _sut.InvalidateClient(fullyQualifiedNamespace, tenantId, clientId);
+        var client2 = await _sut.CreateClient(fullyQualifiedNamespace, tenantId, clientId, CancellationToken.None);
+
+        // Assert
+        client2.ShouldNotBeSameAs(client1);
+        _credentialFactory.Verify(x => x.Invalidate(tenantId, clientId), Times.Once);
+        _credentialFactory.Verify(x => x.Create(tenantId, clientId, It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
     
     [Fact]
     public async Task ReturnDifferentClientsForDifferentKeysWithTokenCredential()

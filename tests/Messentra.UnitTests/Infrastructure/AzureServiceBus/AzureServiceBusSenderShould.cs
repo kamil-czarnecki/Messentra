@@ -252,6 +252,55 @@ public sealed class AzureServiceBusSenderShould
             Times.Once);
     }
 
+    [Fact]
+    public async Task Send_WhenFirstAttemptFails_InvalidatesClientAndRetriesOnce()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var command = BuildCommand(body: "hello");
+
+        _sender
+            .SetupSequence(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("transient send failure"))
+            .Returns(Task.CompletedTask);
+
+        _clientFactory
+            .Setup(x => x.InvalidateClient(ConnectionString))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _sut.Send(info, EntityPath, command, CancellationToken.None);
+
+        // Assert
+        _clientFactory.Verify(x => x.CreateClient(ConnectionString, It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _clientFactory.Verify(x => x.InvalidateClient(ConnectionString), Times.Once);
+        _sender.Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task Send_WhenRetryAlsoFails_InvalidatesClientTwiceAndThrows()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var command = BuildCommand(body: "hello");
+
+        _sender
+            .SetupSequence(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("first failure"))
+            .ThrowsAsync(new InvalidOperationException("retry failure"));
+
+        _clientFactory
+            .Setup(x => x.InvalidateClient(ConnectionString))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await Should.ThrowAsync<InvalidOperationException>(() => _sut.Send(info, EntityPath, command, CancellationToken.None));
+
+        // Assert
+        _sender.Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _clientFactory.Verify(x => x.InvalidateClient(ConnectionString), Times.Exactly(2));
+    }
+
     private static SendMessageCommand BuildCommand(
         string body = "body",
         string? messageId = null,

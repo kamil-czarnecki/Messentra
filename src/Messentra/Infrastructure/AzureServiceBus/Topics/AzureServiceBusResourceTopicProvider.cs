@@ -11,18 +11,19 @@ public sealed class AzureServiceBusResourceTopicProvider(
 {
     public async Task<IReadOnlyCollection<Resource.Topic>> GetAll(ConnectionInfo info, CancellationToken cancellationToken)
     {
-        var client = await GetClient(info, cancellationToken);
-        var @namespace = GetNamespace(info);
-        var topicsProperties = new ConcurrentDictionary<string, Azure.Messaging.ServiceBus.Administration.TopicProperties>();
-        var topicsRuntimeProperties = new ConcurrentDictionary<string, Azure.Messaging.ServiceBus.Administration.TopicRuntimeProperties>();
-        var subscriptions = new ConcurrentDictionary<string, IReadOnlyCollection<Resource.Subscription>>();
-        
-        await Task.WhenAll(LoadTopicProperties(), LoadTopicRuntimeProperties());
-        
-        await LoadSubscriptions();
+        return await ExecuteWithClientRecovery(info, async client =>
+        {
+            var @namespace = GetNamespace(info);
+            var topicsProperties = new ConcurrentDictionary<string, Azure.Messaging.ServiceBus.Administration.TopicProperties>();
+            var topicsRuntimeProperties = new ConcurrentDictionary<string, Azure.Messaging.ServiceBus.Administration.TopicRuntimeProperties>();
+            var subscriptions = new ConcurrentDictionary<string, IReadOnlyCollection<Resource.Subscription>>();
 
-        return topicsProperties
-            .Select(x =>
+            await Task.WhenAll(LoadTopicProperties(), LoadTopicRuntimeProperties());
+
+            await LoadSubscriptions();
+
+            return topicsProperties
+                .Select(x =>
             {
                 var topic = x.Value;
                 var runtimeProps = topicsRuntimeProperties[topic.Name];
@@ -32,63 +33,66 @@ public sealed class AzureServiceBusResourceTopicProvider(
             })
             .ToList();
         
-        async Task LoadTopicProperties()
-        {
-            await foreach (var topic in client.GetTopicsAsync(cancellationToken))
+            async Task LoadTopicProperties()
             {
-                topicsProperties[topic.Name] = topic;
-            }
-        }
-
-        async Task LoadTopicRuntimeProperties()
-        {
-            await foreach (var topic in client.GetTopicsRuntimePropertiesAsync(cancellationToken))
-            {
-                topicsRuntimeProperties[topic.Name] = topic;
-            }
-        }
-        
-        async Task LoadSubscriptions()
-        {
-            var semaphore = new SemaphoreSlim(10, 10);
-            
-            try
-            {
-                await Task.WhenAll(topicsProperties.Keys.Select(async topicName =>
+                await foreach (var topic in client.GetTopicsAsync(cancellationToken))
                 {
-                    // ReSharper disable once AccessToDisposedClosure
-                    await semaphore.WaitAsync(cancellationToken);
-                    try
-                    {
-                        var subs = await subscriptionProvider.GetAll(info, topicName, cancellationToken);
-                        subscriptions[topicName] = subs;
-                    }
-                    finally
+                    topicsProperties[topic.Name] = topic;
+                }
+            }
+
+            async Task LoadTopicRuntimeProperties()
+            {
+                await foreach (var topic in client.GetTopicsRuntimePropertiesAsync(cancellationToken))
+                {
+                    topicsRuntimeProperties[topic.Name] = topic;
+                }
+            }
+
+            async Task LoadSubscriptions()
+            {
+                var semaphore = new SemaphoreSlim(10, 10);
+
+                try
+                {
+                    await Task.WhenAll(topicsProperties.Keys.Select(async topicName =>
                     {
                         // ReSharper disable once AccessToDisposedClosure
-                        semaphore.Release();
-                    }
-                }));
+                        await semaphore.WaitAsync(cancellationToken);
+                        try
+                        {
+                            var subs = await subscriptionProvider.GetAll(info, topicName, cancellationToken);
+                            subscriptions[topicName] = subs;
+                        }
+                        finally
+                        {
+                            // ReSharper disable once AccessToDisposedClosure
+                            semaphore.Release();
+                        }
+                    }));
+                }
+                finally
+                {
+                    semaphore.Dispose();
+                }
             }
-            finally
-            {
-                semaphore.Dispose();
-            }
-        }
+        }, cancellationToken);
     }
 
     public async Task<Resource.Topic> GetByName(ConnectionInfo info, string name, CancellationToken cancellationToken)
     {
-        var client = await GetClient(info, cancellationToken);
-        var @namespace = GetNamespace(info);
+        return await ExecuteWithClientRecovery(info, async client =>
+        {
+            var @namespace = GetNamespace(info);
 
-        var topicTask = client.GetTopicAsync(name, cancellationToken);
-        var runtimeTask = client.GetTopicRuntimePropertiesAsync(name, cancellationToken);
-        var subscriptionsTask = subscriptionProvider.GetAll(info, name, cancellationToken);
+            var topicTask = client.GetTopicAsync(name, cancellationToken);
+            var runtimeTask = client.GetTopicRuntimePropertiesAsync(name, cancellationToken);
+            var subscriptionsTask = subscriptionProvider.GetAll(info, name, cancellationToken);
 
-        await Task.WhenAll(topicTask, runtimeTask, subscriptionsTask);
+            await Task.WhenAll(topicTask, runtimeTask, subscriptionsTask);
 
-        return MapToTopic(topicTask.Result.Value, runtimeTask.Result.Value, subscriptionsTask.Result, @namespace);
+            return MapToTopic(topicTask.Result.Value, runtimeTask.Result.Value, subscriptionsTask.Result, @namespace);
+        }, cancellationToken);
     }
 
     private static Resource.Topic MapToTopic(

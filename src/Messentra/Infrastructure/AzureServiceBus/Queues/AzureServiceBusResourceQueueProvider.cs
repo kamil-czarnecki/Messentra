@@ -7,31 +7,32 @@ public sealed class AzureServiceBusResourceQueueProvider(IAzureServiceBusAdminCl
 {
     public async Task<IReadOnlyCollection<Resource.Queue>> GetAll(ConnectionInfo info, CancellationToken cancellationToken)
     {
-        var client = await GetClient(info, cancellationToken);
-        var @namespace = GetNamespace(info);
-        var queuesProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.QueueProperties>();
-        var queuesRuntimeProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.QueueRuntimeProperties>();
+        return await ExecuteWithClientRecovery(info, async client =>
+        {
+            var @namespace = GetNamespace(info);
+            var queuesProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.QueueProperties>();
+            var queuesRuntimeProperties = new Dictionary<string, Azure.Messaging.ServiceBus.Administration.QueueRuntimeProperties>();
 
 
-        var queuesPropertiesTask = Task.Run(
-            async () =>
-            {
-                await foreach (var queue in client.GetQueuesAsync(cancellationToken))
-                    queuesProperties.Add(queue.Name, queue);
-            },
-            cancellationToken);
-        var queuesRuntimePropertiesTask = Task.Run(
-            async () =>
-            {
-                await foreach (var queue in client.GetQueuesRuntimePropertiesAsync(cancellationToken))
-                    queuesRuntimeProperties.Add(queue.Name, queue);
-            },
-            cancellationToken);
+            var queuesPropertiesTask = Task.Run(
+                async () =>
+                {
+                    await foreach (var queue in client.GetQueuesAsync(cancellationToken))
+                        queuesProperties.Add(queue.Name, queue);
+                },
+                cancellationToken);
+            var queuesRuntimePropertiesTask = Task.Run(
+                async () =>
+                {
+                    await foreach (var queue in client.GetQueuesRuntimePropertiesAsync(cancellationToken))
+                        queuesRuntimeProperties.Add(queue.Name, queue);
+                },
+                cancellationToken);
 
-        await Task.WhenAll(queuesPropertiesTask, queuesRuntimePropertiesTask);
+            await Task.WhenAll(queuesPropertiesTask, queuesRuntimePropertiesTask);
 
-        return queuesProperties
-            .Select(x =>
+            return queuesProperties
+                .Select(x =>
             {
                 var queue = x.Value;
                 var runtimeProperties = queuesRuntimeProperties[x.Key];
@@ -39,17 +40,20 @@ public sealed class AzureServiceBusResourceQueueProvider(IAzureServiceBusAdminCl
                 return MapToQueue(queue, runtimeProperties, @namespace);
             })
             .ToList();
+        }, cancellationToken);
     }
 
     public async Task<Resource.Queue> GetByName(ConnectionInfo info, string name, CancellationToken cancellationToken)
     {
-        var client = await GetClient(info, cancellationToken);
-        var @namespace = GetNamespace(info);
+        return await ExecuteWithClientRecovery(info, async client =>
+        {
+            var @namespace = GetNamespace(info);
 
-        var queue = await client.GetQueueAsync(name, cancellationToken);
-        var runtimeProperties = await client.GetQueueRuntimePropertiesAsync(name, cancellationToken);
+            var queue = await client.GetQueueAsync(name, cancellationToken);
+            var runtimeProperties = await client.GetQueueRuntimePropertiesAsync(name, cancellationToken);
 
-        return MapToQueue(queue.Value, runtimeProperties.Value, @namespace);
+            return MapToQueue(queue.Value, runtimeProperties.Value, @namespace);
+        }, cancellationToken);
     }
 
     private static Resource.Queue MapToQueue(

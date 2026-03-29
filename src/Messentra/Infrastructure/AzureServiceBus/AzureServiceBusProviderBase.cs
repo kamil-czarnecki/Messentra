@@ -7,6 +7,57 @@ namespace Messentra.Infrastructure.AzureServiceBus;
 
 public abstract class AzureServiceBusProviderBase(IAzureServiceBusClientFactory clientFactory)
 {
+    protected async Task ExecuteWithClientRecovery(
+        ConnectionInfo info,
+        Func<ServiceBusClient, Task> operation,
+        CancellationToken cancellationToken)
+    {
+        await ExecuteWithClientRecovery(
+            info,
+            async client =>
+            {
+                await operation(client);
+                return true;
+            },
+            cancellationToken);
+    }
+
+    protected async Task<TResult> ExecuteWithClientRecovery<TResult>(
+        ConnectionInfo info,
+        Func<ServiceBusClient, Task<TResult>> operation,
+        CancellationToken cancellationToken)
+    {
+        var client = await GetClient(info, cancellationToken);
+
+        try
+        {
+            return await operation(client);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            await InvalidateClient(info);
+            var refreshedClient = await GetClient(info, cancellationToken);
+
+            try
+            {
+                return await operation(refreshedClient);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                await InvalidateClient(info);
+                throw;
+            }
+        }
+    }
+
     protected async Task<ServiceBusClient> GetClient(ConnectionInfo info, CancellationToken cancellationToken) =>
         info switch
         {
@@ -16,6 +67,17 @@ public abstract class AzureServiceBusProviderBase(IAzureServiceBusClientFactory 
                 mi.TenantId,
                 mi.ClientId,
                 cancellationToken),
+            _ => throw new InvalidOperationException("Invalid connection info type")
+        };
+
+    private Task InvalidateClient(ConnectionInfo info) =>
+        info switch
+        {
+            ConnectionInfo.ConnectionString cs => clientFactory.InvalidateClient(cs.Value),
+            ConnectionInfo.ManagedIdentity mi => clientFactory.InvalidateClient(
+                mi.FullyQualifiedNamespace,
+                mi.TenantId,
+                mi.ClientId),
             _ => throw new InvalidOperationException("Invalid connection info type")
         };
     
