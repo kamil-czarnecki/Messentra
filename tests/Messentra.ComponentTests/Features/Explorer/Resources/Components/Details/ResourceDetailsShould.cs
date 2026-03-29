@@ -6,6 +6,7 @@ using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components.Details;
 using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.ExportMessages.EnqueueExportMessages;
+using Messentra.Features.Layout.State;
 using Messentra.Infrastructure.AzureServiceBus;
 using Moq;
 using MudBlazor;
@@ -121,7 +122,7 @@ public sealed class ResourceDetailsShould : ComponentTestBase
     }
 
     [Fact]
-    public async Task EnqueueDlqExportAndShowJobsInfo_WhenExportConfirmedFromDeadLetterTab()
+    public async Task EnqueueDlqExportAndRefreshJobs_WhenExportConfirmedFromDeadLetterTab()
     {
         // Arrange
         var node = BuildQueueNode();
@@ -141,6 +142,13 @@ public sealed class ResourceDetailsShould : ComponentTestBase
             x => x.Send(
                 It.Is<EnqueueExportMessagesCommand>(command => IsDeadLetterQueueExport(command)),
                 It.IsAny<CancellationToken>()),
+            Times.Once);
+        MockDispatcher.Verify(x => x.Dispatch(It.IsAny<FetchJobsAction>()), Times.Once);
+        MockDispatcher.Verify(
+            x => x.Dispatch(It.Is<LogActivityAction>(a =>
+                a.Log.Connection == "TestNS" &&
+                a.Log.Level == "Info" &&
+                a.Log.Message.Contains("Export job enqueued"))),
             Times.Once);
 
     }

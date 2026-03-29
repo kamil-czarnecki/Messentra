@@ -16,7 +16,7 @@ namespace Messentra.UnitTests.Infrastructure.Jobs;
 public sealed class JobWorkerStartupRecoveryShould : InMemoryDbTestBase
 {
     [Fact]
-    public async Task PauseRunningJobs_WhenWorkerStarts()
+    public async Task EnqueueRunningAndQueuedJobs_WhenWorkerStarts()
     {
         // Arrange
         var runningJob = CreateJob(JobStatus.Running, "running");
@@ -27,6 +27,9 @@ public sealed class JobWorkerStartupRecoveryShould : InMemoryDbTestBase
 
         var dequeueCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var queue = new Mock<IBackgroundJobQueue>(MockBehavior.Strict);
+        queue
+            .Setup(x => x.Enqueue(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
         queue
             .Setup(x => x.Dequeue(It.IsAny<CancellationToken>()))
             .Returns<CancellationToken>(ct =>
@@ -53,8 +56,10 @@ public sealed class JobWorkerStartupRecoveryShould : InMemoryDbTestBase
             .SingleAsync(x => x.Id == queuedJob.Id, TestContext.Current.CancellationToken);
 
         // Assert
-        savedRunning.Status.ShouldBe(JobStatus.Paused);
+        savedRunning.Status.ShouldBe(JobStatus.Running);
         savedQueued.Status.ShouldBe(JobStatus.Queued);
+        queue.Verify(x => x.Enqueue(runningJob.Id, It.IsAny<CancellationToken>()), Times.Once);
+        queue.Verify(x => x.Enqueue(queuedJob.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private static Mock<IServiceScopeFactory> CreateScopeFactory(MessentraDbContext dbContext)

@@ -25,7 +25,7 @@ public sealed class JobWorker : BackgroundService
     
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await PauseRunningJobsAtStartup(stoppingToken);
+        await EnqueueRunningAndQueuedJobs(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -42,7 +42,7 @@ public sealed class JobWorker : BackgroundService
         }
     }
 
-    private async Task PauseRunningJobsAtStartup(CancellationToken cancellationToken)
+    private async Task EnqueueRunningAndQueuedJobs(CancellationToken cancellationToken)
     {
         if (_serviceScopeFactory is null)
             return;
@@ -53,18 +53,16 @@ public sealed class JobWorker : BackgroundService
         if (dbContext is null)
             return;
 
-        var runningJobs = await dbContext.Set<Domain.Job>()
-            .Where(x => x.Status == Domain.JobStatus.Running)
+        var queuedJobs = await dbContext.Set<Domain.Job>()
+            .Where(x => x.Status == Domain.JobStatus.Running || x.Status == Domain.JobStatus.Queued)
             .ToListAsync(cancellationToken);
 
-        if (runningJobs.Count == 0)
+        if (queuedJobs.Count == 0)
             return;
 
-        foreach (var job in runningJobs)
+        foreach (var job in queuedJobs)
         {
-            job.UpdateStatus(Domain.JobStatus.Paused);
+            await _queue.Enqueue(job.Id, cancellationToken);
         }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

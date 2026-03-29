@@ -7,6 +7,7 @@ namespace Messentra.Features.Jobs.ResumeJob;
 
 public sealed class ResumeJobCommandHandler : ICommandHandler<ResumeJobCommand, bool>
 {
+    private static JobStatus[] AllowedStatuses { get; } = [JobStatus.Paused, JobStatus.Failed];
     private readonly IDbContextFactory<MessentraDbContext> _dbContextFactory;
     private readonly IBackgroundJobQueue _backgroundJobQueue;
 
@@ -22,7 +23,7 @@ public sealed class ResumeJobCommandHandler : ICommandHandler<ResumeJobCommand, 
         var job = await dbContext.Set<Job>()
             .SingleOrDefaultAsync(x => x.Id == command.JobId, cancellationToken);
 
-        if (job is null || job.Status != JobStatus.Paused)
+        if (job is null || !AllowedStatuses.Contains(job.Status))
             return false;
 
         job.UpdateStatus(JobStatus.Queued);

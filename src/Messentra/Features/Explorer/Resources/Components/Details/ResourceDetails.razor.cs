@@ -34,7 +34,8 @@ public partial class ResourceDetails
     private bool CanExportMessages =>
         !IsRefreshing &&
         IsMessagesOrDeadLetterTab &&
-        SelectedResource is QueueTreeNode or SubscriptionTreeNode;
+        SelectedResource is QueueTreeNode or SubscriptionTreeNode &&
+        GetTotalMessagesInSelectedSubQueue() > 0;
 
     private string ResourceName => SelectedResource switch
     {

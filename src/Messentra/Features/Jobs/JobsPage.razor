@@ -77,6 +77,16 @@
                                                        title="Resume" />
                                     </MudTooltip>
                                 }
+                                
+                                @if (context.Status == JobStatus.Failed)
+                                {
+                                    <MudTooltip Text="Retry">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => Resume(context.Id))"
+                                                       title="Retry" />
+                                    </MudTooltip>
+                                }
 
                                 @if (context is { Status: JobStatus.Completed, Output: JobOutput.ExportMessagesJobOutput exportOutput })
                                 {
