@@ -5,6 +5,7 @@ using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.ExportMessages;
 using Messentra.Features.Jobs.ExportMessages.EnqueueExportMessages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Shouldly;
 using Xunit;
@@ -18,7 +19,8 @@ public sealed class EnqueueExportMessagesCommandHandlerShould : InMemoryDbTestBa
     {
         // Arrange
         var queueMock = new Mock<IBackgroundJobQueue>();
-        var sut = new EnqueueExportMessagesCommandHandler(new TestDbContextFactory(DbContext), queueMock.Object);
+        var loggerMock = new Mock<ILogger<EnqueueExportMessagesCommandHandler>>();
+        var sut = new EnqueueExportMessagesCommandHandler(new TestDbContextFactory(DbContext), queueMock.Object, loggerMock.Object);
 
         var request = new ExportMessagesJobRequest(
             ConnectionConfig.CreateConnectionString("Endpoint=sb://tests/"),
@@ -48,6 +50,36 @@ public sealed class EnqueueExportMessagesCommandHandlerShould : InMemoryDbTestBa
         savedJob.Label.ShouldStartWith("ExportMessagesJob-");
 
         queueMock.Verify(x => x.Enqueue(savedJob.Id, cancellationToken), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReturnWithoutPersistingOrEnqueuing_WhenRequestedMessageCountIsNotPositive()
+    {
+        // Arrange
+        var queueMock = new Mock<IBackgroundJobQueue>();
+        var loggerMock = new Mock<ILogger<EnqueueExportMessagesCommandHandler>>();
+        var sut = new EnqueueExportMessagesCommandHandler(new TestDbContextFactory(DbContext), queueMock.Object, loggerMock.Object);
+
+        var command = new EnqueueExportMessagesCommand(new ExportMessagesJobRequest(
+            ConnectionConfig.CreateConnectionString("Endpoint=sb://tests/"),
+            new ResourceTarget.Queue("orders", SubQueue.Active),
+            0));
+
+        // Act
+        var result = await sut.Handle(command, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.ShouldBe(Unit.Value);
+        (await DbContext.Set<Job>().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        queueMock.Verify(x => x.Enqueue(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
+        loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains("Skipping export job enqueue")),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 }
 

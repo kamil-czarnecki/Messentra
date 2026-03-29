@@ -6,7 +6,13 @@ namespace Messentra.Features.Jobs;
 public sealed class JobProgressNotifier : IJobProgressNotifier
 {
     private readonly ConcurrentDictionary<long, Action<JobProgressUpdate>> _subscribers = new();
+    private readonly ILogger<JobProgressNotifier> _logger;
     private long _nextSubscriptionId;
+
+    public JobProgressNotifier(ILogger<JobProgressNotifier> logger)
+    {
+        _logger = logger;
+    }
 
     public IDisposable Subscribe(Action<JobProgressUpdate> callback)
     {
@@ -18,9 +24,19 @@ public sealed class JobProgressNotifier : IJobProgressNotifier
 
     public void Publish(JobProgressUpdate update)
     {
-        foreach (var subscriber in _subscribers.Values)
+        foreach (var (subscriptionId, subscriber) in _subscribers)
         {
-            subscriber(update);
+            try
+            {
+                subscriber(update);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Subscriber callback failed while publishing job progress update. SubscriptionId: {SubscriptionId}",
+                    subscriptionId);
+            }
         }
     }
 

@@ -3,6 +3,7 @@ using Messentra.Features.Jobs.Stages;
 using Messentra.Features.Jobs.Stages.FetchMessages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using DatabaseJsonSerializerOptions = Messentra.Infrastructure.Database.JsonSerializerOptions;
 
 namespace Messentra.Infrastructure.Database.Jobs;
 
@@ -21,8 +22,8 @@ public sealed class FetchedMessagesBatchConfiguration : IEntityTypeConfiguration
 
         builder.Property(x => x.Messages)
             .HasConversion(
-                v => JsonSerializer.Serialize(v, JsonSerializerOptions.Default),
-                v => JsonSerializer.Deserialize<List<ServiceBusMessageDto>>(v, JsonSerializerOptions.Default)!)
+                v => JsonSerializer.Serialize(v, DatabaseJsonSerializerOptions.Default),
+                v => JsonSerializer.Deserialize<List<ServiceBusMessageDto>>(v, DatabaseJsonSerializerOptions.Default)!)
             .IsRequired();
 
         builder.HasIndex(x => new { x.JobId, x.LastSequence });

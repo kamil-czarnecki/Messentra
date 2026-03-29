@@ -2,7 +2,7 @@ using System.Text.Json;
 using Fluxor;
 using Messentra.Features.Jobs.ExportMessages;
 using Messentra.Features.Jobs.ImportMessages;
-using JsonSerializerOptions = Messentra.Infrastructure.Database.JsonSerializerOptions;
+using DatabaseJsonSerializerOptions = Messentra.Infrastructure.Database.JsonSerializerOptions;
 
 namespace Messentra.Features.Jobs;
 
@@ -36,7 +36,7 @@ public static class JobReducers
                             ? job.Output
                             : job.Type switch
                             {
-                                nameof(ExportMessagesJob) => JsonSerializer.Deserialize<ExportMessagesJobResponse>(action.Update.OutputRaw, JsonSerializerOptions.Default) is { } export
+                                nameof(ExportMessagesJob) => JsonSerializer.Deserialize<ExportMessagesJobResponse>(action.Update.OutputRaw, DatabaseJsonSerializerOptions.Default) is { } export
                                     ? new JobOutput.ExportMessagesJobOutput(export.PathToJson)
                                     : job.Output,
                                 nameof(ImportMessagesJob) => null,

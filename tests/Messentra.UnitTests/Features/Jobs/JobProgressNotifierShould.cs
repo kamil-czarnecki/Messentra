@@ -1,5 +1,7 @@
 using Messentra.Domain;
 using Messentra.Features.Jobs;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Shouldly;
 using Xunit;
 
@@ -11,7 +13,7 @@ public sealed class JobProgressNotifierShould
     public void NotifySubscriber_WhenUpdateIsPublished()
     {
         // Arrange
-        var sut = new JobProgressNotifier();
+        var sut = CreateSut();
         JobProgressUpdate? received = null;
         sut.Subscribe(update => received = update);
         var expected = new JobProgressUpdate(1, JobStatus.Running, new StageProgress("Fetch", 25));
@@ -28,7 +30,7 @@ public sealed class JobProgressNotifierShould
     public void NotifyAllSubscribers_WhenUpdateIsPublished()
     {
         // Arrange
-        var sut = new JobProgressNotifier();
+        var sut = CreateSut();
         var firstReceived = new List<JobProgressUpdate>();
         var secondReceived = new List<JobProgressUpdate>();
 
@@ -51,7 +53,7 @@ public sealed class JobProgressNotifierShould
     public void StopNotifyingDisposedSubscription_WhenUpdateIsPublishedAfterDispose()
     {
         // Arrange
-        var sut = new JobProgressNotifier();
+        var sut = CreateSut();
         var received = new List<JobProgressUpdate>();
         var subscription = sut.Subscribe(update => received.Add(update));
         var first = new JobProgressUpdate(3, JobStatus.Running, new StageProgress("Fetch", 10));
@@ -71,7 +73,7 @@ public sealed class JobProgressNotifierShould
     public void AllowDisposeTwiceWithoutThrowing_WhenSubscriptionAlreadyDisposed()
     {
         // Arrange
-        var sut = new JobProgressNotifier();
+        var sut = CreateSut();
         var subscription = sut.Subscribe(_ => { });
 
         // Act
@@ -86,7 +88,7 @@ public sealed class JobProgressNotifierShould
     public void KeepOtherSubscribersActive_WhenOneSubscriptionIsDisposed()
     {
         // Arrange
-        var sut = new JobProgressNotifier();
+        var sut = CreateSut();
         var firstReceived = new List<JobProgressUpdate>();
         var secondReceived = new List<JobProgressUpdate>();
 
@@ -103,6 +105,40 @@ public sealed class JobProgressNotifierShould
         firstReceived.Count.ShouldBe(0);
         secondReceived.Count.ShouldBe(1);
         secondReceived[0].ShouldBe(updateToPublish);
+    }
+
+    [Fact]
+    public void ContinueNotifyingOtherSubscribers_WhenOneSubscriberThrows()
+    {
+        // Arrange
+        var loggerMock = new Mock<ILogger<JobProgressNotifier>>();
+        var sut = new JobProgressNotifier(loggerMock.Object);
+        var received = new List<JobProgressUpdate>();
+        var update = new JobProgressUpdate(8, JobStatus.Running, new StageProgress("Fetch", 75));
+
+        sut.Subscribe(_ => throw new InvalidOperationException("boom"));
+        sut.Subscribe(x => received.Add(x));
+
+        // Act
+        sut.Publish(update);
+
+        // Assert
+        received.Count.ShouldBe(1);
+        received[0].ShouldBe(update);
+        loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains("Subscriber callback failed")),
+                It.Is<InvalidOperationException>(ex => ex.Message == "boom"),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    private static JobProgressNotifier CreateSut()
+    {
+        var logger = Mock.Of<ILogger<JobProgressNotifier>>();
+        return new JobProgressNotifier(logger);
     }
 }
 

@@ -11,7 +11,7 @@ public interface IFileSystem
     IEnumerable<string> EnumerateFiles(string path, string searchPattern, SearchOption searchOption);
     bool FileExists(string path);
     Stream OpenRead(string path);
-    Stream OpenWrite(string path, int bufferSize = 4098, bool useAsync = false);
+    Stream OpenWrite(string path, int bufferSize = 4096, bool useAsync = false);
     void Delete(string path);
 }
 
@@ -32,7 +32,7 @@ public sealed class FileSystem : IFileSystem
         Directory.EnumerateFiles(path, searchPattern, searchOption);
     public bool FileExists(string path) => File.Exists(path);
     public Stream OpenRead(string path) => File.OpenRead(path);
-    public Stream OpenWrite(string path, int bufferSize = 4098, bool useAsync = false) => new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize, useAsync);
+    public Stream OpenWrite(string path, int bufferSize = 4096, bool useAsync = false) => new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize, useAsync);
 
     public void Delete(string path) => File.Delete(path);
 }

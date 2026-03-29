@@ -59,15 +59,23 @@ public sealed class FetchMessagesStageShould : InMemoryDbTestBase
     {
         // Arrange
         var job = CreateJob(new ResourceTarget.Queue("queue-a", SubQueue.Active), totalToFetch: 1200);
+        var requestedBatchSizes = new List<int>();
+        var callCount = 0;
 
         _queueProvider
-            .SetupSequence(x => x.Get(
+            .Setup(x => x.Get(
                 It.IsAny<ConnectionInfo>(),
                 It.IsAny<string>(),
                 It.IsAny<FetchMessagesOptions>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateMessages(1, 1000))
-            .ReturnsAsync(CreateMessages(1001, 200));
+            .Callback<ConnectionInfo, string, FetchMessagesOptions, CancellationToken>((_, _, options, _) => requestedBatchSizes.Add(options.MessageCount))
+            .ReturnsAsync(() =>
+            {
+                callCount++;
+                return callCount == 1
+                    ? CreateMessages(1, 1000)
+                    : CreateMessages(1001, 200);
+            });
 
         var sut = new FetchMessagesStage<TestJob>(DbContext, _queueProvider.Object, _subscriptionProvider.Object);
 
@@ -84,6 +92,43 @@ public sealed class FetchMessagesStageShould : InMemoryDbTestBase
         batches[0].LastSequence.ShouldBe(1000);
         batches[1].MessagesCount.ShouldBe(200);
         batches[1].LastSequence.ShouldBe(1200);
+        requestedBatchSizes.ShouldBe([1000, 200]);
+        job.StageProgress.Progress.ShouldBe(100);
+    }
+
+    [Fact]
+    public async Task RequestOnlyRemainingMessagesAndStop_WhenRequestedTotalIsBelowBatchSize()
+    {
+        // Arrange
+        var job = CreateJob(new ResourceTarget.Queue("queue-a", SubQueue.Active), totalToFetch: 250);
+        var requestedBatchSizes = new List<int>();
+
+        _queueProvider
+            .Setup(x => x.Get(
+                It.IsAny<ConnectionInfo>(),
+                It.IsAny<string>(),
+                It.IsAny<FetchMessagesOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<ConnectionInfo, string, FetchMessagesOptions, CancellationToken>((_, _, options, _) => requestedBatchSizes.Add(options.MessageCount))
+            .ReturnsAsync(CreateMessages(1, 250));
+
+        var sut = new FetchMessagesStage<TestJob>(DbContext, _queueProvider.Object, _subscriptionProvider.Object);
+
+        // Act
+        await sut.Run(job, TestContext.Current.CancellationToken);
+
+        // Assert
+        var batches = DbContext.Set<FetchedMessagesBatch>()
+            .Where(x => x.JobId == job.Id)
+            .ToList();
+        batches.Count.ShouldBe(1);
+        batches[0].MessagesCount.ShouldBe(250);
+        requestedBatchSizes.ShouldBe([250]);
+        _queueProvider.Verify(x => x.Get(
+            It.IsAny<ConnectionInfo>(),
+            It.IsAny<string>(),
+            It.IsAny<FetchMessagesOptions>(),
+            It.IsAny<CancellationToken>()), Times.Once);
         job.StageProgress.Progress.ShouldBe(100);
     }
 

@@ -7,6 +7,7 @@ using Messentra.Features.Jobs.Stages;
 using Messentra.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Shouldly;
 using Xunit;
@@ -114,7 +115,7 @@ public sealed class JobRunnerShould : InMemoryDbTestBase
         serviceScopeMock.Setup(x => x.ServiceProvider).Returns(serviceProviderMock.Object);
         serviceFactoryMock.Setup(x => x.CreateScope()).Returns(serviceScopeMock.Object);
         
-        return new JobRunner(serviceFactoryMock.Object, new JobProgressNotifier());
+        return new JobRunner(serviceFactoryMock.Object, new JobProgressNotifier(Mock.Of<ILogger<JobProgressNotifier>>()));
     }
 
     private ExportMessagesJob CreateJob()

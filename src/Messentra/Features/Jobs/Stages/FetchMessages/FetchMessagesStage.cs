@@ -33,6 +33,12 @@ public sealed class FetchMessagesStage<TJob> : IStage<TJob> where TJob : Job, IH
         job.UpdateProgress(Stage, currentProgress);
         
         var config = job.GetMessageFetchConfiguration();
+        if (config.TotalNumberOfMessagesToFetch <= 0)
+        {
+            job.UpdateProgress(Stage, 100);
+            return;
+        }
+
         var connectionInfo = config.ConnectionConfig.ToConnectionInfo();
         var lastPersistedSequence = await GetLastPersistedSequence(job.Id, ct);
         var totalCount = await GetTotalCount(job.Id, ct);
@@ -40,10 +46,18 @@ public sealed class FetchMessagesStage<TJob> : IStage<TJob> where TJob : Job, IH
 
         while (!ct.IsCancellationRequested)
         {
+            var remainingToFetch = config.TotalNumberOfMessagesToFetch - totalCount;
+            if (remainingToFetch <= 0)
+            {
+                job.UpdateProgress(Stage, 100);
+                break;
+            }
+
+            var messageCount = (int)Math.Min(BatchSize, remainingToFetch);
             var options = new FetchMessagesOptions(
                 FetchMode.Peek,
                 FetchReceiveMode.PeekLock,
-                BatchSize,
+                messageCount,
                 nextSequence,
                 TimeSpan.FromSeconds(2),
                 config.Target.SubQueue);
@@ -63,13 +77,17 @@ public sealed class FetchMessagesStage<TJob> : IStage<TJob> where TJob : Job, IH
             await AddBatch(job.Id, lastSequence, dtoMessages, ct);
             
             totalCount += messages.Count;
-            var progress = config.TotalNumberOfMessagesToFetch <= 0
-                ? 100
-                : (int)Math.Min(100, totalCount * 100 / config.TotalNumberOfMessagesToFetch);
+            var progress = (int)Math.Min(100, totalCount * 100 / config.TotalNumberOfMessagesToFetch);
             job.UpdateProgress(Stage, progress);
             nextSequence = lastSequence + 1;
 
-            if (messages.Count >= BatchSize)
+            if (totalCount >= config.TotalNumberOfMessagesToFetch)
+            {
+                job.UpdateProgress(Stage, 100);
+                break;
+            }
+
+            if (messages.Count >= messageCount)
                 continue;
             
             job.UpdateProgress(Stage, 100);

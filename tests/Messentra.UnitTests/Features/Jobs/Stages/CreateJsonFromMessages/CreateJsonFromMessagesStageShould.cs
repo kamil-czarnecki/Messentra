@@ -170,7 +170,8 @@ public sealed class CreateJsonFromMessagesStageShould : InMemoryDbTestBase
                 SessionId: null,
                 PartitionKey: null,
                 ScheduledEnqueueTime: null,
-                TransactionPartitionKey: null),
+                TransactionPartitionKey: null,
+                EnqueuedTimeUtc: null),
             ApplicationProperties: new Dictionary<string, object>());
 
     private sealed class TestJob : Job, IStageCompletionHandler<CreateJsonStageResult>

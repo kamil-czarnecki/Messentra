@@ -23,15 +23,25 @@ public sealed record ServiceBusMessageDto(
                 message.BrokerProperties.SessionId,
                 message.BrokerProperties.PartitionKey,
                 message.BrokerProperties.ScheduledEnqueueTimeUtc,
-                null
+                null,
+                message.BrokerProperties.EnqueuedTimeUtc
             ),
             message.ApplicationProperties);
     
-    private static object GetBody(MessageDto message) => message switch
+    private static object GetBody(MessageDto message)
     {
-        {BrokerProperties.ContentType: "application/json" } => JsonDocument.Parse(message.Body).RootElement,
-        _ => message.Body
-    };
+        if (message.BrokerProperties.ContentType != "application/json")
+            return message.Body;
+
+        try
+        {
+            return JsonDocument.Parse(message.Body).RootElement;
+        }
+        catch (JsonException)
+        {
+            return message.Body;
+        }
+    }
 }
     
 public sealed record ServiceBusProperties(
@@ -46,4 +56,5 @@ public sealed record ServiceBusProperties(
     string? SessionId,
     string? PartitionKey,
     DateTimeOffset? ScheduledEnqueueTime,
-    string? TransactionPartitionKey);
+    string? TransactionPartitionKey,
+    DateTimeOffset? EnqueuedTimeUtc);
