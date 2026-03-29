@@ -74,6 +74,61 @@ public sealed class DeleteJobCommandHandlerShould : InMemoryDbTestBase
         DbContext.Set<FetchedMessagesBatch>().Count(x => x.JobId == job.Id).ShouldBe(0);
         DbContext.Set<ImportedMessage>().Count(x => x.JobId == job.Id).ShouldBe(0);
         _fileSystem.Verify(x => x.DeleteDirectory(expectedPath, true), Times.Once);
+        _fileSystem.Verify(x => x.Delete(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteImportSourceFile_WhenSourceFileIsUnderAppRoot()
+    {
+        // Arrange
+        var root = "/tmp/messentra-tests";
+        var sourceFilePath = Path.Combine(root, "Jobs", "Imports", "import.json");
+        var job = CreateJob(JobStatus.Completed, sourceFilePath);
+
+        await DbContext.Set<Job>().AddAsync(job, TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var expectedJobFolderPath = Path.Combine(root, "Jobs", job.Id.ToString());
+
+        _fileSystem.Setup(x => x.GetRootPath()).Returns(root);
+        _fileSystem.Setup(x => x.FileExists(sourceFilePath)).Returns(true);
+        _fileSystem.Setup(x => x.DirectoryExists(expectedJobFolderPath)).Returns(false);
+
+        var sut = new DeleteJobCommandHandler(new TestDbContextFactory(DbContext), _fileSystem.Object);
+
+        // Act
+        var result = await sut.Handle(new DeleteJobCommand(job.Id), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.ShouldBeTrue();
+        _fileSystem.Verify(x => x.Delete(sourceFilePath), Times.Once);
+    }
+
+    [Fact]
+    public async Task DoNotDeleteImportSourceFile_WhenSourceFileIsOutsideAppRoot()
+    {
+        // Arrange
+        var root = "/tmp/messentra-tests";
+        var sourceFilePath = "/tmp/external/import.json";
+        var job = CreateJob(JobStatus.Completed, sourceFilePath);
+
+        await DbContext.Set<Job>().AddAsync(job, TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var expectedJobFolderPath = Path.Combine(root, "Jobs", job.Id.ToString());
+
+        _fileSystem.Setup(x => x.GetRootPath()).Returns(root);
+        _fileSystem.Setup(x => x.FileExists(sourceFilePath)).Returns(true);
+        _fileSystem.Setup(x => x.DirectoryExists(expectedJobFolderPath)).Returns(false);
+
+        var sut = new DeleteJobCommandHandler(new TestDbContextFactory(DbContext), _fileSystem.Object);
+
+        // Act
+        var result = await sut.Handle(new DeleteJobCommand(job.Id), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.ShouldBeTrue();
+        _fileSystem.Verify(x => x.Delete(sourceFilePath), Times.Never);
     }
 
     [Fact]
@@ -95,7 +150,7 @@ public sealed class DeleteJobCommandHandlerShould : InMemoryDbTestBase
         _fileSystem.Verify(x => x.DeleteDirectory(It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
     }
 
-    private static ImportMessagesJob CreateJob(JobStatus status)
+    private static ImportMessagesJob CreateJob(JobStatus status, string sourceFilePath = "/tmp/import.json")
     {
         var job = new ImportMessagesJob
         {
@@ -104,7 +159,7 @@ public sealed class DeleteJobCommandHandlerShould : InMemoryDbTestBase
             Input = new ImportMessagesJobRequest(
                 ConnectionConfig.CreateConnectionString("Endpoint=sb://tests/"),
                 new ResourceTarget.Queue("orders", SubQueue.Active),
-                "/tmp/import.json",
+                sourceFilePath,
                 "hash")
         };
 

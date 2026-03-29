@@ -1,5 +1,6 @@
 using Mediator;
 using Messentra.Domain;
+using Messentra.Features.Jobs.ImportMessages;
 using Messentra.Features.Jobs.Stages.ImportMessages;
 using Messentra.Features.Jobs.Stages.FetchMessages;
 using Messentra.Infrastructure;
@@ -41,6 +42,8 @@ public sealed class DeleteJobCommandHandler : ICommandHandler<DeleteJobCommand, 
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        DeleteImportSourceFileIfWithinAppRoot(job);
+
         var jobFolderPath = Path.Combine(_fileSystem.GetRootPath(), "Jobs", command.JobId.ToString());
         if (_fileSystem.DirectoryExists(jobFolderPath))
         {
@@ -48,6 +51,49 @@ public sealed class DeleteJobCommandHandler : ICommandHandler<DeleteJobCommand, 
         }
 
         return true;
+    }
+
+    private void DeleteImportSourceFileIfWithinAppRoot(Job job)
+    {
+        if (job is not ImportMessagesJob importMessagesJob)
+            return;
+
+        var sourceFilePath = importMessagesJob.Input?.SourceFilePath;
+        if (string.IsNullOrWhiteSpace(sourceFilePath))
+            return;
+
+        var rootPath = _fileSystem.GetRootPath();
+        if (!IsPathWithinRoot(sourceFilePath, rootPath))
+            return;
+
+        if (_fileSystem.FileExists(sourceFilePath))
+            _fileSystem.Delete(sourceFilePath);
+    }
+
+    private static bool IsPathWithinRoot(string path, string rootPath)
+    {
+        try
+        {
+            var fullPath = Path.GetFullPath(path);
+            var fullRootPath = EnsureTrailingDirectorySeparator(Path.GetFullPath(rootPath));
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            return fullPath.StartsWith(fullRootPath, comparison);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static string EnsureTrailingDirectorySeparator(string path)
+    {
+        if (path.EndsWith(Path.DirectorySeparatorChar) || path.EndsWith(Path.AltDirectorySeparatorChar))
+            return path;
+
+        return path + Path.DirectorySeparatorChar;
     }
 }
 

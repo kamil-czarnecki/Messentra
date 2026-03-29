@@ -107,42 +107,43 @@ public sealed class AzureServiceBusSender : AzureServiceBusProviderBase, IAzureS
         return message;
     }
 
-    private static ServiceBusMessage FromMessageDto(ServiceBusMessageDto importedMessage)
+    private static ServiceBusMessage FromMessageDto(ServiceBusMessageDto messageDto)
     {
-        var body = importedMessage.Message switch
+        var body = messageDto.Message switch
         {
             JsonElement { ValueKind: JsonValueKind.String } jsonString => jsonString.GetString() ?? string.Empty,
             JsonElement json => json.GetRawText(),
             string text => text,
-            _ => JsonSerializer.Serialize(importedMessage.Message, DatabaseJsonSerializerOptions.Default)
+            _ => JsonSerializer.Serialize(messageDto.Message, DatabaseJsonSerializerOptions.Default)
         };
 
         var message = new ServiceBusMessage(body)
         {
-            ContentType = importedMessage.Properties.ContentType,
-            CorrelationId = importedMessage.Properties.CorrelationId,
-            Subject = importedMessage.Properties.Subject,
-            MessageId = importedMessage.Properties.MessageId,
-            To = importedMessage.Properties.To,
-            ReplyTo = importedMessage.Properties.ReplyTo,
-            ReplyToSessionId = importedMessage.Properties.ReplyToSessionId,
-            SessionId = importedMessage.Properties.SessionId,
-            PartitionKey = importedMessage.Properties.PartitionKey
+            ContentType = messageDto.Properties.ContentType,
+            CorrelationId = messageDto.Properties.CorrelationId,
+            Subject = messageDto.Properties.Subject,
+            MessageId = messageDto.Properties.MessageId,
+            To = messageDto.Properties.To,
+            ReplyTo = messageDto.Properties.ReplyTo,
+            ReplyToSessionId = messageDto.Properties.ReplyToSessionId,
+            SessionId = messageDto.Properties.SessionId,
+            PartitionKey = messageDto.Properties.PartitionKey,
+            TransactionPartitionKey = messageDto.Properties.TransactionPartitionKey
         };
+        
+        if (messageDto.Properties.ScheduledEnqueueTime is not null)
+            message.ScheduledEnqueueTime = messageDto.Properties.ScheduledEnqueueTime.Value;
 
-        if (importedMessage.Properties.ScheduledEnqueueTime is not null)
-            message.ScheduledEnqueueTime = importedMessage.Properties.ScheduledEnqueueTime.Value;
+        if (messageDto.Properties.TimeToLive is not null)
+            message.TimeToLive = messageDto.Properties.TimeToLive.Value;
 
-        if (importedMessage.Properties.TimeToLive is not null)
-            message.TimeToLive = importedMessage.Properties.TimeToLive.Value;
-
-        foreach (var (key, value) in importedMessage.ApplicationProperties)
+        foreach (var (key, value) in messageDto.ApplicationProperties)
             message.ApplicationProperties[key] = NormalizeApplicationPropertyValue(value);
 
         return message;
     }
 
-    private static object NormalizeApplicationPropertyValue(object value)
+    private static object? NormalizeApplicationPropertyValue(object value)
     {
         if (value is not JsonElement jsonElement)
             return value;
@@ -161,7 +162,7 @@ public sealed class AzureServiceBusSender : AzureServiceBusProviderBase, IAzureS
                     : jsonElement.GetRawText(),
             JsonValueKind.True => true,
             JsonValueKind.False => false,
-            JsonValueKind.Null => string.Empty,
+            JsonValueKind.Null => null,
             _ => jsonElement.GetRawText()
         };
     }
