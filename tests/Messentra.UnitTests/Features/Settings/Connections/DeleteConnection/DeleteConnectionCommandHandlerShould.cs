@@ -48,6 +48,7 @@ public sealed class DeleteConnectionCommandHandlerShould : InMemoryDbTestBase
         var connection = _fixture.Create<Connection>();
         
         await DbContext.AddAsync(connection, CancellationToken.None);
+        await DbContext.SaveChangesAsync(CancellationToken.None);
         
         return connection;
     }
