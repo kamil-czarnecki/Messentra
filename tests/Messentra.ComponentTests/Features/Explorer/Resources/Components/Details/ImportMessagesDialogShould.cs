@@ -15,6 +15,7 @@ public sealed class ImportMessagesDialogShould : ComponentTestBase
 
         // Assert
         cut.Markup.ShouldContain("Select a JSON file.");
+        cut.Markup.ShouldContain("Generate new message id for each imported message");
         cut.FindAll("button:contains('Browse files')").Count.ShouldBe(1);
         cut.Markup.ShouldContain("Example JSON template");
         cut.Markup.ShouldContain("json-wrapper");

@@ -25,7 +25,7 @@ public sealed class ImportMessagesJob : TypedJob<ImportMessagesJobRequest, Impor
     public MessageImportSendConfiguration GetMessageImportSendConfiguration()
     {
         ArgumentNullException.ThrowIfNull(Input);
-        return new MessageImportSendConfiguration(Input.ConnectionConfig, Input.Target);
+        return new MessageImportSendConfiguration(Input.ConnectionConfig, Input.Target, Input.GenerateNewMessageId);
     }
 
     public void StageCompleted(SendImportedMessagesStageResult result)
@@ -38,6 +38,7 @@ public sealed record ImportMessagesJobRequest(
     ConnectionConfig ConnectionConfig,
     ResourceTarget Target,
     string SourceFilePath,
-    string SourceFileHash);
+    string SourceFileHash,
+    bool GenerateNewMessageId = false);
 
 public sealed record ImportMessagesJobResponse(long SentMessagesCount);

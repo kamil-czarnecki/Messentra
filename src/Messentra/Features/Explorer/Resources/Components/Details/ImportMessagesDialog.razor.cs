@@ -4,7 +4,7 @@ using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources.Components.Details;
 
-public sealed record ImportMessagesDialogResult(IBrowserFile File);
+public sealed record ImportMessagesDialogResult(IBrowserFile File, bool GenerateNewMessageId);
 
 public partial class ImportMessagesDialog
 {
@@ -12,6 +12,7 @@ public partial class ImportMessagesDialog
     private IMudDialogInstance MudDialog { get; set; } = null!;
 
     private IBrowserFile? _selectedFile;
+    private bool _generateNewMessageId;
     private static string TemplateJson => Template.Json;
 
     private void Cancel() => MudDialog.Cancel();
@@ -21,7 +22,7 @@ public partial class ImportMessagesDialog
         if (_selectedFile is null)
             return;
 
-        MudDialog.Close(DialogResult.Ok(new ImportMessagesDialogResult(_selectedFile)));
+        MudDialog.Close(DialogResult.Ok(new ImportMessagesDialogResult(_selectedFile, _generateNewMessageId)));
     }
     
     private static class Template

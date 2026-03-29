@@ -13,7 +13,8 @@ public interface IHasMessageImportSendConfiguration
 
 public sealed record MessageImportSendConfiguration(
     ConnectionConfig ConnectionConfig,
-    ResourceTarget Target);
+    ResourceTarget Target,
+    bool GenerateNewMessageId = false);
 
 public sealed record SendImportedMessagesStageResult(long SentMessagesCount);
 
@@ -71,11 +72,13 @@ public sealed class SendImportedMessagesStage<TJob> : IStage<TJob, SendImportedM
             if (unsentBatch.Count == 0)
                 break;
 
+            var messagesToSend = PrepareMessagesToSend(unsentBatch, config.GenerateNewMessageId);
+
             ct.ThrowIfCancellationRequested();
             var sentFromBatch = await _sender.SendBatchChunk(
                 connectionInfo,
                 entityPath,
-                unsentBatch.Select(x => x.Message).ToList(),
+                messagesToSend,
                 ct);
 
             if (sentFromBatch > 0)
@@ -93,8 +96,9 @@ public sealed class SendImportedMessagesStage<TJob> : IStage<TJob, SendImportedM
             }
 
             var first = unsentBatch[0];
+            var firstMessage = messagesToSend[0];
             ct.ThrowIfCancellationRequested();
-            await _sender.Send(connectionInfo, entityPath, first.Message, ct);
+            await _sender.Send(connectionInfo, entityPath, firstMessage, ct);
             await UpdateAsSent([first.Id], ct);
             sentMessages++;
             UpdateProgress(job, totalMessages, sentMessages, ref lastProgress);
@@ -122,6 +126,22 @@ public sealed class SendImportedMessagesStage<TJob> : IStage<TJob, SendImportedM
 
         job.UpdateProgress(Stage, progress);
         lastProgress = progress;
+    }
+
+    private static IReadOnlyList<ServiceBusMessageDto> PrepareMessagesToSend(IReadOnlyList<ImportedMessage> unsentBatch, bool generateNewMessageId)
+    {
+        if (!generateNewMessageId)
+            return unsentBatch.Select(x => x.Message).ToList();
+
+        return unsentBatch
+            .Select(x => x.Message with
+            {
+                Properties = x.Message.Properties with
+                {
+                    MessageId = Guid.NewGuid().ToString("N")
+                }
+            })
+            .ToList();
     }
 
     private async Task UpdateAsSent(HashSet<long> ids, CancellationToken ct) =>

@@ -61,9 +61,42 @@ public sealed class SendImportedMessagesStageShould : InMemoryDbTestBase
         _sender.Verify(x => x.SendBatchChunk(
             It.IsAny<ConnectionInfo>(),
             "orders",
-            It.Is<IReadOnlyList<ServiceBusMessageDto>>(list => list.Count == 1),
+            It.Is<IReadOnlyList<ServiceBusMessageDto>>(list => list.Count == 1 && list[0].Properties.MessageId == "to-send"),
             It.IsAny<CancellationToken>()), Times.Once);
         _sender.Verify(x => x.Send(It.IsAny<ConnectionInfo>(), It.IsAny<string>(), It.IsAny<ServiceBusMessageDto>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GenerateNewMessageId_WhenOptionEnabled()
+    {
+        // Arrange
+        var job = CreateJob(generateNewMessageId: true);
+
+        await DbContext.Set<ImportedMessage>().AddAsync(
+            CreateImported(job.Id, 1, "original-message-id", isSent: false),
+            TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        IReadOnlyList<ServiceBusMessageDto>? capturedMessages = null;
+        _sender
+            .Setup(x => x.SendBatchChunk(
+                It.IsAny<ConnectionInfo>(),
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<ServiceBusMessageDto>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<ConnectionInfo, string, IReadOnlyList<ServiceBusMessageDto>, CancellationToken>((_, _, messages, _) => capturedMessages = messages)
+            .ReturnsAsync(1);
+
+        var sut = new SendImportedMessagesStage<TestJob>(DbContext, _sender.Object);
+
+        // Act
+        await sut.Run(job, TestContext.Current.CancellationToken);
+
+        // Assert
+        capturedMessages.ShouldNotBeNull();
+        capturedMessages.Count.ShouldBe(1);
+        capturedMessages[0].Properties.MessageId.ShouldNotBeNullOrWhiteSpace();
+        capturedMessages[0].Properties.MessageId.ShouldNotBe("original-message-id");
     }
 
     [Fact]
@@ -106,11 +139,11 @@ public sealed class SendImportedMessagesStageShould : InMemoryDbTestBase
         _sender.Verify(x => x.Send(It.IsAny<ConnectionInfo>(), "orders", It.IsAny<ServiceBusMessageDto>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    private TestJob CreateJob()
+    private TestJob CreateJob(bool generateNewMessageId = false)
     {
         var config = ConnectionConfig.CreateConnectionString("Endpoint=sb://tests/");
 
-        return new TestJob(new MessageImportSendConfiguration(config, new ResourceTarget.Queue("orders", SubQueue.Active)))
+        return new TestJob(new MessageImportSendConfiguration(config, new ResourceTarget.Queue("orders", SubQueue.Active), generateNewMessageId))
         {
             Id = _fixture.Create<long>(),
             Label = "import-job",

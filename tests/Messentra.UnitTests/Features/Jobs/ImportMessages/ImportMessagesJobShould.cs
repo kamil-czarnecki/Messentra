@@ -34,7 +34,7 @@ public sealed class ImportMessagesJobShould
     {
         // Arrange
         var target = new ResourceTarget.Queue("queue1", SubQueue.Active);
-        var sut = CreateJob(target);
+        var sut = CreateJob(target, generateNewMessageId: true);
 
         // Act
         var input = sut.Input;
@@ -44,6 +44,7 @@ public sealed class ImportMessagesJobShould
         input.Target.ShouldBe(target);
         input.SourceFilePath.ShouldBe("/tmp/import.json");
         input.SourceFileHash.ShouldBe("HASH");
+        input.GenerateNewMessageId.ShouldBeTrue();
     }
 
     [Fact]
@@ -61,15 +62,16 @@ public sealed class ImportMessagesJobShould
         input.Target.ShouldBe(target);
         input.SourceFilePath.ShouldBe("/tmp/import.json");
         input.SourceFileHash.ShouldBe("HASH");
+        input.GenerateNewMessageId.ShouldBeFalse();
     }
 
-    private ImportMessagesJob CreateJob(ResourceTarget target) =>
+    private ImportMessagesJob CreateJob(ResourceTarget target, bool generateNewMessageId = false) =>
         new()
         {
             Id = _fixture.Create<long>(),
             Label = _fixture.Create<string>(),
             CreatedAt = DateTime.UtcNow,
-            Input = new ImportMessagesJobRequest(CreateConnectionConfig(), target, "/tmp/import.json", "HASH")
+            Input = new ImportMessagesJobRequest(CreateConnectionConfig(), target, "/tmp/import.json", "HASH", generateNewMessageId)
         };
 
     private ConnectionConfig CreateConnectionConfig() =>

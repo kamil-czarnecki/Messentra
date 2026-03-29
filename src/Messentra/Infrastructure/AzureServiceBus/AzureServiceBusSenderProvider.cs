@@ -122,7 +122,6 @@ public sealed class AzureServiceBusSender : AzureServiceBusProviderBase, IAzureS
             ContentType = messageDto.Properties.ContentType,
             CorrelationId = messageDto.Properties.CorrelationId,
             Subject = messageDto.Properties.Subject,
-            MessageId = messageDto.Properties.MessageId,
             To = messageDto.Properties.To,
             ReplyTo = messageDto.Properties.ReplyTo,
             ReplyToSessionId = messageDto.Properties.ReplyToSessionId,
@@ -130,6 +129,9 @@ public sealed class AzureServiceBusSender : AzureServiceBusProviderBase, IAzureS
             PartitionKey = messageDto.Properties.PartitionKey,
             TransactionPartitionKey = messageDto.Properties.TransactionPartitionKey
         };
+
+        if (messageDto.Properties.MessageId is not null)
+            message.MessageId = messageDto.Properties.MessageId;
         
         if (messageDto.Properties.ScheduledEnqueueTime is not null)
             message.ScheduledEnqueueTime = messageDto.Properties.ScheduledEnqueueTime.Value;

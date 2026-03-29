@@ -23,6 +23,10 @@
 
             <MudDivider />
 
+            <MudCheckBox @bind-Value="_generateNewMessageId"
+                         Label="Generate new message id for each imported message"
+                         Color="Color.Primary" />
+
             <MudExpansionPanels Elevation="0" Outlined="true" Dense="true" MultiExpansion="false">
                 <MudExpansionPanel Text="Example JSON template">
                     <JsonViewer Json="@TemplateJson" />

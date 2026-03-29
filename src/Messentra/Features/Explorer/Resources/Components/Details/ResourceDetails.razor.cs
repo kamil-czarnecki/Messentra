@@ -213,7 +213,8 @@ public partial class ResourceDetails
             SelectedResource.ConnectionConfig,
             target,
             sourceFilePath,
-            string.Empty)));
+            string.Empty,
+            importDialogResult.GenerateNewMessageId)));
 
         _dispatcher.Dispatch(new FetchJobsAction());
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
