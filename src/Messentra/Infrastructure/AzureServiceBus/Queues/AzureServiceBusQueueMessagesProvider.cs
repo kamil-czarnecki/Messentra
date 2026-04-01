@@ -34,32 +34,48 @@ public sealed class AzureServiceBusQueueMessagesProvider : AzureServiceBusProvid
                 ReceiveMode = GetReceiveMode(options),
                 SubQueue = options.SubQueue == Features.Explorer.Messages.SubQueue.DeadLetter
                     ? SubQueue.DeadLetter
-                    : SubQueue.None
+                    : SubQueue.None,
+                PrefetchCount = 0
             });
             var sender = client.CreateSender(queueName);
             var messages = new List<ServiceBusReceivedMessage>();
             var nextPeekSequence = options.StartSequence;
 
-            while (messages.Count < options.MessageCount)
+            try
             {
-                var remaining = options.MessageCount - messages.Count;
-
-                var batch = options.Mode == FetchMode.Peek
-                    ? await receiver.PeekMessagesAsync(Math.Min(remaining, 1000), nextPeekSequence, cancellationToken)
-                    : await receiver.ReceiveMessagesAsync(Math.Min(remaining, 1000), options.WaitTime, cancellationToken);
-
-                if (batch.Count == 0)
-                    break;
-
-                messages.AddRange(batch);
-
-                if (options.Mode == FetchMode.Peek)
+                while (messages.Count < options.MessageCount)
                 {
-                    nextPeekSequence = batch[^1].SequenceNumber + 1;
-                }
-            }
+                    var remaining = options.MessageCount - messages.Count;
 
-            return messages.Select(x => Map(receiver, sender, x)).ToList();
+                    var batch = options.Mode == FetchMode.Peek
+                        ? await receiver.PeekMessagesAsync(Math.Min(remaining, 1000), nextPeekSequence, cancellationToken)
+                        : await receiver.ReceiveMessagesAsync(Math.Min(remaining, 1000), options.WaitTime, cancellationToken);
+
+                    if (batch.Count == 0)
+                        break;
+
+                    messages.AddRange(batch);
+
+                    if (options.Mode == FetchMode.Peek)
+                    {
+                        nextPeekSequence = batch[^1].SequenceNumber + 1;
+                    }
+                }
+                
+                if (options is { Mode: FetchMode.Peek } or
+                    { Mode: FetchMode.Receive, ReceiveMode: FetchReceiveMode.ReceiveAndDelete })
+                    await receiver.DisposeAsync();
+                
+                return messages.Select(x => Map(options, receiver, sender, x)).ToList();
+            }
+            catch
+            {
+                await receiver.DisposeAsync();
+                await sender.DisposeAsync();
+                
+                throw;
+            }
+            
         }, cancellationToken);
     }
 }

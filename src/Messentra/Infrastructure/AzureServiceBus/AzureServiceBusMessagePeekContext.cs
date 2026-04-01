@@ -4,30 +4,28 @@ using ServiceBusMessage = Azure.Messaging.ServiceBus.ServiceBusMessage;
 
 namespace Messentra.Infrastructure.AzureServiceBus;
 
-internal sealed class AzureServiceBusMessageContext : IServiceBusMessageContext
+internal sealed class AzureServiceBusMessagePeekContext : IServiceBusMessageContext
 {
-    private readonly ServiceBusReceiver _receiver;
-    private readonly ServiceBusSender _sender;
     private readonly ServiceBusReceivedMessage _message;
+    private readonly ServiceBusSender _sender;
 
-    public AzureServiceBusMessageContext(
-        ServiceBusReceiver receiver,
-        ServiceBusSender sender,
-        ServiceBusReceivedMessage message)
+    public AzureServiceBusMessagePeekContext(ServiceBusReceivedMessage message, ServiceBusSender sender)
     {
-        _receiver = receiver;
-        _sender = sender;
         _message = message;
+        _sender = sender;
     }
 
     public Task Complete(CancellationToken cancellationToken) =>
-        _receiver.CompleteMessageAsync(_message, cancellationToken);
+        throw new NotSupportedException(
+            "Cannot complete a peeked message. Please receive the message before completing.");
 
     public Task Abandon(CancellationToken cancellationToken) =>
-        _receiver.AbandonMessageAsync(_message, cancellationToken: cancellationToken);
+        throw new NotSupportedException(
+            "Cannot abandon a peeked message. Please receive the message before abandoning.");
 
     public Task DeadLetter(CancellationToken cancellationToken) =>
-        _receiver.DeadLetterMessageAsync(_message, cancellationToken: cancellationToken);
+        throw new NotSupportedException(
+            "Cannot deadletter a peeked message. Please receive the message before deadlettering.");
 
     public Task Resend(CancellationToken cancellationToken) =>
         _sender.SendMessageAsync(ToServiceBusMessage(_message), cancellationToken);
@@ -47,8 +45,7 @@ internal sealed class AzureServiceBusMessageContext : IServiceBusMessageContext
             SessionId = received.SessionId,
             PartitionKey = received.PartitionKey,
             ScheduledEnqueueTime = received.ScheduledEnqueueTime,
-            TransactionPartitionKey = received.TransactionPartitionKey,
-            Body = received.Body
+            TransactionPartitionKey = received.TransactionPartitionKey
         };
 
         foreach (var prop in received.ApplicationProperties)

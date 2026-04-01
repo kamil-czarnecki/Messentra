@@ -178,6 +178,100 @@ public sealed class AzureServiceBusQueueMessagesProviderShould
     }
 
     [Fact]
+    public async Task Get_ReceiveModeReceiveAndDelete_DisposesReceiver()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var options = new FetchMessagesOptions(FetchMode.Receive, FetchReceiveMode.ReceiveAndDelete, 1, null, TimeSpan.FromSeconds(10));
+
+        _receiver
+            .Setup(x => x.ReceiveMessagesAsync(It.IsAny<int>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateMessages(1));
+
+        // Act
+        await _sut.Get(info, QueueName, options, CancellationToken.None);
+
+        // Assert
+        _receiver.Verify(x => x.DisposeAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task Get_ReceiveModePeekLock_DoesNotDisposeReceiver()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var options = new FetchMessagesOptions(FetchMode.Receive, FetchReceiveMode.PeekLock, 1, null, TimeSpan.FromSeconds(10));
+
+        _receiver
+            .Setup(x => x.ReceiveMessagesAsync(It.IsAny<int>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateMessages(1));
+
+        // Act
+        await _sut.Get(info, QueueName, options, CancellationToken.None);
+
+        // Assert
+        _receiver.Verify(x => x.DisposeAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task Get_PeekMode_DisposesReceiver()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var options = new FetchMessagesOptions(FetchMode.Peek, FetchReceiveMode.PeekLock, 1, null, TimeSpan.FromSeconds(10));
+
+        _receiver
+            .Setup(x => x.PeekMessagesAsync(It.IsAny<int>(), It.IsAny<long?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateMessages(1));
+
+        // Act
+        await _sut.Get(info, QueueName, options, CancellationToken.None);
+
+        // Assert
+        _receiver.Verify(x => x.DisposeAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task Get_ReceiveModeReceiveAndDelete_CreatesReceiverWithPrefetchCountZero()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var options = new FetchMessagesOptions(FetchMode.Receive, FetchReceiveMode.ReceiveAndDelete, 1, null, TimeSpan.FromSeconds(10));
+
+        _receiver
+            .Setup(x => x.ReceiveMessagesAsync(It.IsAny<int>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateMessages(1));
+
+        // Act
+        await _sut.Get(info, QueueName, options, CancellationToken.None);
+
+        // Assert
+        _client.Verify(x => x.CreateReceiver(
+            QueueName,
+            It.Is<ServiceBusReceiverOptions>(o => o.PrefetchCount == 0)), Times.Once);
+    }
+
+    [Fact]
+    public async Task Get_ReceiveModePeekLock_CreatesReceiverWithPrefetchCountZero()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var options = new FetchMessagesOptions(FetchMode.Receive, FetchReceiveMode.PeekLock, 1, null, TimeSpan.FromSeconds(10));
+
+        _receiver
+            .Setup(x => x.ReceiveMessagesAsync(It.IsAny<int>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateMessages(1));
+
+        // Act
+        await _sut.Get(info, QueueName, options, CancellationToken.None);
+
+        // Assert
+        _client.Verify(x => x.CreateReceiver(
+            QueueName,
+            It.Is<ServiceBusReceiverOptions>(o => o.PrefetchCount == 0)), Times.Once);
+    }
+
+    [Fact]
     public async Task Get_StopsFetchingWhenBatchIsEmpty()
     {
         // Arrange
@@ -305,6 +399,60 @@ public sealed class AzureServiceBusQueueMessagesProviderShould
 
         // Assert
         _client.Verify(x => x.CreateReceiver("specific-queue", It.IsAny<ServiceBusReceiverOptions>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Get_PeekMode_ReturnsPeekMessageContext()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var options = new FetchMessagesOptions(FetchMode.Peek, FetchReceiveMode.PeekLock, 1, null, TimeSpan.FromSeconds(10));
+
+        _receiver
+            .Setup(x => x.PeekMessagesAsync(1, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateMessages(1));
+
+        // Act
+        var result = await _sut.Get(info, QueueName, options, CancellationToken.None);
+
+        // Assert
+        result.Single().MessageContext.ShouldBeOfType<AzureServiceBusMessagePeekContext>();
+    }
+
+    [Fact]
+    public async Task Get_ReceiveModePeekLock_ReturnsPeekLockMessageContext()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var options = new FetchMessagesOptions(FetchMode.Receive, FetchReceiveMode.PeekLock, 1, null, TimeSpan.FromSeconds(10));
+
+        _receiver
+            .Setup(x => x.ReceiveMessagesAsync(It.IsAny<int>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateMessages(1));
+
+        // Act
+        var result = await _sut.Get(info, QueueName, options, CancellationToken.None);
+
+        // Assert
+        result.Single().MessageContext.ShouldBeOfType<AzureServiceBusMessagePeekLockContext>();
+    }
+
+    [Fact]
+    public async Task Get_ReceiveModeReceiveAndDelete_ReturnsReceiveAndDeleteMessageContext()
+    {
+        // Arrange
+        var info = new ConnectionInfo.ConnectionString(ConnectionString);
+        var options = new FetchMessagesOptions(FetchMode.Receive, FetchReceiveMode.ReceiveAndDelete, 1, null, TimeSpan.FromSeconds(10));
+
+        _receiver
+            .Setup(x => x.ReceiveMessagesAsync(It.IsAny<int>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateMessages(1));
+
+        // Act
+        var result = await _sut.Get(info, QueueName, options, CancellationToken.None);
+
+        // Assert
+        result.Single().MessageContext.ShouldBeOfType<AzureServiceBusMessageReceiveAndDeleteContext>();
     }
 
     private static IReadOnlyList<ServiceBusReceivedMessage> CreateMessages(int count, long startSequenceNumber = 0) =>
