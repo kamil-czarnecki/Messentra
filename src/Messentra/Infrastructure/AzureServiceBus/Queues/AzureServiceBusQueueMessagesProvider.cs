@@ -34,7 +34,8 @@ public sealed class AzureServiceBusQueueMessagesProvider : AzureServiceBusProvid
                 ReceiveMode = GetReceiveMode(options),
                 SubQueue = options.SubQueue == Features.Explorer.Messages.SubQueue.DeadLetter
                     ? SubQueue.DeadLetter
-                    : SubQueue.None
+                    : SubQueue.None,
+                PrefetchCount = 0
             });
             var sender = client.CreateSender(queueName);
             var messages = new List<ServiceBusReceivedMessage>();
@@ -59,6 +60,10 @@ public sealed class AzureServiceBusQueueMessagesProvider : AzureServiceBusProvid
                 }
             }
 
+            if (options is { Mode: FetchMode.Peek } or
+                { Mode: FetchMode.Receive, ReceiveMode: FetchReceiveMode.ReceiveAndDelete })
+                await receiver.DisposeAsync();
+            
             return messages.Select(x => Map(receiver, sender, x)).ToList();
         }, cancellationToken);
     }
