@@ -18,6 +18,10 @@ public static class Extensions
         public void AddInfrastructure()
         {
             services.AddSingleton<IAutoUpdaterService, AutoUpdaterService>();
+            services
+                .AddOptions<AutoUpdatePollingOptions>()
+                .BindConfiguration(AutoUpdatePollingOptions.SectionName);
+            services.AddHostedService<AutoUpdateCheckerHostedService>();
             services.AddSingleton<IAzureServiceBusTokenCredentialFactory, AzureServiceBusTokenCredentialFactory>();
             services.AddSingleton<IAzureServiceBusClientFactory, AzureServiceBusClientFactory>();
             services.AddSingleton<IAzureServiceBusAdminClientFactory, AzureServiceBusAdminClientFactory>();
