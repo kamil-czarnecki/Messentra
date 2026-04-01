@@ -45,8 +45,7 @@ internal sealed class AzureServiceBusMessagePeekContext : IServiceBusMessageCont
             SessionId = received.SessionId,
             PartitionKey = received.PartitionKey,
             ScheduledEnqueueTime = received.ScheduledEnqueueTime,
-            TransactionPartitionKey = received.TransactionPartitionKey,
-            Body = received.Body
+            TransactionPartitionKey = received.TransactionPartitionKey
         };
 
         foreach (var prop in received.ApplicationProperties)
