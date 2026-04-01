@@ -4,13 +4,13 @@ using ServiceBusMessage = Azure.Messaging.ServiceBus.ServiceBusMessage;
 
 namespace Messentra.Infrastructure.AzureServiceBus;
 
-internal sealed class AzureServiceBusMessageContext : IServiceBusMessageContext
+internal sealed class AzureServiceBusMessagePeekLockContext : IServiceBusMessageContext
 {
     private readonly ServiceBusReceiver _receiver;
     private readonly ServiceBusSender _sender;
     private readonly ServiceBusReceivedMessage _message;
 
-    public AzureServiceBusMessageContext(
+    public AzureServiceBusMessagePeekLockContext(
         ServiceBusReceiver receiver,
         ServiceBusSender sender,
         ServiceBusReceivedMessage message)

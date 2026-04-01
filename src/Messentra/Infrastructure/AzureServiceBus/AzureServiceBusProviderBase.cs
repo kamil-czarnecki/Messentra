@@ -89,6 +89,7 @@ public abstract class AzureServiceBusProviderBase(IAzureServiceBusClientFactory 
         };
 
     protected static ServiceBusMessage Map(
+        FetchMessagesOptions options,
         ServiceBusReceiver receiver,
         ServiceBusSender sender,
         ServiceBusReceivedMessage message)
@@ -117,7 +118,16 @@ public abstract class AzureServiceBusProviderBase(IAzureServiceBusClientFactory 
             brokerProperties,
             message.ApplicationProperties);
 
-        return new ServiceBusMessage(messageDto, new AzureServiceBusMessageContext(receiver, sender, message));
+        return options switch
+        {
+            { Mode: FetchMode.Peek } => new ServiceBusMessage(messageDto,
+                new AzureServiceBusMessagePeekContext(message, sender)),
+            { Mode: FetchMode.Receive, ReceiveMode: FetchReceiveMode.PeekLock } => new ServiceBusMessage(messageDto,
+                new AzureServiceBusMessagePeekLockContext(receiver, sender, message)),
+            { Mode: FetchMode.Receive, ReceiveMode: FetchReceiveMode.ReceiveAndDelete } => new ServiceBusMessage(
+                messageDto, new AzureServiceBusMessageReceiveAndDeleteContext(message, sender)),
+            _ => throw new ArgumentOutOfRangeException(nameof(options), options, null)
+        };
     }
 }
 
