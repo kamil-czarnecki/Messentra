@@ -9,7 +9,6 @@ using Messentra.Features.Jobs.ExportMessages.EnqueueExportMessages;
 using Messentra.Features.Layout.State;
 using Messentra.Infrastructure.AzureServiceBus;
 using Moq;
-using MudBlazor;
 using Shouldly;
 using Xunit;
 
@@ -68,6 +67,36 @@ public sealed class ResourceDetailsShould : ComponentTestBase
     }
 
     [Fact]
+    public void RenderCopyButtonWhenQueueIsSelected()
+    {
+        // Arrange
+        var node = BuildQueueNode();
+
+        // Act
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
+
+        // Assert
+        cut.Find("button[title='Copy resource name']").ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task CopyResourceNameToClipboard_WhenCopyButtonIsClicked()
+    {
+        // Arrange
+        var node = BuildQueueNode();
+        var copyCall = JSInterop.SetupVoid("navigator.clipboard.writeText", invocation =>
+            invocation.Arguments.Count == 1 &&
+            invocation.Arguments[0]?.ToString() == "my-queue");
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
+
+        // Act
+        await cut.Find("button[title='Copy resource name']").ClickAsync();
+
+        // Assert
+        copyCall.Invocations.Count.ShouldBe(1);
+    }
+
+    [Fact]
     public void ShowActiveStatusChipForActiveQueue()
     {
         // Arrange
@@ -88,7 +117,7 @@ public sealed class ResourceDetailsShould : ComponentTestBase
         var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
 
         // Act
-        cut.FindComponent<MudIconButton>().Find("button").Click();
+        cut.Find("button[title='Refresh']").Click();
 
         // Assert
         MockDispatcher.Verify(x => x.Dispatch(It.IsAny<RefreshQueueAction>()), Times.Once);

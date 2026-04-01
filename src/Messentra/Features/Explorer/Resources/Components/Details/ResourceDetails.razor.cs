@@ -11,6 +11,7 @@ using Messentra.Features.Layout.State;
 using Messentra.Infrastructure;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.JSInterop;
 using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources.Components.Details;
@@ -24,20 +25,24 @@ public partial class ResourceDetails
     private readonly IMediator _mediator;
     private readonly IDispatcher _dispatcher;
     private readonly IFileSystem _fileSystem;
+    private readonly IJSRuntime _jsRuntime;
     private int _activeDetailsTabIndex;
+    private bool _copiedResourceName;
 
-    public ResourceDetails(IDialogService dialogService, IMediator mediator, IDispatcher dispatcher, IFileSystem fileSystem)
+    public ResourceDetails(IDialogService dialogService, IMediator mediator, IDispatcher dispatcher, IFileSystem fileSystem, IJSRuntime jsRuntime)
     {
         _dialogService = dialogService;
         _mediator = mediator;
         _dispatcher = dispatcher;
         _fileSystem = fileSystem;
+        _jsRuntime = jsRuntime;
     }
 
     private bool IsRefreshing => SelectedResource is { IsLoading: true };
     private bool IsMessagesOrDeadLetterTab => _activeDetailsTabIndex is 2 or 3;
     private bool IsMessagesTab => _activeDetailsTabIndex == 2;
     private SubQueue ActiveSubQueue => _activeDetailsTabIndex == 3 ? SubQueue.DeadLetter : SubQueue.Active;
+    private bool CanCopyResourceName => SelectedResource is QueueTreeNode or TopicTreeNode or SubscriptionTreeNode;
     private bool CanExportMessages =>
         !IsRefreshing &&
         IsMessagesOrDeadLetterTab &&
@@ -68,6 +73,19 @@ public partial class ResourceDetails
 
     private string StatusText => GetStatusText();
     private Color StatusColor => GetStatusColor();
+
+    private async Task CopyResourceName()
+    {
+        if (!CanCopyResourceName || string.IsNullOrWhiteSpace(ResourceName))
+            return;
+
+        await _jsRuntime.InvokeVoidAsync("navigator.clipboard.writeText", ResourceName);
+        _copiedResourceName = true;
+        StateHasChanged();
+
+        await Task.Delay(2000);
+        _copiedResourceName = false;
+    }
 
     private string GetStatusText() =>
         SelectedResource switch
@@ -265,3 +283,4 @@ public partial class ResourceDetails
         return destinationPath;
     }
 }
+

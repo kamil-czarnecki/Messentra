@@ -21,6 +21,19 @@
                 <MudStack Row="true" Class="align-center justify-space-between pa-2">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="text-truncate-container">
                         <MudText Typo="Typo.body1" Class="text-truncate">@ResourceName</MudText>
+                        @if (CanCopyResourceName)
+                        {
+                            <MudTooltip Text="@(_copiedResourceName ? "Copied!" : "Copy resource name")" Placement="Placement.Right">
+                                <MudIconButton Icon="@(_copiedResourceName ? Icons.Material.Filled.Check : Icons.Material.Filled.ContentCopy)"
+                                               Size="Size.Small"
+                                               Ripple="false"
+                                               Color="@(_copiedResourceName ? Color.Success : Color.Default)"
+                                               Class="resource-name-copy-btn"
+                                               aria-label="Copy resource name"
+                                               title="Copy resource name"
+                                               OnClick="@CopyResourceName"/>
+                            </MudTooltip>
+                        }
                         <MudChip T="string" Variant="Variant.Filled" Color="@StatusColor" Size="Size.Small">
                             @StatusText
                         </MudChip>
@@ -37,6 +50,7 @@
                         </MudButton>
                         <MudIconButton Icon="@Icons.Material.Filled.Refresh" Ripple="false" Size="Size.Small"
                                        Disabled="@(IsRefreshing || SelectedResource is NamespaceTreeNode or QueuesTreeNode or TopicsTreeNode)"
+                                       title="Refresh"
                                        OnClick="@RefreshResource" />
                     </MudStack>
                 </MudStack>

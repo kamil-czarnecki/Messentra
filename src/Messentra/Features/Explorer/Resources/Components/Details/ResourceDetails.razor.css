@@ -6,6 +6,16 @@
     white-space: nowrap;
 }
 
+::deep .text-truncate {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+::deep .resource-name-copy-btn {
+    flex-shrink: 0;
+}
+
 ::deep .small-tabs {
     overflow: hidden;
     height: 100%;
