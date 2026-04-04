@@ -111,12 +111,18 @@ Actions available on fetched messages vary by fetch mode:
 ### 📋 Activity Log
 - Persistent activity log panel at the bottom showing connection and fetch events across all namespaces
 
+### 🌙 Dark Mode
+- Built-in dark mode for a comfortable viewing experience
+
 ---
 
 ## Screenshots
 
 ### Welcome
 ![Messentra welcome screen - Azure Service Bus desktop explorer](docs/welcome.png)
+
+### Dark Mode
+![Messentra dark mode - Azure Service Bus explorer with a dark theme](docs/dark_mode.png)
 
 ### Resource Explorer
 ![Messentra resource explorer - browsing queues, topics and subscriptions with live message counts](docs/resources.png)
