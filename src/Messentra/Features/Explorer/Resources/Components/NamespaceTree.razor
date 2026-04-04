@@ -1,4 +1,5 @@
 @using Messentra.Features.Explorer.Resources
+@using Messentra.Features.Explorer.Folders
 @using MudBlazor.Utilities
 
 <div class="namespace-tree">
@@ -82,6 +83,53 @@
                 </MudStack>
             </ItemTemplate>
         </MudAutocomplete>
+        @if (_contextMenuOpen)
+        {
+            <div style="position:fixed;inset:0;z-index:1000;"
+                 @onclick="CloseContextMenu"
+                 @oncontextmenu="CloseContextMenu"
+                 @oncontextmenu:preventDefault/>
+            <MudPaper Elevation="4"
+                      Style="@($"position:fixed;left:{_contextMenuX}px;top:{_contextMenuY}px;z-index:1001;min-width:200px;")">
+                @if (_contextFolderNode is not null)
+                {
+                    <MudList Dense="true" T="string">
+                        <MudListItem Text="Rename" OnClick="@(async () => await OnContextRenameFolder())"/>
+                        <MudDivider/>
+                        <MudListItem Text="Delete folder" OnClick="OnContextDeleteFolder" Class="mud-error-text"/>
+                    </MudList>
+                }
+                else if (_contextResourceNode is not null)
+                {
+                    var resourceUrl = GetResourceUrl(_contextResourceNode);
+                    var connectionName = GetConnectionName(_contextResourceNode) ?? "";
+                    var allFolders = GetAllNodes<FolderTreeNode>(connectionName).ToList();
+                    var containingFolders = resourceUrl is not null
+                        ? GetFoldersContainingResource(resourceUrl, connectionName).ToList()
+                        : new List<FolderTreeNode>();
+                    var containingIds = containingFolders.Select(f => f.FolderId).ToHashSet();
+                    var availableFolders = allFolders.Where(f => !containingIds.Contains(f.FolderId)).ToList();
+                    <MudList Dense="true" T="string">
+                        @foreach (var folder in availableFolders)
+                        {
+                            <MudListItem Text="@($"Add to \"{folder.Name}\"")" OnClick="@(() => OnContextAddToFolder(folder))"/>
+                        }
+                        @if (availableFolders.Count > 0 && containingFolders.Count > 0)
+                        {
+                            <MudDivider/>
+                        }
+                        @foreach (var folder in containingFolders)
+                        {
+                            <MudListItem Text="@($"Remove from \"{folder.Name}\"")" OnClick="@(() => OnContextRemoveFromFolder(folder))" Class="mud-error-text"/>
+                        }
+                        @if (allFolders.Count == 0)
+                        {
+                            <MudListItem Disabled="true" Text="No folders yet — create one first"/>
+                        }
+                    </MudList>
+                }
+            </MudPaper>
+        }
         <MudTreeView Ripple="false" Items="@FilteredResources" Dense="true" Class="ma-0 pa-0 mud-height-full compact-tree"
                      tabindex="0"
                      @onfocusin="@(() => _isFocused = true)"
@@ -100,12 +148,21 @@
                                  ReadOnly="@presenter.IsReadonly"
                                  SelectedChanged="@(x => ItemSelected(presenter, x))">
                     <BodyContent Context="node">
-                        <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mud-width-full tree-item-body">
+                        <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mud-width-full tree-item-body"
+                                  @oncontextmenu="@(e => OnTreeItemRightClick(e, presenter))">
                             <MudText Typo="Typo.caption" Class="flex-grow-1 text-truncate">@presenter.Text</MudText>
                             @if (presenter.Value is { IsLoading: false })
                             {
                                 switch (presenter.Value)
                                 {
+                                    case FoldersTreeNode foldersNode:
+                                        <MudIconButton Icon="@Icons.Material.Filled.CreateNewFolder"
+                                                       Color="Color.Primary"
+                                                       Size="Size.Small"
+                                                       Ripple="false"
+                                                       Class="folders-add-btn"
+                                                       OnClick="@(async () => await OnAddFolderClicked(foldersNode))"/>
+                                        break;
                                     case NamespaceTreeNode:
                                         <MudButton Variant="Variant.Text"
                                                    Color="Color.Primary"

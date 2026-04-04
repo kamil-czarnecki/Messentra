@@ -3,6 +3,7 @@ using Messentra.Domain;
 using Messentra.Features.Layout.State;
 using Messentra.Features.Settings.Connections.GetConnections;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources.Components;
@@ -28,14 +29,16 @@ public partial class NamespaceTree
         if (SearchPhrase != _localSearchPhrase)
             _localSearchPhrase = SearchPhrase;
     }
-    
+
     private readonly NavigationManager _navigationManager;
     private readonly IDispatcher _dispatcher;
+    private readonly IDialogService _dialogService;
 
-    public NamespaceTree(NavigationManager navigationManager, IDispatcher dispatcher)
+    public NamespaceTree(NavigationManager navigationManager, IDispatcher dispatcher, IDialogService dialogService)
     {
         _navigationManager = navigationManager;
         _dispatcher = dispatcher;
+        _dialogService = dialogService;
     }
 
     private void OnExpandedChanged(ResourceTreeItemData item, bool expanded) =>
@@ -44,6 +47,8 @@ public partial class NamespaceTree
     private static string GetNodeKey(ResourceTreeNode? node) => node switch
     {
         NamespaceTreeNode n => $"ns:{n.ConnectionName}",
+        FoldersTreeNode n => $"folders:{n.ConnectionName}",
+        FolderTreeNode n => $"folder:{n.FolderId}",
         QueuesTreeNode n => $"queues:{n.ConnectionName}",
         TopicsTreeNode n => $"topics:{n.ConnectionName}",
         QueueTreeNode n => $"queue:{n.Resource.Url}",
@@ -73,6 +78,134 @@ public partial class NamespaceTree
         _dispatcher.Dispatch(new CancelFetchResourcesAction(connectionName));
     }
 
+    private async Task OnAddFolderClicked(FoldersTreeNode node)
+    {
+        var dialog = await _dialogService.ShowAsync<NewFolderDialog>(
+            "New folder",
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: string folderName } && !string.IsNullOrWhiteSpace(folderName))
+        {
+            _dispatcher.Dispatch(new CreateFolderAction(
+                node.ConnectionId,
+                node.ConnectionName,
+                node.ConnectionConfig,
+                folderName));
+        }
+    }
+
+    // Context menu state
+    private bool _contextMenuOpen;
+    private double _contextMenuX;
+    private double _contextMenuY;
+    private FolderTreeNode? _contextFolderNode;
+    private ResourceTreeNode? _contextResourceNode;
+
+    private static bool IsContextMenuTarget(ResourceTreeNode? node) =>
+        node is FolderTreeNode or QueueTreeNode or TopicTreeNode or SubscriptionTreeNode;
+
+    private void OnTreeItemRightClick(MouseEventArgs e, ResourceTreeItemData presenter)
+    {
+        switch (presenter.Value)
+        {
+            case FolderTreeNode folder:
+                _contextMenuX = e.ClientX;
+                _contextMenuY = e.ClientY;
+                _contextFolderNode = folder;
+                _contextResourceNode = null;
+                _contextMenuOpen = true;
+                break;
+            case QueueTreeNode or TopicTreeNode or SubscriptionTreeNode:
+                _contextMenuX = e.ClientX;
+                _contextMenuY = e.ClientY;
+                _contextResourceNode = presenter.Value;
+                _contextFolderNode = null;
+                _contextMenuOpen = true;
+                break;
+        }
+    }
+
+    private void CloseContextMenu()
+    {
+        _contextMenuOpen = false;
+        _contextFolderNode = null;
+        _contextResourceNode = null;
+    }
+
+    private async Task OnContextRenameFolder()
+    {
+        if (_contextFolderNode is null) return;
+        var folder = _contextFolderNode;
+        CloseContextMenu();
+
+        var parameters = new DialogParameters<NewFolderDialog> { { x => x.InitialName, folder.Name } };
+        var dialog = await _dialogService.ShowAsync<NewFolderDialog>("Rename folder", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: string newName } && !string.IsNullOrWhiteSpace(newName))
+            _dispatcher.Dispatch(new RenameFolderAction(folder.FolderId, folder.ConnectionId, folder.ConnectionName, newName));
+    }
+
+    private void OnContextDeleteFolder()
+    {
+        if (_contextFolderNode is null) return;
+        var folder = _contextFolderNode;
+        CloseContextMenu();
+        _dispatcher.Dispatch(new DeleteFolderAction(folder.FolderId, folder.ConnectionId, folder.ConnectionName));
+    }
+
+    private void OnContextAddToFolder(FolderTreeNode targetFolder)
+    {
+        if (_contextResourceNode is null) return;
+        var resourceUrl = GetResourceUrl(_contextResourceNode);
+        if (resourceUrl is null) return;
+        CloseContextMenu();
+        _dispatcher.Dispatch(new AddResourceToFolderAction(
+            targetFolder.FolderId, targetFolder.ConnectionId, targetFolder.ConnectionName, resourceUrl));
+    }
+
+    private void OnContextRemoveFromFolder(FolderTreeNode folder)
+    {
+        if (_contextResourceNode is null) return;
+        var resourceUrl = GetResourceUrl(_contextResourceNode);
+        if (resourceUrl is null) return;
+        CloseContextMenu();
+        _dispatcher.Dispatch(new RemoveResourceFromFolderAction(
+            folder.FolderId, folder.ConnectionId, folder.ConnectionName, resourceUrl));
+    }
+
+    private static string? GetResourceUrl(ResourceTreeNode? node) => node switch
+    {
+        QueueTreeNode q => q.Resource.Url,
+        TopicTreeNode t => t.Resource.Url,
+        SubscriptionTreeNode s => s.Resource.Url,
+        _ => null
+    };
+
+    internal IEnumerable<FolderTreeNode> GetFoldersContainingResource(string resourceUrl, string connectionName)
+    {
+        foreach (var item in FlattenItemData(Resources))
+        {
+            if (item.Value is not FolderTreeNode folder || folder.ConnectionName != connectionName)
+                continue;
+            var children = item.Children?.OfType<ResourceTreeItemData>() ?? [];
+            if (children.Any(c => GetResourceUrl(c.Value) == resourceUrl))
+                yield return folder;
+        }
+    }
+
+    private static IEnumerable<ResourceTreeItemData> FlattenItemData(IEnumerable<ResourceTreeItemData> items)
+    {
+        foreach (var item in items)
+        {
+            yield return item;
+            if (item.Children is null) continue;
+            foreach (var nested in FlattenItemData(item.Children.OfType<ResourceTreeItemData>()))
+                yield return nested;
+        }
+    }
+
     private void ItemSelected(ResourceTreeItemData presenter, bool selected)
     {
         if (!selected)
@@ -95,7 +228,7 @@ public partial class NamespaceTree
                 $"Unsupported connection type: {connection.ConnectionConfig.ConnectionType}")
         };
 
-        _dispatcher.Dispatch(new FetchResourcesAction(connection.Name, connectionConfig));
+        _dispatcher.Dispatch(new FetchResourcesAction(connection.Id, connection.Name, connectionConfig));
     }
 
     private static string? GetMessageCountText(ResourceTreeNode? node) => node switch
@@ -166,6 +299,8 @@ public partial class NamespaceTree
     private static string? GetConnectionName(ResourceTreeNode node) => node switch
     {
         NamespaceTreeNode n => n.ConnectionName,
+        FoldersTreeNode n => n.ConnectionName,
+        FolderTreeNode n => n.ConnectionName,
         QueuesTreeNode n => n.ConnectionName,
         TopicsTreeNode n => n.ConnectionName,
         QueueTreeNode n => n.ConnectionName,

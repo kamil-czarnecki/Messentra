@@ -31,6 +31,23 @@ public sealed class ResourceSelector
 
     private static ResourceTreeItemData BuildNamespaceItem(NamespaceEntry ns, ResourceTreeNode? selected, HashSet<string> expandedKeys)
     {
+        var folderItems = ns.Folders.Values
+            .OrderBy(f => f.Node.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(f => BuildFolderItem(f, ns, selected, expandedKeys))
+            .ToList<TreeItemData<ResourceTreeNode>>();
+
+        var foldersGroupItem = new ResourceTreeItemData
+        {
+            Text = "Folders",
+            IsReadonly = true,
+            Value = new FoldersTreeNode(ns.ConnectionId, ns.ConnectionName, ns.ConnectionConfig),
+            Icon = Icons.Material.Filled.Folder,
+            IconColor = Color.Warning,
+            Expandable = true,
+            Expanded = expandedKeys.Contains($"folders:{ns.ConnectionName}"),
+            Children = folderItems.Count > 0 ? folderItems : null
+        };
+
         var queueGroupItem = new ResourceTreeItemData
         {
             Text = "Queues",
@@ -72,7 +89,7 @@ public sealed class ResourceSelector
             IsReadonly = true,
             Children = ns.IsLoading
                 ? null
-                : [queueGroupItem, topicGroupItem]
+                : [foldersGroupItem, queueGroupItem, topicGroupItem]
         };
     }
 
@@ -118,6 +135,60 @@ public sealed class ResourceSelector
             Value = node,
             Expandable = false,
             Selected = selected is SubscriptionTreeNode s && s.Resource.Url == node.Resource.Url
+        };
+    }
+
+    private static ResourceTreeItemData BuildFolderItem(FolderEntry entry, NamespaceEntry ns, ResourceTreeNode? selected, HashSet<string> expandedKeys)
+    {
+        var resourceItems = entry.ResourceUrls
+            .Select(url => ResolveResourceItem(url, ns, selected, entry.Node))
+            .OfType<ResourceTreeItemData>()
+            .ToList<TreeItemData<ResourceTreeNode>>();
+
+        return new ResourceTreeItemData
+        {
+            Text = entry.Node.Name,
+            Value = entry.Node,
+            Icon = Icons.Material.Filled.FolderOpen,
+            IconColor = Color.Warning,
+            Expandable = resourceItems.Count > 0,
+            Expanded = expandedKeys.Contains($"folder:{entry.Node.FolderId}"),
+            Children = resourceItems.Count > 0 ? resourceItems : null
+        };
+    }
+
+    private static ResourceTreeItemData? ResolveResourceItem(string resourceUrl, NamespaceEntry ns, ResourceTreeNode? selected, FolderTreeNode? parentFolder = null)
+    {
+        ResourceTreeItemData? item = null;
+
+        if (ns.Queues.TryGetValue(resourceUrl, out var queue))
+            item = BuildQueueItem(queue, selected);
+        else if (ns.Topics.TryGetValue(resourceUrl, out var topic))
+            item = BuildTopicItem(topic, selected, []);
+        else
+        {
+            foreach (var topicEntry in ns.Topics.Values)
+            {
+                if (!topicEntry.Subscriptions.TryGetValue(resourceUrl, out var sub)) continue;
+                item = BuildSubscriptionItem(sub, selected);
+                break;
+            }
+        }
+
+        if (item is null || parentFolder is null) return item;
+
+        return new ResourceTreeItemData
+        {
+            Text = item.Text,
+            Value = item.Value,
+            Icon = item.Icon,
+            IconColor = item.IconColor,
+            IsReadonly = item.IsReadonly,
+            Expandable = item.Expandable,
+            Expanded = item.Expanded,
+            Selected = item.Selected,
+            Children = item.Children,
+            ParentFolderNode = parentFolder
         };
     }
 }

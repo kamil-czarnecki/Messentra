@@ -1,5 +1,12 @@
 using Fluxor;
 using Mediator;
+using Messentra.Features.Explorer.Folders;
+using Messentra.Features.Explorer.Folders.AddResourceToFolder;
+using Messentra.Features.Explorer.Folders.CreateFolder;
+using Messentra.Features.Explorer.Folders.DeleteFolder;
+using Messentra.Features.Explorer.Folders.GetFoldersByConnectionId;
+using Messentra.Features.Explorer.Folders.RemoveResourceFromFolder;
+using Messentra.Features.Explorer.Folders.RenameFolder;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Queues.GetAllQueueResources;
 using Messentra.Features.Explorer.Resources.Queues.GetQueueResource;
@@ -32,7 +39,7 @@ public sealed class ResourceEffectsShould
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var action = new FetchResourcesAction(ConnectionName, config);
+        var action = new FetchResourcesAction(ConnectionId: 1L, ConnectionName, config);
 
         var queues = new[] { ResourceTestData.CreateQueue("queue-1") };
         var topics = new[] { ResourceTestData.CreateTopic("topic-1") };
@@ -43,6 +50,9 @@ public sealed class ResourceEffectsShould
         _mediator
             .Setup(m => m.Send(It.IsAny<GetAllTopicResourcesQuery>(), It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<IReadOnlyCollection<Resource.Topic>>(topics));
+        _mediator
+            .Setup(m => m.Send(It.IsAny<GetFoldersByConnectionIdQuery>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<IReadOnlyCollection<FolderDto>>([]));
 
         // Act
         await _sut.HandleFetchResources(action, _dispatcher.Object);
@@ -56,7 +66,7 @@ public sealed class ResourceEffectsShould
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var action = new FetchResourcesAction(ConnectionName, config);
+        var action = new FetchResourcesAction(ConnectionId: 1L, ConnectionName, config);
 
         _mediator
             .Setup(m => m.Send(It.IsAny<GetAllQueueResourcesQuery>(), It.IsAny<CancellationToken>()))
@@ -74,7 +84,7 @@ public sealed class ResourceEffectsShould
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var fetchAction = new FetchResourcesAction(ConnectionName, config);
+        var fetchAction = new FetchResourcesAction(ConnectionId: 1L, ConnectionName, config);
 
         _mediator
             .Setup(m => m.Send(It.IsAny<GetAllQueueResourcesQuery>(), It.IsAny<CancellationToken>()))
@@ -84,6 +94,10 @@ public sealed class ResourceEffectsShould
             .Setup(m => m.Send(It.IsAny<GetAllTopicResourcesQuery>(), It.IsAny<CancellationToken>()))
             .Returns((GetAllTopicResourcesQuery _, CancellationToken ct) =>
                 new ValueTask<IReadOnlyCollection<Resource.Topic>>(WaitUntilCanceled<IReadOnlyCollection<Resource.Topic>>(ct)));
+        _mediator
+            .Setup(m => m.Send(It.IsAny<GetFoldersByConnectionIdQuery>(), It.IsAny<CancellationToken>()))
+            .Returns((GetFoldersByConnectionIdQuery _, CancellationToken ct) =>
+                new ValueTask<IReadOnlyCollection<FolderDto>>(WaitUntilCanceled<IReadOnlyCollection<FolderDto>>(ct)));
 
         // Act
         var fetchTask = _sut.HandleFetchResources(fetchAction, _dispatcher.Object);
@@ -306,6 +320,116 @@ public sealed class ResourceEffectsShould
 
         // Assert
         _dispatcher.Verify(d => d.Dispatch(It.IsAny<RefreshTopicsFailureAction>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleCreateFolder_WhenSuccess_DispatchesCreateFolderSuccessAction()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var action = new CreateFolderAction(ConnectionId: 1L, ConnectionName, config, "My Team");
+
+        _mediator
+            .Setup(m => m.Send(It.IsAny<CreateFolderCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<long>(42L));
+
+        // Act
+        await _sut.HandleCreateFolder(action, _dispatcher.Object);
+
+        // Assert
+        _dispatcher.Verify(d => d.Dispatch(It.Is<CreateFolderSuccessAction>(a =>
+            a.ConnectionName == ConnectionName &&
+            a.Entry.Node.FolderId == 42L &&
+            a.Entry.Node.Name == "My Team")), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleCreateFolder_WhenException_DispatchesCreateFolderFailureAction()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var action = new CreateFolderAction(1L, ConnectionName, config, "My Team");
+
+        _mediator
+            .Setup(m => m.Send(It.IsAny<CreateFolderCommand>(), It.IsAny<CancellationToken>()))
+            .Throws(new Exception("db error"));
+
+        // Act
+        await _sut.HandleCreateFolder(action, _dispatcher.Object);
+
+        // Assert
+        _dispatcher.Verify(d => d.Dispatch(It.IsAny<CreateFolderFailureAction>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleRenameFolder_WhenSuccess_DispatchesRenameFolderSuccessAction()
+    {
+        // Arrange
+        var action = new RenameFolderAction(FolderId: 10L, ConnectionId: 1L, ConnectionName, "New Name");
+
+        _mediator
+            .Setup(m => m.Send(It.IsAny<RenameFolderCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<Unit>(Unit.Value));
+
+        // Act
+        await _sut.HandleRenameFolder(action, _dispatcher.Object);
+
+        // Assert
+        _dispatcher.Verify(d => d.Dispatch(It.Is<RenameFolderSuccessAction>(a =>
+            a.FolderId == 10L && a.NewName == "New Name")), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleDeleteFolder_WhenSuccess_DispatchesDeleteFolderSuccessAction()
+    {
+        // Arrange
+        var action = new DeleteFolderAction(FolderId: 10L, ConnectionId: 1L, ConnectionName);
+
+        _mediator
+            .Setup(m => m.Send(It.IsAny<DeleteFolderCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<Unit>(Unit.Value));
+
+        // Act
+        await _sut.HandleDeleteFolder(action, _dispatcher.Object);
+
+        // Assert
+        _dispatcher.Verify(d => d.Dispatch(It.Is<DeleteFolderSuccessAction>(a => a.FolderId == 10L)), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleAddResourceToFolder_WhenSuccess_DispatchesAddResourceToFolderSuccessAction()
+    {
+        // Arrange
+        var action = new AddResourceToFolderAction(FolderId: 10L, ConnectionId: 1L, ConnectionName, "queue:orders");
+
+        _mediator
+            .Setup(m => m.Send(It.IsAny<AddResourceToFolderCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<Unit>(Unit.Value));
+
+        // Act
+        await _sut.HandleAddResourceToFolder(action, _dispatcher.Object);
+
+        // Assert
+        _dispatcher.Verify(d => d.Dispatch(It.Is<AddResourceToFolderSuccessAction>(a =>
+            a.FolderId == 10L && a.ResourceUrl == "queue:orders")), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleRemoveResourceFromFolder_WhenSuccess_DispatchesRemoveResourceFromFolderSuccessAction()
+    {
+        // Arrange
+        var action = new RemoveResourceFromFolderAction(FolderId: 10L, ConnectionId: 1L, ConnectionName, "queue:orders");
+
+        _mediator
+            .Setup(m => m.Send(It.IsAny<RemoveResourceFromFolderCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<Unit>(Unit.Value));
+
+        // Act
+        await _sut.HandleRemoveResourceFromFolder(action, _dispatcher.Object);
+
+        // Assert
+        _dispatcher.Verify(d => d.Dispatch(It.Is<RemoveResourceFromFolderSuccessAction>(a =>
+            a.FolderId == 10L && a.ResourceUrl == "queue:orders")), Times.Once);
     }
 
     private static Task<T> WaitUntilCanceled<T>(CancellationToken cancellationToken)

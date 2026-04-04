@@ -1,5 +1,7 @@
+using AngleSharp.Dom;
 using Bunit;
 using Messentra.Domain;
+using Messentra.Features.Explorer.Folders;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components;
 using Messentra.Features.Settings.Connections.GetConnections;
@@ -700,6 +702,82 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         var suggestions = await GetSuggestions(cut, "NAMESPACE:TESTNAMESPACE");
 
         suggestions.ShouldNotContain("namespace:TestNamespace");
+    }
+
+    private static ResourceTreeItemData BuildFoldersGroup(
+        string connectionName = "Test Namespace",
+        ConnectionConfig? config = null,
+        List<ResourceTreeItemData>? folders = null)
+    {
+        config ??= ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "t", "c");
+        return new ResourceTreeItemData
+        {
+            Text = "Folders",
+            Value = new FoldersTreeNode(1L, connectionName, config),
+            Children = folders?.Cast<TreeItemData<ResourceTreeNode>>().ToList()
+        };
+    }
+
+    [Fact]
+    public void ShowFoldersSectionWhenResourcesConnected()
+    {
+        // Arrange
+        var foldersGroup = BuildFoldersGroup();
+        var nsItem = new ResourceTreeItemData
+        {
+            Text = "Test Namespace",
+            Value = new NamespaceTreeNode("Test Namespace",
+                ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "t", "c")),
+            Children = [foldersGroup]
+        };
+
+        // Act
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, [nsItem])
+            .Add(x => x.Connections, []));
+
+        // Assert
+        cut.Markup.ShouldContain("Folders");
+    }
+
+    [Fact]
+    public async Task DispatchCreateFolderActionWhenPlusButtonClickedAndDialogConfirmed()
+    {
+        // Arrange
+        var config = ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "t", "c");
+        var foldersGroup = BuildFoldersGroup(config: config);
+        var nsItem = new ResourceTreeItemData
+        {
+            Text = "Test Namespace",
+            Value = new NamespaceTreeNode("Test Namespace", config),
+            IsReadonly = true,
+            Expandable = true,
+            Expanded = true,
+            Children = new List<TreeItemData<ResourceTreeNode>> { foldersGroup }
+        };
+
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, [nsItem])
+            .Add(x => x.Connections, []));
+
+        // Act — click the + button on the Folders group row
+        // The OnAddFolderClicked is async (opens dialog via IDialogService), so we use InvokeAsync
+        // to start the async flow, and WaitForAssertion to wait for the dialog to appear
+        await cut.InvokeAsync(() => cut.Find(".folders-add-btn").Click());
+
+        // Wait for dialog to render in MudDialogProvider
+        await MudDialog.WaitForAssertionAsync(() => MudDialog.Find(".folder-name-input input").ShouldNotBeNull());
+
+        // Enter a name in the dialog (dialog renders through IDialogService into MudDialogProvider)
+        await MudDialog.Find(".folder-name-input input").InputAsync("My Team");
+        await MudDialog.Find(".folder-create-confirm").ClickAsync();
+
+        // Assert
+        MockDispatcher.Verify(x => x.Dispatch(It.Is<CreateFolderAction>(a =>
+            a.ConnectionId == 1L &&
+            a.ConnectionName == "Test Namespace" &&
+            a.ConnectionConfig == config &&
+            a.Name == "My Team")), Times.Once);
     }
 
     [Fact]

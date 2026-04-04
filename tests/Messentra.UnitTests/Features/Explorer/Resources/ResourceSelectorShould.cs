@@ -103,7 +103,7 @@ public sealed class ResourceSelectorShould
         }
 
         return new ResourceState(
-            [new NamespaceEntry(ConnectionName, Config, false, [], topicEntries)],
+            [new NamespaceEntry(1L, ConnectionName, Config, false, [], topicEntries, [])],
             null,
             [$"ns:{ConnectionName}"]);
     }
@@ -118,7 +118,7 @@ public sealed class ResourceSelectorShould
         }
 
         return new ResourceState(
-            [new NamespaceEntry(ConnectionName, Config, false, queueEntries, [])],
+            [new NamespaceEntry(1L, ConnectionName, Config, false, queueEntries, [], [])],
             null,
             [$"ns:{ConnectionName}"]);
     }
@@ -151,4 +151,50 @@ public sealed class ResourceSelectorShould
             .Children!.OfType<ResourceTreeItemData>()
             .Select(s => s.Text)
             .ToList();
+
+    [Fact]
+    public void PlaceFoldersGroupAsFirstChildOfNamespace()
+    {
+        // Arrange
+        var state = StateWithQueues("queue-1");
+        var selector = BuildSelector(state);
+
+        // Act
+        var firstChild = selector.TreeItems.Value
+            .First()
+            .Children!.OfType<ResourceTreeItemData>()
+            .First();
+
+        // Assert
+        firstChild.Value.ShouldBeOfType<FoldersTreeNode>();
+    }
+
+    [Fact]
+    public void RenderFolderWithItsResources()
+    {
+        // Arrange
+        var queue = ResourceTestData.CreateQueue("orders");
+        var queueEntry = new QueueEntry(new QueueTreeNode(ConnectionName, queue, Config), false);
+        var folderEntry = ResourceTestData.CreateFolderEntry(10L, "My Team", ConnectionName, resourceUrls: [queue.Url]);
+        var namespaceEntry = new NamespaceEntry(
+            ConnectionId: 1L, ConnectionName, Config, false,
+            Queues: new Dictionary<string, QueueEntry> { [queue.Url] = queueEntry },
+            Topics: [],
+            Folders: new Dictionary<long, FolderEntry> { [10L] = folderEntry });
+        var state = new ResourceState([namespaceEntry], null, [$"ns:{ConnectionName}"]);
+        var selector = BuildSelector(state);
+
+        // Act
+        var foldersGroup = selector.TreeItems.Value.First()
+            .Children!.OfType<ResourceTreeItemData>()
+            .First(c => c.Value is FoldersTreeNode);
+        var folder = foldersGroup.Children!.OfType<ResourceTreeItemData>().First();
+        var resourceInFolder = folder.Children!.OfType<ResourceTreeItemData>().First();
+
+        // Assert
+        folder.Value.ShouldBeOfType<FolderTreeNode>();
+        ((FolderTreeNode)folder.Value!).Name.ShouldBe("My Team");
+        resourceInFolder.Value.ShouldBeOfType<QueueTreeNode>();
+        ((QueueTreeNode)resourceInFolder.Value!).Resource.Url.ShouldBe(queue.Url);
+    }
 }
