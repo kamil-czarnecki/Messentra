@@ -12,7 +12,7 @@ public sealed class DeleteFolderCommandHandlerShould : InMemoryDbTestBase
 
     public DeleteFolderCommandHandlerShould()
     {
-        _sut = new DeleteFolderCommandHandler(DbContext);
+        _sut = new DeleteFolderCommandHandler(DbContextFactory);
     }
 
     [Fact]
@@ -21,16 +21,16 @@ public sealed class DeleteFolderCommandHandlerShould : InMemoryDbTestBase
         // Arrange
         var connection = await SeedConnectionAsync();
         var folder = new Folder { ConnectionId = connection.Id, Name = "My Team", Resources = [new FolderResource { ResourceUrl = "queue:orders" }] };
-        await DbContext.Set<Folder>().AddAsync(folder);
-        await DbContext.SaveChangesAsync();
+        await DbContext.Set<Folder>().AddAsync(folder, TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         await _sut.Handle(new DeleteFolderCommand(folder.Id), CancellationToken.None);
 
         // Assert
         DbContext.ChangeTracker.Clear();
-        (await DbContext.Set<Folder>().FindAsync(folder.Id)).ShouldBeNull();
-        (await DbContext.Set<FolderResource>().AnyAsync(r => r.FolderId == folder.Id)).ShouldBeFalse();
+        (await DbContext.Set<Folder>().FindAsync([folder.Id], TestContext.Current.CancellationToken)).ShouldBeNull();
+        (await DbContext.Set<FolderResource>().AnyAsync(r => r.FolderId == folder.Id, cancellationToken: TestContext.Current.CancellationToken)).ShouldBeFalse();
     }
 
     [Fact]

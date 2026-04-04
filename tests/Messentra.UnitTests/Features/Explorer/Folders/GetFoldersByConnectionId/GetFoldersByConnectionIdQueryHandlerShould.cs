@@ -1,5 +1,4 @@
 using Messentra.Domain;
-using Messentra.Features.Explorer.Folders;
 using Messentra.Features.Explorer.Folders.GetFoldersByConnectionId;
 using Shouldly;
 using Xunit;
@@ -12,7 +11,7 @@ public sealed class GetFoldersByConnectionIdQueryHandlerShould : InMemoryDbTestB
 
     public GetFoldersByConnectionIdQueryHandlerShould()
     {
-        _sut = new GetFoldersByConnectionIdQueryHandler(DbContext);
+        _sut = new GetFoldersByConnectionIdQueryHandler(DbContextFactory);
     }
 
     [Fact]
@@ -26,7 +25,7 @@ public sealed class GetFoldersByConnectionIdQueryHandlerShould : InMemoryDbTestB
             new Folder { ConnectionId = connection1.Id, Name = "My Team", Resources = [new FolderResource { ResourceUrl = "queue:orders" }] },
             new Folder { ConnectionId = connection1.Id, Name = "Monitoring", Resources = [] },
             new Folder { ConnectionId = connection2.Id, Name = "Other Connection", Resources = [] });
-        await DbContext.SaveChangesAsync();
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var result = await _sut.Handle(new GetFoldersByConnectionIdQuery(connection1.Id), CancellationToken.None);

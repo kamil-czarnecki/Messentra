@@ -12,7 +12,7 @@ public sealed class AddResourceToFolderCommandHandlerShould : InMemoryDbTestBase
 
     public AddResourceToFolderCommandHandlerShould()
     {
-        _sut = new AddResourceToFolderCommandHandler(DbContext);
+        _sut = new AddResourceToFolderCommandHandler(DbContextFactory);
     }
 
     [Fact]
@@ -21,8 +21,8 @@ public sealed class AddResourceToFolderCommandHandlerShould : InMemoryDbTestBase
         // Arrange
         var connection = await SeedConnectionAsync();
         var folder = new Folder { ConnectionId = connection.Id, Name = "My Team" };
-        await DbContext.Set<Folder>().AddAsync(folder);
-        await DbContext.SaveChangesAsync();
+        await DbContext.Set<Folder>().AddAsync(folder, TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         await _sut.Handle(new AddResourceToFolderCommand(folder.Id, "queue:orders"), CancellationToken.None);
@@ -30,7 +30,7 @@ public sealed class AddResourceToFolderCommandHandlerShould : InMemoryDbTestBase
         // Assert
         DbContext.ChangeTracker.Clear();
         var resource = await DbContext.Set<FolderResource>()
-            .FirstOrDefaultAsync(r => r.FolderId == folder.Id && r.ResourceUrl == "queue:orders");
+            .FirstOrDefaultAsync(r => r.FolderId == folder.Id && r.ResourceUrl == "queue:orders", cancellationToken: TestContext.Current.CancellationToken);
         resource.ShouldNotBeNull();
     }
 
@@ -40,8 +40,8 @@ public sealed class AddResourceToFolderCommandHandlerShould : InMemoryDbTestBase
         // Arrange
         var connection = await SeedConnectionAsync();
         var folder = new Folder { ConnectionId = connection.Id, Name = "My Team", Resources = [new FolderResource { ResourceUrl = "queue:orders" }] };
-        await DbContext.Set<Folder>().AddAsync(folder);
-        await DbContext.SaveChangesAsync();
+        await DbContext.Set<Folder>().AddAsync(folder, TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         var act = async () => await _sut.Handle(new AddResourceToFolderCommand(folder.Id, "queue:orders"), CancellationToken.None);
@@ -49,7 +49,7 @@ public sealed class AddResourceToFolderCommandHandlerShould : InMemoryDbTestBase
 
         // Assert
         DbContext.ChangeTracker.Clear();
-        var count = await DbContext.Set<FolderResource>().CountAsync(r => r.FolderId == folder.Id && r.ResourceUrl == "queue:orders");
+        var count = await DbContext.Set<FolderResource>().CountAsync(r => r.FolderId == folder.Id && r.ResourceUrl == "queue:orders", cancellationToken: TestContext.Current.CancellationToken);
         count.ShouldBe(1);
     }
 }

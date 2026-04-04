@@ -197,4 +197,140 @@ public sealed class ResourceSelectorShould
         resourceInFolder.Value.ShouldBeOfType<QueueTreeNode>();
         ((QueueTreeNode)resourceInFolder.Value!).Resource.Url.ShouldBe(queue.Url);
     }
+
+    [Fact]
+    public void GroupSubscriptionUnderDerivedTopicHeaderInsideFolder()
+    {
+        // Arrange
+        var state = StateWithFolderContainingSubs("orders-topic", ["sub-1"], "my-folder");
+        var selector = BuildSelector(state);
+
+        // Act
+        var folder = GetFolderItem(selector, "my-folder");
+        var topicHeader = folder.Children!.OfType<ResourceTreeItemData>().Single();
+
+        // Assert
+        topicHeader.Value.ShouldBeOfType<TopicTreeNode>();
+        topicHeader.Text.ShouldBe("orders-topic");
+        topicHeader.Children!.OfType<ResourceTreeItemData>().Single().Text.ShouldBe("sub-1");
+    }
+
+    [Fact]
+    public void GroupMultipleSubsFromSameTopicUnderOneDerivedHeader()
+    {
+        // Arrange
+        var state = StateWithFolderContainingSubs("orders-topic", ["sub-a", "sub-b"], "my-folder");
+        var selector = BuildSelector(state);
+
+        // Act
+        var folder = GetFolderItem(selector, "my-folder");
+
+        // Assert
+        folder.Children!.OfType<ResourceTreeItemData>().Count().ShouldBe(1);
+        folder.Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().Select(c => c.Text)
+            .ShouldBe(["sub-a", "sub-b"]);
+    }
+
+    [Fact]
+    public void SortFolderTopLevelItemsAlphabetically()
+    {
+        // Arrange
+        var queue = ResourceTestData.CreateQueue("zeta-queue");
+        var queueEntry = new QueueEntry(new QueueTreeNode(ConnectionName, queue, Config), false);
+        var sub = ResourceTestData.CreateSubscription("sub-1", "alpha-topic");
+        var topic = ResourceTestData.CreateTopic("alpha-topic");
+        var subEntry = new SubscriptionEntry(new SubscriptionTreeNode(ConnectionName, sub, Config), false);
+        var topicEntry = new TopicEntry(new TopicTreeNode(ConnectionName, topic, Config), false,
+            new Dictionary<string, SubscriptionEntry> { [sub.Url] = subEntry });
+        var folder = ResourceTestData.CreateFolderEntry(10L, "f", ConnectionName, resourceUrls: [queue.Url, sub.Url]);
+        var ns = ResourceTestData.CreateNamespaceEntry(ConnectionName,
+            queues: new Dictionary<string, QueueEntry> { [queue.Url] = queueEntry },
+            topics: new Dictionary<string, TopicEntry> { [topic.Url] = topicEntry },
+            folders: new Dictionary<long, FolderEntry> { [10L] = folder });
+        var state = new ResourceState([ns], null, [$"ns:{ConnectionName}", "folder:10"]);
+        var selector = BuildSelector(state);
+
+        // Act
+        var topLevelNames = GetFolderItem(selector, "f")
+            .Children!.OfType<ResourceTreeItemData>().Select(i => i.Text).ToList();
+
+        // Assert
+        topLevelNames.ShouldBe(["alpha-topic", "zeta-queue"]);
+    }
+
+    [Fact]
+    public void SortSubsAlphabeticallyWithinDerivedTopicHeader()
+    {
+        // Arrange
+        var state = StateWithFolderContainingSubs("orders-topic", ["zebra-sub", "alpha-sub"], "my-folder");
+        var selector = BuildSelector(state);
+
+        // Act
+        var subNames = GetFolderItem(selector, "my-folder")
+            .Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().Select(c => c.Text).ToList();
+
+        // Assert
+        subNames.ShouldBe(["alpha-sub", "zebra-sub"]);
+    }
+
+    [Fact]
+    public void SetParentFolderNodeOnDerivedTopicHeader()
+    {
+        // Arrange
+        var state = StateWithFolderContainingSubs("orders-topic", ["sub-1"], "my-folder");
+        var selector = BuildSelector(state);
+
+        // Act
+        var topicHeader = GetFolderItem(selector, "my-folder")
+            .Children!.OfType<ResourceTreeItemData>().Single();
+
+        // Assert
+        topicHeader.ParentFolderNode.ShouldNotBeNull();
+        topicHeader.ParentFolderNode!.Name.ShouldBe("my-folder");
+    }
+
+    [Fact]
+    public void SetParentFolderNodeOnSubUnderDerivedTopicHeader()
+    {
+        // Arrange
+        var state = StateWithFolderContainingSubs("orders-topic", ["sub-1"], "my-folder");
+        var selector = BuildSelector(state);
+
+        // Act
+        var sub = GetFolderItem(selector, "my-folder")
+            .Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().Single();
+
+        // Assert
+        sub.ParentFolderNode.ShouldNotBeNull();
+        sub.ParentFolderNode!.Name.ShouldBe("my-folder");
+    }
+
+    private static ResourceTreeItemData GetFolderItem(ResourceSelector selector, string folderName) =>
+        selector.TreeItems.Value
+            .First()
+            .Children!.OfType<ResourceTreeItemData>()
+            .First(c => c.Value is FoldersTreeNode)
+            .Children!.OfType<ResourceTreeItemData>()
+            .First(f => f.Text == folderName);
+
+    private static ResourceState StateWithFolderContainingSubs(
+        string topicName, string[] subNames, string folderName, long folderId = 10L)
+    {
+        var subs = subNames.Select(n => ResourceTestData.CreateSubscription(n, topicName)).ToList();
+        var topic = ResourceTestData.CreateTopic(topicName);
+        var subEntries = subs.ToDictionary(
+            s => s.Url,
+            s => new SubscriptionEntry(new SubscriptionTreeNode(ConnectionName, s, Config), false));
+        var topicEntry = new TopicEntry(new TopicTreeNode(ConnectionName, topic, Config), false, subEntries);
+        var folderEntry = ResourceTestData.CreateFolderEntry(
+            folderId, folderName, ConnectionName, resourceUrls: subs.Select(s => s.Url));
+        var ns = ResourceTestData.CreateNamespaceEntry(
+            connectionName: ConnectionName,
+            topics: new Dictionary<string, TopicEntry> { [topic.Url] = topicEntry },
+            folders: new Dictionary<long, FolderEntry> { [folderId] = folderEntry });
+        return new ResourceState([ns], null, [$"ns:{ConnectionName}", $"folder:{folderId}"]);
+    }
 }

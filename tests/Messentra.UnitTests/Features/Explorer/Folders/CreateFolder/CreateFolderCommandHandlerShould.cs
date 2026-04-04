@@ -12,7 +12,7 @@ public sealed class CreateFolderCommandHandlerShould : InMemoryDbTestBase
 
     public CreateFolderCommandHandlerShould()
     {
-        _sut = new CreateFolderCommandHandler(DbContext);
+        _sut = new CreateFolderCommandHandler(DbContextFactory);
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public sealed class CreateFolderCommandHandlerShould : InMemoryDbTestBase
 
         // Assert
         id.ShouldBeGreaterThan(0);
-        var folder = await DbContext.Set<Folder>().FirstOrDefaultAsync(f => f.Id == id);
+        var folder = await DbContext.Set<Folder>().FirstOrDefaultAsync(f => f.Id == id, cancellationToken: TestContext.Current.CancellationToken);
         folder.ShouldNotBeNull();
         folder.Name.ShouldBe("My Team");
         folder.ConnectionId.ShouldBe(connection.Id);

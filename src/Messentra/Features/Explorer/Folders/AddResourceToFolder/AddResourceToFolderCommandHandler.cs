@@ -7,24 +7,25 @@ namespace Messentra.Features.Explorer.Folders.AddResourceToFolder;
 
 public sealed class AddResourceToFolderCommandHandler : ICommandHandler<AddResourceToFolderCommand>
 {
-    private readonly MessentraDbContext _dbContext;
+    private readonly IDbContextFactory<MessentraDbContext> _contextFactory;
 
-    public AddResourceToFolderCommandHandler(MessentraDbContext dbContext)
+    public AddResourceToFolderCommandHandler(IDbContextFactory<MessentraDbContext> contextFactory)
     {
-        _dbContext = dbContext;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Unit> Handle(AddResourceToFolderCommand command, CancellationToken cancellationToken)
     {
-        var exists = await _dbContext.Set<FolderResource>()
+        await using var dbContext = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        var exists = await dbContext.Set<FolderResource>()
             .AnyAsync(r => r.FolderId == command.FolderId && r.ResourceUrl == command.ResourceUrl, cancellationToken);
 
-        if (!exists)
-        {
-            await _dbContext.Set<FolderResource>()
-                .AddAsync(new FolderResource { FolderId = command.FolderId, ResourceUrl = command.ResourceUrl }, cancellationToken);
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
+        if (exists)
+            return Unit.Value;
+
+        await dbContext.Set<FolderResource>()
+            .AddAsync(new FolderResource { FolderId = command.FolderId, ResourceUrl = command.ResourceUrl }, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return Unit.Value;
     }

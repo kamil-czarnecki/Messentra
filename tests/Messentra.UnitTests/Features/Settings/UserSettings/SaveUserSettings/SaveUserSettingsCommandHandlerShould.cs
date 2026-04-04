@@ -21,7 +21,7 @@ public sealed class SaveUserSettingsCommandHandlerShould : InMemoryDbTestBase
         await _sut.Handle(new SaveUserSettingsCommand(IsDarkMode: true), CancellationToken.None);
 
         // Assert
-        var saved = await DbContext.Set<Messentra.Domain.UserSettings>().FindAsync(1L);
+        var saved = await DbContext.Set<Messentra.Domain.UserSettings>().FindAsync([1L], TestContext.Current.CancellationToken);
         saved.ShouldNotBeNull();
         saved.IsDarkMode.ShouldBeTrue();
     }
@@ -31,7 +31,7 @@ public sealed class SaveUserSettingsCommandHandlerShould : InMemoryDbTestBase
     {
         // Arrange
         DbContext.Set<Messentra.Domain.UserSettings>().Add(new Messentra.Domain.UserSettings { Id = 1, IsDarkMode = false });
-        await DbContext.SaveChangesAsync();
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         await _sut.Handle(new SaveUserSettingsCommand(IsDarkMode: true), CancellationToken.None);
@@ -39,7 +39,7 @@ public sealed class SaveUserSettingsCommandHandlerShould : InMemoryDbTestBase
         // Assert
         var saved = await DbContext.Set<Messentra.Domain.UserSettings>()
             .AsNoTracking()
-            .FirstAsync();
+            .FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
         saved.IsDarkMode.ShouldBeTrue();
     }
 
@@ -51,7 +51,7 @@ public sealed class SaveUserSettingsCommandHandlerShould : InMemoryDbTestBase
         await _sut.Handle(new SaveUserSettingsCommand(IsDarkMode: false), CancellationToken.None);
 
         // Assert
-        var count = await DbContext.Set<Messentra.Domain.UserSettings>().CountAsync();
+        var count = await DbContext.Set<Messentra.Domain.UserSettings>().CountAsync(cancellationToken: TestContext.Current.CancellationToken);
         count.ShouldBe(1);
     }
 }

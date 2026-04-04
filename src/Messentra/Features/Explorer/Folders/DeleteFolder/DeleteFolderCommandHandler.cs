@@ -7,20 +7,21 @@ namespace Messentra.Features.Explorer.Folders.DeleteFolder;
 
 public sealed class DeleteFolderCommandHandler : ICommandHandler<DeleteFolderCommand>
 {
-    private readonly MessentraDbContext _dbContext;
+    private readonly IDbContextFactory<MessentraDbContext> _contextFactory;
 
-    public DeleteFolderCommandHandler(MessentraDbContext dbContext)
+    public DeleteFolderCommandHandler(IDbContextFactory<MessentraDbContext> contextFactory)
     {
-        _dbContext = dbContext;
+        _contextFactory = contextFactory;
     }
 
     public async ValueTask<Unit> Handle(DeleteFolderCommand command, CancellationToken cancellationToken)
     {
-        await using var tx = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
-        await _dbContext.Set<FolderResource>()
+        await using var dbContext = await _contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await dbContext.Set<FolderResource>()
             .Where(r => r.FolderId == command.FolderId)
             .ExecuteDeleteAsync(cancellationToken);
-        await _dbContext.Set<Folder>()
+        await dbContext.Set<Folder>()
             .Where(f => f.Id == command.FolderId)
             .ExecuteDeleteAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);

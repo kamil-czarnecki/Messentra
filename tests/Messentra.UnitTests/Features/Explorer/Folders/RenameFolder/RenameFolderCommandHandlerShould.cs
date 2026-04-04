@@ -1,6 +1,5 @@
 using Messentra.Domain;
 using Messentra.Features.Explorer.Folders.RenameFolder;
-using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Xunit;
 
@@ -12,7 +11,7 @@ public sealed class RenameFolderCommandHandlerShould : InMemoryDbTestBase
 
     public RenameFolderCommandHandlerShould()
     {
-        _sut = new RenameFolderCommandHandler(DbContext);
+        _sut = new RenameFolderCommandHandler(DbContextFactory);
     }
 
     [Fact]
@@ -21,15 +20,15 @@ public sealed class RenameFolderCommandHandlerShould : InMemoryDbTestBase
         // Arrange
         var connection = await SeedConnectionAsync();
         var folder = new Folder { ConnectionId = connection.Id, Name = "Old Name" };
-        await DbContext.Set<Folder>().AddAsync(folder);
-        await DbContext.SaveChangesAsync();
+        await DbContext.Set<Folder>().AddAsync(folder, TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
         await _sut.Handle(new RenameFolderCommand(folder.Id, "New Name"), CancellationToken.None);
 
         // Assert
         DbContext.ChangeTracker.Clear();
-        var updated = await DbContext.Set<Folder>().FindAsync(folder.Id);
+        var updated = await DbContext.Set<Folder>().FindAsync([folder.Id], TestContext.Current.CancellationToken);
         updated!.Name.ShouldBe("New Name");
     }
 }

@@ -115,6 +115,12 @@
                                              @oncontextmenu:stopPropagation="true">
                                             <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mud-width-full">
                                                 <MudText Typo="Typo.caption" Class="flex-grow-1 text-truncate">@presenter.Text</MudText>
+                                                <MudIconButton
+                                                    Icon="@Icons.Material.Filled.Refresh"
+                                                    Color="Color.Primary"
+                                                    Size="Size.Small"
+                                                    Ripple="false"
+                                                    OnClick="@(() => OnRefreshClicked(presenter.Value))"/>
                                             </MudStack>
                                         </div>
                                     </ActivatorContent>
@@ -163,10 +169,28 @@
                                         <MudDivider/>
                                         @if (presenter.ParentFolderNode is not null)
                                         {
-                                            <MudMenuItem Icon="@Icons.Material.Filled.FolderDelete"
-                                                         Label="Delete from folder"
-                                                         OnClick="@(() => OnContextRemoveFromFolder(resourceNode, presenter.ParentFolderNode))"
-                                                         Class="mud-error-text"/>
+                                            @if (resourceNode is TopicTreeNode)
+                                            {
+                                                var subUrls = resourceNode is TopicTreeNode
+                                                    ? presenter.Children
+                                                        ?.OfType<ResourceTreeItemData>()
+                                                        .Select(c => c.Value)
+                                                        .OfType<SubscriptionTreeNode>()
+                                                        .Select(s => s.Resource.Url)
+                                                        .ToList() ?? []
+                                                    : [];
+                                                <MudMenuItem Icon="@Icons.Material.Filled.FolderDelete"
+                                                             Label="Delete from folder"
+                                                             OnClick="@(() => OnContextRemoveTopicFromFolder(subUrls, presenter.ParentFolderNode))"
+                                                             Class="mud-error-text"/>
+                                            }
+                                            else
+                                            {
+                                                <MudMenuItem Icon="@Icons.Material.Filled.FolderDelete"
+                                                             Label="Delete from folder"
+                                                             OnClick="@(() => OnContextRemoveFromFolder(resourceNode, presenter.ParentFolderNode))"
+                                                             Class="mud-error-text"/>
+                                            }
                                         }
                                         else if(allFolders.Count > 0)
                                         {

@@ -113,6 +113,18 @@ public partial class NamespaceTree
 
     private void OnContextAddToFolder(ResourceTreeNode resource, FolderTreeNode targetFolder)
     {
+        if (resource is TopicTreeNode topic)
+        {
+            var connectionName = GetConnectionName(topic) ?? "";
+            var subUrls = FlattenNodes(Resources)
+                .OfType<SubscriptionTreeNode>()
+                .Where(s => GetConnectionName(s) == connectionName && s.Resource.TopicName == topic.Resource.Name)
+                .Select(s => s.Resource.Url);
+            foreach (var url in subUrls)
+                _dispatcher.Dispatch(new AddResourceToFolderAction(
+                    targetFolder.FolderId, targetFolder.ConnectionId, targetFolder.ConnectionName, url));
+            return;
+        }
         var resourceUrl = GetResourceUrl(resource);
         if (resourceUrl is null) return;
         _dispatcher.Dispatch(new AddResourceToFolderAction(
@@ -121,9 +133,6 @@ public partial class NamespaceTree
 
     private async Task OnContextAddToNewFolder(ResourceTreeNode resource)
     {
-        var resourceUrl = GetResourceUrl(resource);
-        if (resourceUrl is null) return;
-
         var connectionName = GetConnectionName(resource);
         if (connectionName is null) return;
 
@@ -141,6 +150,21 @@ public partial class NamespaceTree
         if (result is not { Canceled: false, Data: string folderName } || string.IsNullOrWhiteSpace(folderName))
             return;
 
+        if (resource is TopicTreeNode topic)
+        {
+            var subUrls = FlattenNodes(Resources)
+                .OfType<SubscriptionTreeNode>()
+                .Where(s => GetConnectionName(s) == connectionName && s.Resource.TopicName == topic.Resource.Name)
+                .Select(s => s.Resource.Url)
+                .ToList();
+            _dispatcher.Dispatch(new CreateFolderAndAddResourcesAction(
+                foldersNode.ConnectionId, foldersNode.ConnectionName, foldersNode.ConnectionConfig,
+                folderName, subUrls));
+            return;
+        }
+
+        var resourceUrl = GetResourceUrl(resource);
+        if (resourceUrl is null) return;
         _dispatcher.Dispatch(new CreateFolderAndAddResourceAction(
             foldersNode.ConnectionId, foldersNode.ConnectionName, foldersNode.ConnectionConfig,
             folderName, resourceUrl));
@@ -152,6 +176,13 @@ public partial class NamespaceTree
         if (resourceUrl is null) return;
         _dispatcher.Dispatch(new RemoveResourceFromFolderAction(
             folder.FolderId, folder.ConnectionId, folder.ConnectionName, resourceUrl));
+    }
+
+    private void OnContextRemoveTopicFromFolder(List<string> subUrls, FolderTreeNode folder)
+    {
+        foreach (var url in subUrls)
+            _dispatcher.Dispatch(new RemoveResourceFromFolderAction(
+                folder.FolderId, folder.ConnectionId, folder.ConnectionName, url));
     }
 
     private void OnContextRefreshResource(ResourceTreeNode node)
@@ -254,6 +285,47 @@ public partial class NamespaceTree
                 foreach (var topicNode in filteredTopicNodes)
                     _dispatcher.Dispatch(new RefreshTopicAction(topicNode));
                 break;
+            
+            case FolderTreeNode folder:
+                var folderPresenter = FindFolderPresenter(Resources, folder.FolderId);
+                if (folderPresenter?.Children is null)
+                    break;
+                
+                var descendants = FlattenItemPresenters(folderPresenter.Children.OfType<ResourceTreeItemData>()).ToList();
+                
+                foreach (var queue in descendants
+                             .Select(i => i.Value)
+                             .OfType<QueueTreeNode>()
+                             .DistinctBy(q => q.Resource.Url))
+                {
+                    _dispatcher.Dispatch(new RefreshQueueAction(queue));
+                }
+                
+                foreach (var topic in descendants
+                             .Select(i => i.Value)
+                             .OfType<TopicTreeNode>()
+                             .DistinctBy(t => t.Resource.Url))
+                {
+                    _dispatcher.Dispatch(new RefreshTopicAction(topic));
+                }
+                break;
+        }
+    }
+    
+    private static ResourceTreeItemData? FindFolderPresenter(IEnumerable<ResourceTreeItemData> roots, long folderId) =>
+        FlattenItemPresenters(roots).FirstOrDefault(i => i.Value is FolderTreeNode f && f.FolderId == folderId);
+    
+    private static IEnumerable<ResourceTreeItemData> FlattenItemPresenters(IEnumerable<ResourceTreeItemData> items)
+    {
+        foreach (var item in items)
+        {
+            yield return item;
+    
+            if (item.Children is null)
+                continue;
+    
+            foreach (var nested in FlattenItemPresenters(item.Children.OfType<ResourceTreeItemData>()))
+                yield return nested;
         }
     }
 
