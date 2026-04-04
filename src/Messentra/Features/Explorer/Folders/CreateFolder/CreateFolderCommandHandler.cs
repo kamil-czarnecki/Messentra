@@ -17,7 +17,16 @@ public sealed class CreateFolderCommandHandler : ICommandHandler<CreateFolderCom
     public async ValueTask<long> Handle(CreateFolderCommand command, CancellationToken cancellationToken)
     {
         await using var dbContext = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        var folder = new Folder { ConnectionId = command.ConnectionId, Name = command.Name };
+
+        var folderName = command.Name.Trim();
+        var normalizedFolderName = folderName.ToLowerInvariant();
+        var exists = await dbContext.Set<Folder>()
+            .AnyAsync(f => f.ConnectionId == command.ConnectionId && f.Name.ToLower() == normalizedFolderName, cancellationToken);
+
+        if (exists)
+            throw new InvalidOperationException($"Folder '{folderName}' already exists.");
+
+        var folder = new Folder { ConnectionId = command.ConnectionId, Name = folderName };
         await dbContext.Set<Folder>().AddAsync(folder, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return folder.Id;

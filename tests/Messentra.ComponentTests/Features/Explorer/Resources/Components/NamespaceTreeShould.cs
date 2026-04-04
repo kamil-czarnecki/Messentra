@@ -798,6 +798,44 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     }
 
     [Fact]
+    public async Task DoNotDispatchCreateFolderActionWhenDuplicateFolderNameEntered()
+    {
+        // Arrange
+        var config = ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "t", "c");
+        var existingFolder = new ResourceTreeItemData
+        {
+            Text = "My Team",
+            Value = new FolderTreeNode(10L, 1L, "My Team", "Test Namespace", config),
+            IsReadonly = true,
+            Expandable = false
+        };
+        var foldersGroup = BuildFoldersGroup(config: config, folders: [existingFolder]);
+        var nsItem = new ResourceTreeItemData
+        {
+            Text = "Test Namespace",
+            Value = new NamespaceTreeNode("Test Namespace", config),
+            IsReadonly = true,
+            Expandable = true,
+            Expanded = true,
+            Children = new List<TreeItemData<ResourceTreeNode>> { foldersGroup }
+        };
+
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, [nsItem])
+            .Add(x => x.Connections, []));
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find(".folders-add-btn").Click());
+        await MudDialog.WaitForAssertionAsync(() => MudDialog.Find(".folder-name-input input").ShouldNotBeNull());
+        await MudDialog.Find(".folder-name-input input").InputAsync(" my team ");
+
+        // Assert
+        await MudDialog.WaitForAssertionAsync(() =>
+            MudDialog.Find(".folder-create-confirm").HasAttribute("disabled").ShouldBeTrue());
+        MockDispatcher.Verify(x => x.Dispatch(It.IsAny<CreateFolderAction>()), Times.Never);
+    }
+
+    [Fact]
     public void OnParametersSet_WhenSearchPhraseChangesExternally_SyncsLocalPhrase()
     {
         // Arrange — render with an initial phrase

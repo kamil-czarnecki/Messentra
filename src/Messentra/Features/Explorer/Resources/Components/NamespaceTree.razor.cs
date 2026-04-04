@@ -80,8 +80,13 @@ public partial class NamespaceTree
 
     private async Task OnAddFolderClicked(FoldersTreeNode node)
     {
+        var parameters = new DialogParameters<NewFolderDialog>
+        {
+            { x => x.ExistingFolderNames, GetFolderNamesForConnection(node.ConnectionId) }
+        };
         var dialog = await _dialogService.ShowAsync<NewFolderDialog>(
             "New folder",
+            parameters,
             new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
 
         var result = await dialog.Result;
@@ -97,7 +102,11 @@ public partial class NamespaceTree
 
     private async Task OnContextRenameFolder(FolderTreeNode folder)
     {
-        var parameters = new DialogParameters<NewFolderDialog> { { x => x.InitialName, folder.Name } };
+        var parameters = new DialogParameters<NewFolderDialog>
+        {
+            { x => x.InitialName, folder.Name },
+            { x => x.ExistingFolderNames, GetFolderNamesForConnection(folder.ConnectionId) }
+        };
         var dialog = await _dialogService.ShowAsync<NewFolderDialog>("Rename folder", parameters,
             new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
         var result = await dialog.Result;
@@ -143,8 +152,13 @@ public partial class NamespaceTree
             .FirstOrDefault();
         if (foldersNode is null) return;
 
+        var parameters = new DialogParameters<NewFolderDialog>
+        {
+            { x => x.ExistingFolderNames, GetFolderNamesForConnection(foldersNode.ConnectionId) }
+        };
         var dialog = await _dialogService.ShowAsync<NewFolderDialog>(
             "New folder",
+            parameters,
             new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
         var result = await dialog.Result;
         if (result is not { Canceled: false, Data: string folderName } || string.IsNullOrWhiteSpace(folderName))
@@ -453,4 +467,11 @@ public partial class NamespaceTree
         ResourceTreeFilter.Filter(Resources, SearchQueryParser.Parse(_localSearchPhrase));
 
     private static readonly string[] SourceArray = ["namespace:", "has:dlq"];
+
+    private IReadOnlyList<string> GetFolderNamesForConnection(long connectionId) =>
+        FlattenNodes(Resources)
+            .OfType<FolderTreeNode>()
+            .Where(folder => folder.ConnectionId == connectionId)
+            .Select(folder => folder.Name)
+            .ToList();
 }
