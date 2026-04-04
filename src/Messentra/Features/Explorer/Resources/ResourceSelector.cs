@@ -41,6 +41,7 @@ public sealed class ResourceSelector
             Expandable = true,
             Expanded = expandedKeys.Contains($"queues:{ns.ConnectionName}"),
             Children = ns.Queues.Values
+                .OrderBy(t => t.Node.Resource.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(q => BuildQueueItem(q, selected))
                 .ToList<TreeItemData<ResourceTreeNode>>()
         };
@@ -55,6 +56,7 @@ public sealed class ResourceSelector
             Expandable = true,
             Expanded = expandedKeys.Contains($"topics:{ns.ConnectionName}"),
             Children = ns.Topics.Values
+                .OrderBy(t => t.Node.Resource.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(t => BuildTopicItem(t, selected, expandedKeys))
                 .ToList<TreeItemData<ResourceTreeNode>>()
         };
@@ -90,6 +92,7 @@ public sealed class ResourceSelector
     {
         var node = entry.Node with { IsLoading = entry.IsLoading };
         var subscriptionItems = entry.Subscriptions.Values
+            .OrderBy(s => s.Node.Resource.Name, StringComparer.OrdinalIgnoreCase)
             .Select(s => BuildSubscriptionItem(s, selected))
             .ToList<TreeItemData<ResourceTreeNode>>();
 
