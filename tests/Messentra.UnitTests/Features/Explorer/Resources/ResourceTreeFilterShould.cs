@@ -190,6 +190,87 @@ public sealed class ResourceTreeFilterShould
         queues[0].Text.ShouldBe("alpha");
     }
 
+    // --- folder nodes ---
+
+    [Fact]
+    public void KeepFolderGroupWhenResourceNameMatchesPhrase()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var queue = ResourceTestData.CreateQueue("orders-processing");
+        var queueNode = new QueueTreeNode("test", queue, config);
+        var queueItem = new ResourceTreeItemData { Text = "orders-processing", Value = queueNode };
+
+        var folderNode = new FolderTreeNode(1L, 1L, "My Team", "test", config);
+        var folderItem = new ResourceTreeItemData
+        {
+            Text = "My Team",
+            Value = folderNode,
+            Children = [queueItem]
+        };
+
+        var foldersGroupItem = new ResourceTreeItemData
+        {
+            Text = "Folders",
+            Value = new FoldersTreeNode(1L, "test", config),
+            Children = [folderItem]
+        };
+
+        var nsItem = new ResourceTreeItemData
+        {
+            Text = "test-ns",
+            Value = new NamespaceTreeNode("test", config),
+            Children = [foldersGroupItem]
+        };
+
+        // Act
+        var result = ResourceTreeFilter.Filter([nsItem], SearchQueryParser.Parse("orders"));
+
+        // Assert
+        result.ShouldHaveSingleItem();
+        var foldersGroup = result[0].Children!.OfType<ResourceTreeItemData>().First();
+        foldersGroup.Value.ShouldBeOfType<FoldersTreeNode>();
+        foldersGroup.Children.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void HideFolderGroupWhenNoResourcesMatch()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var queue = ResourceTestData.CreateQueue("invoices");
+        var queueNode = new QueueTreeNode("test", queue, config);
+        var queueItem = new ResourceTreeItemData { Text = "invoices", Value = queueNode };
+
+        var folderNode = new FolderTreeNode(1L, 1L, "My Team", "test", config);
+        var folderItem = new ResourceTreeItemData
+        {
+            Text = "My Team",
+            Value = folderNode,
+            Children = [queueItem]
+        };
+
+        var foldersGroupItem = new ResourceTreeItemData
+        {
+            Text = "Folders",
+            Value = new FoldersTreeNode(1L, "test", config),
+            Children = [folderItem]
+        };
+
+        var nsItem = new ResourceTreeItemData
+        {
+            Text = "test-ns",
+            Value = new NamespaceTreeNode("test", config),
+            Children = [foldersGroupItem]
+        };
+
+        // Act
+        var result = ResourceTreeFilter.Filter([nsItem], SearchQueryParser.Parse("orders"));
+
+        // Assert
+        result.ShouldBeEmpty();
+    }
+
     // --- HasDlqMessages helper ---
 
     [Fact]

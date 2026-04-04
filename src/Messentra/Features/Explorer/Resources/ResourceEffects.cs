@@ -1,5 +1,12 @@
 using Fluxor;
 using Mediator;
+using Messentra.Features.Explorer.Folders;
+using Messentra.Features.Explorer.Folders.AddResourceToFolder;
+using Messentra.Features.Explorer.Folders.CreateFolder;
+using Messentra.Features.Explorer.Folders.DeleteFolder;
+using Messentra.Features.Explorer.Folders.GetFoldersByConnectionId;
+using Messentra.Features.Explorer.Folders.RemoveResourceFromFolder;
+using Messentra.Features.Explorer.Folders.RenameFolder;
 using Messentra.Features.Explorer.Resources.Queues.GetAllQueueResources;
 using Messentra.Features.Explorer.Resources.Queues.GetQueueResource;
 using Messentra.Features.Explorer.Resources.Subscriptions.GetSubscriptionResource;
@@ -49,15 +56,16 @@ public sealed class ResourceEffects
                 DateTime.Now)));
             var getQueues = _mediator.Send(new GetAllQueueResourcesQuery(action.ConnectionConfig), cts.Token).AsTask();
             var getTopics = _mediator.Send(new GetAllTopicResourcesQuery(action.ConnectionConfig), cts.Token).AsTask();
+            var getFolders = _mediator.Send(new GetFoldersByConnectionIdQuery(action.ConnectionId), cts.Token).AsTask();
 
-            await Task.WhenAll(getQueues, getTopics);
+            await Task.WhenAll(getQueues, getTopics, getFolders);
 
             dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
                 action.ConnectionName,
                 "Info",
                 "Resources fetched successfully.",
                 DateTime.Now)));
-            dispatcher.Dispatch(new FetchResourcesSuccessAction(action.ConnectionName, action.ConnectionConfig, getQueues.Result, getTopics.Result));
+            dispatcher.Dispatch(new FetchResourcesSuccessAction(action.ConnectionId, action.ConnectionName, action.ConnectionConfig, getQueues.Result, getTopics.Result, getFolders.Result));
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -315,6 +323,124 @@ public sealed class ResourceEffects
                 action.Node.ConnectionName, "Error", $"Refreshing topics failed: {errorSummary}", DateTime.Now)));
             dispatcher.Dispatch(new RefreshTopicsFailureAction(action.Node, errorSummary));
             _logger.LogError(ex, "Error refreshing topics for connection '{ConnectionName}'", action.Node.ConnectionName);
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleCreateFolder(CreateFolderAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            var folderId = await _mediator.Send(new CreateFolderCommand(action.ConnectionId, action.Name));
+            var node = new FolderTreeNode(folderId, action.ConnectionId, action.Name, action.ConnectionName, action.ConnectionConfig);
+            var entry = new FolderEntry(node, new HashSet<string>());
+            dispatcher.Dispatch(new CreateFolderSuccessAction(action.ConnectionId, action.ConnectionName, entry));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create folder");
+            dispatcher.Dispatch(new CreateFolderFailureAction(action.ConnectionName, ex.Message));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleCreateFolderAndAddResource(CreateFolderAndAddResourceAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            var folderId = await _mediator.Send(new CreateFolderCommand(action.ConnectionId, action.FolderName));
+            var node = new FolderTreeNode(folderId, action.ConnectionId, action.FolderName, action.ConnectionName, action.ConnectionConfig);
+            var entry = new FolderEntry(node, new HashSet<string>());
+            dispatcher.Dispatch(new CreateFolderSuccessAction(action.ConnectionId, action.ConnectionName, entry));
+            await _mediator.Send(new AddResourceToFolderCommand(folderId, action.ResourceUrl));
+            dispatcher.Dispatch(new AddResourceToFolderSuccessAction(folderId, action.ConnectionId, action.ConnectionName, action.ResourceUrl));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create folder and add resource");
+            dispatcher.Dispatch(new CreateFolderFailureAction(action.ConnectionName, ex.Message));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleCreateFolderAndAddResources(CreateFolderAndAddResourcesAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            var folderId = await _mediator.Send(new CreateFolderCommand(action.ConnectionId, action.FolderName));
+            var node = new FolderTreeNode(folderId, action.ConnectionId, action.FolderName, action.ConnectionName, action.ConnectionConfig);
+            var entry = new FolderEntry(node, new HashSet<string>());
+            dispatcher.Dispatch(new CreateFolderSuccessAction(action.ConnectionId, action.ConnectionName, entry));
+            foreach (var url in action.ResourceUrls)
+            {
+                await _mediator.Send(new AddResourceToFolderCommand(folderId, url));
+                dispatcher.Dispatch(new AddResourceToFolderSuccessAction(folderId, action.ConnectionId, action.ConnectionName, url));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create folder and add resources");
+            dispatcher.Dispatch(new CreateFolderFailureAction(action.ConnectionName, ex.Message));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleRenameFolder(RenameFolderAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            await _mediator.Send(new RenameFolderCommand(action.FolderId, action.NewName));
+            dispatcher.Dispatch(new RenameFolderSuccessAction(action.FolderId, action.ConnectionId, action.ConnectionName, action.NewName));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to rename folder");
+            dispatcher.Dispatch(new RenameFolderFailureAction(action.ConnectionName, ex.Message));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleDeleteFolder(DeleteFolderAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            await _mediator.Send(new DeleteFolderCommand(action.FolderId));
+            dispatcher.Dispatch(new DeleteFolderSuccessAction(action.FolderId, action.ConnectionId, action.ConnectionName));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete folder");
+            dispatcher.Dispatch(new DeleteFolderFailureAction(action.ConnectionName, ex.Message));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleAddResourceToFolder(AddResourceToFolderAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            await _mediator.Send(new AddResourceToFolderCommand(action.FolderId, action.ResourceUrl));
+            dispatcher.Dispatch(new AddResourceToFolderSuccessAction(action.FolderId, action.ConnectionId, action.ConnectionName, action.ResourceUrl));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to add resource to folder");
+            dispatcher.Dispatch(new AddResourceToFolderFailureAction(action.ConnectionName, ex.Message));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleRemoveResourceFromFolder(RemoveResourceFromFolderAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            await _mediator.Send(new RemoveResourceFromFolderCommand(action.FolderId, action.ResourceUrl));
+            dispatcher.Dispatch(new RemoveResourceFromFolderSuccessAction(action.FolderId, action.ConnectionId, action.ConnectionName, action.ResourceUrl));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove resource from folder");
+            dispatcher.Dispatch(new RemoveResourceFromFolderFailureAction(action.ConnectionName, ex.Message));
         }
     }
 

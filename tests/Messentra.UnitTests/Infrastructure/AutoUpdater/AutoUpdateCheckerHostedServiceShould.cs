@@ -52,12 +52,16 @@ public sealed class AutoUpdateCheckerHostedServiceShould
         var serviceScopeFactory = CreateServiceScopeFactory(autoUpdater.Object);
 
         var callCount = 0;
+        var calledAtLeastTwice = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         autoUpdater
             .Setup(x => x.CheckForUpdates())
             .Returns(() =>
             {
                 callCount++;
+                if (callCount >= 2)
+                    calledAtLeastTwice.TrySetResult();
+
                 if (callCount == 1)
                     throw new InvalidOperationException("boom");
                 return Task.CompletedTask;
@@ -72,11 +76,7 @@ public sealed class AutoUpdateCheckerHostedServiceShould
 
         // Act
         await sut.StartAsync(CancellationToken.None);
-        for (var i = 0; i < 6; i++)
-        {
-            timeProvider.Advance(TimeSpan.FromMinutes(1));
-            await Task.Yield();
-        }
+        await AdvanceUntilAsync(calledAtLeastTwice, timeProvider, TimeSpan.FromMinutes(1), 120);
         await sut.StopAsync(CancellationToken.None);
 
         // Assert

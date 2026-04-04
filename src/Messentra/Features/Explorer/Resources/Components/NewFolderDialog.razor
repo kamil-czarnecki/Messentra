@@ -1,0 +1,26 @@
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="_folderName"
+                      Label="Folder name"
+                      Immediate="true"
+                      AutoFocus="true"
+                      Error="@HasDuplicateName"
+                      ErrorText="Folder with this name already exists"
+                      Class="folder-name-input"/>
+
+        @if (HasDuplicateName)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-1 folder-name-error">
+                Folder with this name already exists
+            </MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="@Confirm"
+                   Class="folder-create-confirm"
+                   Disabled="@IsConfirmDisabled">Create</MudButton>
+    </DialogActions>
+</MudDialog>

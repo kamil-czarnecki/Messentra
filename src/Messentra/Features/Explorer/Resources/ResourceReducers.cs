@@ -7,7 +7,7 @@ public static class ResourceReducers
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, FetchResourcesAction action)
     {
-        var entry = new NamespaceEntry(action.ConnectionName, action.ConnectionConfig, IsLoading: true, Queues: [], Topics: []);
+        var entry = new NamespaceEntry(action.ConnectionId, action.ConnectionName, action.ConnectionConfig, IsLoading: true, Queues: [], Topics: [], Folders: []);
         var expandedKeys = new HashSet<string>(state.ExpandedKeys) { $"ns:{action.ConnectionName}" };
         return state with { Namespaces = [..state.Namespaces, entry], ExpandedKeys = expandedKeys };
     }
@@ -29,7 +29,11 @@ public static class ResourceReducers
                 return new TopicEntry(new TopicTreeNode(action.ConnectionName, t, action.ConnectionConfig), false, subs);
             });
 
-        var updated = new NamespaceEntry(action.ConnectionName, action.ConnectionConfig, false, queues, topics);
+        var folders = action.Folders.ToDictionary(
+            f => f.Id,
+            f => new FolderEntry(new FolderTreeNode(f.Id, action.ConnectionId, f.Name, action.ConnectionName, action.ConnectionConfig), f.ResourceUrls));
+
+        var updated = new NamespaceEntry(action.ConnectionId, action.ConnectionName, action.ConnectionConfig, false, queues, topics, folders);
         return state with
         {
             Namespaces = state.Namespaces
@@ -95,9 +99,11 @@ public static class ResourceReducers
             NamespaceTreeNode n when n.ConnectionName == action.ConnectionName => null,
             QueuesTreeNode n when n.ConnectionName == action.ConnectionName => null,
             TopicsTreeNode n when n.ConnectionName == action.ConnectionName => null,
+            FoldersTreeNode n when n.ConnectionName == action.ConnectionName => null,
             QueueTreeNode n when n.ConnectionName == action.ConnectionName => null,
             TopicTreeNode n when n.ConnectionName == action.ConnectionName => null,
             SubscriptionTreeNode n when n.ConnectionName == action.ConnectionName => null,
+            FolderTreeNode n when n.ConnectionName == action.ConnectionName => null,
             _ => state.SelectedResource
         };
 
@@ -508,6 +514,72 @@ public static class ResourceReducers
             }
         };
     }
+
+    [ReducerMethod]
+    public static ResourceState ReduceCreateFolderSuccess(ResourceState state, CreateFolderSuccessAction action) =>
+        state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != action.ConnectionName ? ns
+                    : ns with { Folders = ns.Folders.With(action.Entry.Node.FolderId, action.Entry) })
+                .ToList()
+        };
+
+    [ReducerMethod]
+    public static ResourceState ReduceRenameFolderSuccess(ResourceState state, RenameFolderSuccessAction action) =>
+        state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != action.ConnectionName ? ns
+                    : ns with
+                    {
+                        Folders = ns.Folders.With(action.FolderId, e =>
+                            e with { Node = e.Node with { Name = action.NewName } })
+                    })
+                .ToList()
+        };
+
+    [ReducerMethod]
+    public static ResourceState ReduceDeleteFolderSuccess(ResourceState state, DeleteFolderSuccessAction action) =>
+        state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != action.ConnectionName ? ns
+                    : ns with { Folders = ns.Folders.Without(action.FolderId) })
+                .ToList()
+        };
+
+    [ReducerMethod]
+    public static ResourceState ReduceAddResourceToFolderSuccess(ResourceState state, AddResourceToFolderSuccessAction action) =>
+        state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != action.ConnectionName ? ns
+                    : ns with
+                    {
+                        Folders = ns.Folders.With(action.FolderId, e =>
+                            e with { ResourceUrls = new HashSet<string>(e.ResourceUrls) { action.ResourceUrl } })
+                    })
+                .ToList()
+        };
+
+    [ReducerMethod]
+    public static ResourceState ReduceRemoveResourceFromFolderSuccess(ResourceState state, RemoveResourceFromFolderSuccessAction action) =>
+        state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionName != action.ConnectionName ? ns
+                    : ns with
+                    {
+                        Folders = ns.Folders.With(action.FolderId, e =>
+                        {
+                            var urls = new HashSet<string>(e.ResourceUrls);
+                            urls.Remove(action.ResourceUrl);
+                            return e with { ResourceUrls = urls };
+                        })
+                    })
+                .ToList()
+        };
 }
 
 internal static class DictionaryExtensions
@@ -519,6 +591,23 @@ internal static class DictionaryExtensions
         var copy = new Dictionary<TKey, TValue>(dict);
         if (copy.TryGetValue(key, out var existing))
             copy[key] = update(existing);
+        return copy;
+    }
+
+    internal static Dictionary<TKey, TValue> With<TKey, TValue>(
+        this Dictionary<TKey, TValue> dict, TKey key, TValue value)
+        where TKey : notnull
+    {
+        var copy = new Dictionary<TKey, TValue>(dict) { [key] = value };
+        return copy;
+    }
+
+    internal static Dictionary<TKey, TValue> Without<TKey, TValue>(
+        this Dictionary<TKey, TValue> dict, TKey key)
+        where TKey : notnull
+    {
+        var copy = new Dictionary<TKey, TValue>(dict);
+        copy.Remove(key);
         return copy;
     }
 }

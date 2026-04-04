@@ -15,9 +15,9 @@ public sealed class ResourceReducersShould
     {
         var queueNode = new QueueTreeNode(ConnectionName, queue, config);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false,
+            ConnectionId: 1L, ConnectionName, config, false,
             Queues: new Dictionary<string, QueueEntry> { [queue.Url] = new(queueNode, false) },
-            Topics: []);
+            Topics: [], Folders: []);
         return new ResourceState(
             Namespaces: [entry],
             SelectedResource: queueSelected ? queueNode : null,
@@ -35,9 +35,10 @@ public sealed class ResourceReducersShould
             s => s.Url,
             s => new SubscriptionEntry(new SubscriptionTreeNode(ConnectionName, s, config), false));
         var entry = new NamespaceEntry(
-            ConnectionName, config, false,
+            ConnectionId: 1L, ConnectionName, config, false,
             Queues: [],
-            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(topicNode, false, subs) });
+            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(topicNode, false, subs) },
+            Folders: []);
 
         ResourceTreeNode? selected = null;
         if (topicSelected) selected = topicNode;
@@ -53,7 +54,7 @@ public sealed class ResourceReducersShould
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
         var state = new ResourceState(Namespaces: [], SelectedResource: null, ExpandedKeys: []);
-        var action = new FetchResourcesAction(ConnectionName, config);
+        var action = new FetchResourcesAction(ConnectionId: 1L, ConnectionName, config);
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
@@ -69,10 +70,10 @@ public sealed class ResourceReducersShould
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var loadingEntry = new NamespaceEntry(ConnectionName, config, IsLoading: true, Queues: [], Topics: []);
+        var loadingEntry = new NamespaceEntry(ConnectionId: 1L, ConnectionName, config, IsLoading: true, Queues: [], Topics: [], Folders: []);
         var state = new ResourceState(Namespaces: [loadingEntry], SelectedResource: null, ExpandedKeys: []);
         var queue = ResourceTestData.CreateQueue("queue-1");
-        var action = new FetchResourcesSuccessAction(ConnectionName, config, [queue], []);
+        var action = new FetchResourcesSuccessAction(ConnectionId: 1L, ConnectionName, config, [queue], [], []);
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
@@ -88,7 +89,7 @@ public sealed class ResourceReducersShould
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var loadingEntry = new NamespaceEntry(ConnectionName, config, true, [], []);
+        var loadingEntry = new NamespaceEntry(1L, ConnectionName, config, true, [], [], []);
         var state = new ResourceState(
             Namespaces: [loadingEntry],
             SelectedResource: null,
@@ -109,7 +110,7 @@ public sealed class ResourceReducersShould
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var loadingEntry = new NamespaceEntry(ConnectionName, config, true, [], []);
+        var loadingEntry = new NamespaceEntry(1L, ConnectionName, config, true, [], [], []);
         var state = new ResourceState(
             Namespaces: [loadingEntry],
             SelectedResource: null,
@@ -130,7 +131,7 @@ public sealed class ResourceReducersShould
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var loadingEntry = new NamespaceEntry(ConnectionName, config, true, [], []);
+        var loadingEntry = new NamespaceEntry(1L, ConnectionName, config, true, [], [], []);
         var state = new ResourceState(
             Namespaces: [loadingEntry],
             SelectedResource: null,
@@ -199,7 +200,7 @@ public sealed class ResourceReducersShould
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var entry = new NamespaceEntry(ConnectionName, config, false, [], []);
+        var entry = new NamespaceEntry(1L, ConnectionName, config, false, [], [], []);
         var state = new ResourceState(
             Namespaces: [entry],
             SelectedResource: new NamespaceTreeNode(ConnectionName, config),
@@ -211,6 +212,38 @@ public sealed class ResourceReducersShould
 
         // Assert
         newState.Namespaces.ShouldBeEmpty();
+        newState.SelectedResource.ShouldBeNull();
+    }
+
+    [Fact]
+    public void DisconnectResourceAction_ClearsFoldersTreeNodeWhenSelected()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var node = new FoldersTreeNode(1L, ConnectionName, config);
+        var state = new ResourceState([], node, []);
+        var action = new DisconnectResourceAction(ConnectionName);
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
+        newState.SelectedResource.ShouldBeNull();
+    }
+
+    [Fact]
+    public void DisconnectResourceAction_ClearsFolderTreeNodeWhenSelected()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var node = new FolderTreeNode(10L, 1L, "My Team", ConnectionName, config);
+        var state = new ResourceState([], node, []);
+        var action = new DisconnectResourceAction(ConnectionName);
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
         newState.SelectedResource.ShouldBeNull();
     }
 
@@ -296,9 +329,9 @@ public sealed class ResourceReducersShould
         var queue = ResourceTestData.CreateQueue("queue-1");
         var loadingNode = new QueueTreeNode(ConnectionName, queue, config, IsLoading: true);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false,
+            ConnectionId: 1L, ConnectionName, config, false,
             Queues: new Dictionary<string, QueueEntry> { [queue.Url] = new(loadingNode, true) },
-            Topics: []);
+            Topics: [], Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var action = new RefreshQueueFailureAction(loadingNode, "error");
 
@@ -317,9 +350,9 @@ public sealed class ResourceReducersShould
         var queue = ResourceTestData.CreateQueue("queue-1");
         var loadingNode = new QueueTreeNode(ConnectionName, queue, config, IsLoading: true);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false,
+            ConnectionId: 1L, ConnectionName, config, false,
             Queues: new Dictionary<string, QueueEntry> { [queue.Url] = new(loadingNode, true) },
-            Topics: []);
+            Topics: [], Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingNode, ExpandedKeys: []);
         var action = new RefreshQueueFailureAction(loadingNode, "error");
 
@@ -413,8 +446,8 @@ public sealed class ResourceReducersShould
         var topic = ResourceTestData.CreateTopic("topic-1");
         var loadingNode = new TopicTreeNode(ConnectionName, topic, config, IsLoading: true);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false, Queues: [],
-            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingNode, true, []) });
+            ConnectionId: 1L, ConnectionName, config, false, Queues: [],
+            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingNode, true, []) }, Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var action = new RefreshTopicFailureAction(loadingNode, "error");
 
@@ -433,8 +466,8 @@ public sealed class ResourceReducersShould
         var topic = ResourceTestData.CreateTopic("topic-1");
         var loadingNode = new TopicTreeNode(ConnectionName, topic, config, IsLoading: true);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false, Queues: [],
-            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingNode, true, []) });
+            ConnectionId: 1L, ConnectionName, config, false, Queues: [],
+            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingNode, true, []) }, Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingNode, ExpandedKeys: []);
         var action = new RefreshTopicFailureAction(loadingNode, "error");
 
@@ -534,12 +567,12 @@ public sealed class ResourceReducersShould
         var loadingSubNode = new SubscriptionTreeNode(ConnectionName, sub, config, IsLoading: true);
         var topicNode = new TopicTreeNode(ConnectionName, topic, config);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false, Queues: [],
+            ConnectionId: 1L, ConnectionName, config, false, Queues: [],
             Topics: new Dictionary<string, TopicEntry>
             {
                 [topic.Url] = new(topicNode, false,
                     new Dictionary<string, SubscriptionEntry> { [sub.Url] = new(loadingSubNode, true) })
-            });
+            }, Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var action = new RefreshSubscriptionFailureAction(loadingSubNode, "error");
 
@@ -560,12 +593,12 @@ public sealed class ResourceReducersShould
         var loadingSubNode = new SubscriptionTreeNode(ConnectionName, sub, config, IsLoading: true);
         var topicNode = new TopicTreeNode(ConnectionName, topic, config);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false, Queues: [],
+            ConnectionId: 1L, ConnectionName, config, false, Queues: [],
             Topics: new Dictionary<string, TopicEntry>
             {
                 [topic.Url] = new(topicNode, false,
                     new Dictionary<string, SubscriptionEntry> { [sub.Url] = new(loadingSubNode, true) })
-            });
+            }, Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingSubNode, ExpandedKeys: []);
         var action = new RefreshSubscriptionFailureAction(loadingSubNode, "error");
 
@@ -661,9 +694,9 @@ public sealed class ResourceReducersShould
         var queue = ResourceTestData.CreateQueue("queue-1");
         var loadingQueueNode = new QueueTreeNode(ConnectionName, queue, config, IsLoading: true);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false,
+            ConnectionId: 1L, ConnectionName, config, false,
             Queues: new Dictionary<string, QueueEntry> { [queue.Url] = new(loadingQueueNode, true) },
-            Topics: []);
+            Topics: [], Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var queuesNode = new QueuesTreeNode(ConnectionName, config);
         var action = new RefreshQueuesFailureAction(queuesNode, "error");
@@ -683,9 +716,9 @@ public sealed class ResourceReducersShould
         var queue = ResourceTestData.CreateQueue("queue-1");
         var loadingQueueNode = new QueueTreeNode(ConnectionName, queue, config, IsLoading: true);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false,
+            ConnectionId: 1L, ConnectionName, config, false,
             Queues: new Dictionary<string, QueueEntry> { [queue.Url] = new(loadingQueueNode, true) },
-            Topics: []);
+            Topics: [], Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingQueueNode, ExpandedKeys: []);
         var queuesNode = new QueuesTreeNode(ConnectionName, config);
         var action = new RefreshQueuesFailureAction(queuesNode, "error");
@@ -782,8 +815,8 @@ public sealed class ResourceReducersShould
         var topic = ResourceTestData.CreateTopic("topic-1");
         var loadingTopicNode = new TopicTreeNode(ConnectionName, topic, config, IsLoading: true);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false, Queues: [],
-            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingTopicNode, true, []) });
+            ConnectionId: 1L, ConnectionName, config, false, Queues: [],
+            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingTopicNode, true, []) }, Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: []);
         var topicsNode = new TopicsTreeNode(ConnectionName, config);
         var action = new RefreshTopicsFailureAction(topicsNode, "error");
@@ -803,8 +836,8 @@ public sealed class ResourceReducersShould
         var topic = ResourceTestData.CreateTopic("topic-1");
         var loadingTopicNode = new TopicTreeNode(ConnectionName, topic, config, IsLoading: true);
         var entry = new NamespaceEntry(
-            ConnectionName, config, false, Queues: [],
-            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingTopicNode, true, []) });
+            ConnectionId: 1L, ConnectionName, config, false, Queues: [],
+            Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingTopicNode, true, []) }, Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingTopicNode, ExpandedKeys: []);
         var topicsNode = new TopicsTreeNode(ConnectionName, config);
         var action = new RefreshTopicsFailureAction(topicsNode, "error");
@@ -864,7 +897,7 @@ public sealed class ResourceReducersShould
     {
         // Arrange
         var config = ResourceTestData.CreateConnectionConfig();
-        var entry = new NamespaceEntry(ConnectionName, config, false, Queues: [], Topics: []);
+        var entry = new NamespaceEntry(1L, ConnectionName, config, false, Queues: [], Topics: [], Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: null, ExpandedKeys: [], SearchPhrase: "queue2");
         var action = new DisconnectResourceAction(ConnectionName);
 
@@ -873,6 +906,97 @@ public sealed class ResourceReducersShould
 
         // Assert
         newState.SearchPhrase.ShouldBe("queue2");
+    }
+
+    [Fact]
+    public void CreateFolderSuccessAction_AddsFolderEntryToNamespace()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var entry = new NamespaceEntry(1L, ConnectionName, config, false, [], [], []);
+        var state = new ResourceState([entry], null, []);
+        var folderNode = new FolderTreeNode(10L, 1L, "My Team", ConnectionName, config);
+        var folderEntry = new FolderEntry(folderNode, new HashSet<string>());
+        var action = new CreateFolderSuccessAction(1L, ConnectionName, folderEntry);
+
+        // Act
+        var newState = ResourceReducers.ReduceCreateFolderSuccess(state, action);
+
+        // Assert
+        newState.Namespaces[0].Folders.ShouldContainKey(10L);
+        newState.Namespaces[0].Folders[10L].Node.Name.ShouldBe("My Team");
+    }
+
+    [Fact]
+    public void RenameFolderSuccessAction_UpdatesFolderName()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var folderNode = new FolderTreeNode(10L, 1L, "Old Name", ConnectionName, config);
+        var folderEntry = new FolderEntry(folderNode, new HashSet<string>());
+        var entry = new NamespaceEntry(1L, ConnectionName, config, false, [], [], new Dictionary<long, FolderEntry> { [10L] = folderEntry });
+        var state = new ResourceState([entry], null, []);
+        var action = new RenameFolderSuccessAction(10L, 1L, ConnectionName, "New Name");
+
+        // Act
+        var newState = ResourceReducers.ReduceRenameFolderSuccess(state, action);
+
+        // Assert
+        newState.Namespaces[0].Folders[10L].Node.Name.ShouldBe("New Name");
+    }
+
+    [Fact]
+    public void DeleteFolderSuccessAction_RemovesFolderFromNamespace()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var folderNode = new FolderTreeNode(10L, 1L, "My Team", ConnectionName, config);
+        var folderEntry = new FolderEntry(folderNode, new HashSet<string>());
+        var entry = new NamespaceEntry(1L, ConnectionName, config, false, [], [], new Dictionary<long, FolderEntry> { [10L] = folderEntry });
+        var state = new ResourceState([entry], null, []);
+        var action = new DeleteFolderSuccessAction(10L, 1L, ConnectionName);
+
+        // Act
+        var newState = ResourceReducers.ReduceDeleteFolderSuccess(state, action);
+
+        // Assert
+        newState.Namespaces[0].Folders.ShouldNotContainKey(10L);
+    }
+
+    [Fact]
+    public void AddResourceToFolderSuccessAction_AddsUrlToFolderEntry()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var folderNode = new FolderTreeNode(10L, 1L, "My Team", ConnectionName, config);
+        var folderEntry = new FolderEntry(folderNode, new HashSet<string>());
+        var entry = new NamespaceEntry(1L, ConnectionName, config, false, [], [], new Dictionary<long, FolderEntry> { [10L] = folderEntry });
+        var state = new ResourceState([entry], null, []);
+        var action = new AddResourceToFolderSuccessAction(10L, 1L, ConnectionName, "queue:orders");
+
+        // Act
+        var newState = ResourceReducers.ReduceAddResourceToFolderSuccess(state, action);
+
+        // Assert
+        newState.Namespaces[0].Folders[10L].ResourceUrls.ShouldContain("queue:orders");
+    }
+
+    [Fact]
+    public void RemoveResourceFromFolderSuccessAction_RemovesUrlFromFolderEntry()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var folderNode = new FolderTreeNode(10L, 1L, "My Team", ConnectionName, config);
+        var folderEntry = new FolderEntry(folderNode, new HashSet<string>(["queue:orders"]));
+        var entry = new NamespaceEntry(1L, ConnectionName, config, false, [], [], new Dictionary<long, FolderEntry> { [10L] = folderEntry });
+        var state = new ResourceState([entry], null, []);
+        var action = new RemoveResourceFromFolderSuccessAction(10L, 1L, ConnectionName, "queue:orders");
+
+        // Act
+        var newState = ResourceReducers.ReduceRemoveResourceFromFolderSuccess(state, action);
+
+        // Assert
+        newState.Namespaces[0].Folders[10L].ResourceUrls.ShouldNotContain("queue:orders");
     }
 }
 

@@ -5,6 +5,7 @@ using Messentra.Features.Explorer.Resources.Components;
 using Messentra.Features.Settings.Connections.GetConnections;
 using Messentra.Infrastructure.AzureServiceBus;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using MudBlazor;
@@ -164,6 +165,24 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         MockDispatcher.Verify(
             d => d.Dispatch(It.Is<CancelFetchResourcesAction>(a => a.ConnectionName == "TestNamespace")),
             Times.Once);
+    }
+
+    [Fact]
+    public void RightClickOnResourceRow_DispatchesSelectResourceAction()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        // Act
+        var queueRow = cut.FindAll(".tree-item-body").First(x => x.TextContent.Contains("queue1"));
+        queueRow.TriggerEvent("oncontextmenu", new MouseEventArgs { Button = 2 });
+
+        // Assert
+        MockDispatcher.Verify(d => d.Dispatch(It.Is<SelectResourceAction>(a =>
+            a.Node is QueueTreeNode &&
+            ((QueueTreeNode)a.Node).Resource.Name == "queue1")), Times.Once);
     }
 
     // --- Filtering ---
@@ -700,6 +719,120 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         var suggestions = await GetSuggestions(cut, "NAMESPACE:TESTNAMESPACE");
 
         suggestions.ShouldNotContain("namespace:TestNamespace");
+    }
+
+    private static ResourceTreeItemData BuildFoldersGroup(
+        string connectionName = "Test Namespace",
+        ConnectionConfig? config = null,
+        List<ResourceTreeItemData>? folders = null)
+    {
+        config ??= ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "t", "c");
+        return new ResourceTreeItemData
+        {
+            Text = "Folders",
+            Value = new FoldersTreeNode(1L, connectionName, config),
+            Children = folders?.Cast<TreeItemData<ResourceTreeNode>>().ToList()
+        };
+    }
+
+    [Fact]
+    public void ShowFoldersSectionWhenResourcesConnected()
+    {
+        // Arrange
+        var foldersGroup = BuildFoldersGroup();
+        var nsItem = new ResourceTreeItemData
+        {
+            Text = "Test Namespace",
+            Value = new NamespaceTreeNode("Test Namespace",
+                ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "t", "c")),
+            Children = [foldersGroup]
+        };
+
+        // Act
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, [nsItem])
+            .Add(x => x.Connections, []));
+
+        // Assert
+        cut.Markup.ShouldContain("Folders");
+    }
+
+    [Fact]
+    public async Task DispatchCreateFolderActionWhenPlusButtonClickedAndDialogConfirmed()
+    {
+        // Arrange
+        var config = ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "t", "c");
+        var foldersGroup = BuildFoldersGroup(config: config);
+        var nsItem = new ResourceTreeItemData
+        {
+            Text = "Test Namespace",
+            Value = new NamespaceTreeNode("Test Namespace", config),
+            IsReadonly = true,
+            Expandable = true,
+            Expanded = true,
+            Children = new List<TreeItemData<ResourceTreeNode>> { foldersGroup }
+        };
+
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, [nsItem])
+            .Add(x => x.Connections, []));
+
+        // Act — click the + button on the Folders group row
+        // The OnAddFolderClicked is async (opens dialog via IDialogService), so we use InvokeAsync
+        // to start the async flow, and WaitForAssertion to wait for the dialog to appear
+        await cut.InvokeAsync(() => cut.Find(".folders-add-btn").Click());
+
+        // Wait for dialog to render in MudDialogProvider
+        await MudDialog.WaitForAssertionAsync(() => MudDialog.Find(".folder-name-input input").ShouldNotBeNull());
+
+        // Enter a name in the dialog (dialog renders through IDialogService into MudDialogProvider)
+        await MudDialog.Find(".folder-name-input input").InputAsync("My Team");
+        await MudDialog.Find(".folder-create-confirm").ClickAsync();
+
+        // Assert
+        MockDispatcher.Verify(x => x.Dispatch(It.Is<CreateFolderAction>(a =>
+            a.ConnectionId == 1L &&
+            a.ConnectionName == "Test Namespace" &&
+            a.ConnectionConfig == config &&
+            a.Name == "My Team")), Times.Once);
+    }
+
+    [Fact]
+    public async Task DoNotDispatchCreateFolderActionWhenDuplicateFolderNameEntered()
+    {
+        // Arrange
+        var config = ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "t", "c");
+        var existingFolder = new ResourceTreeItemData
+        {
+            Text = "My Team",
+            Value = new FolderTreeNode(10L, 1L, "My Team", "Test Namespace", config),
+            IsReadonly = true,
+            Expandable = false
+        };
+        var foldersGroup = BuildFoldersGroup(config: config, folders: [existingFolder]);
+        var nsItem = new ResourceTreeItemData
+        {
+            Text = "Test Namespace",
+            Value = new NamespaceTreeNode("Test Namespace", config),
+            IsReadonly = true,
+            Expandable = true,
+            Expanded = true,
+            Children = new List<TreeItemData<ResourceTreeNode>> { foldersGroup }
+        };
+
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, [nsItem])
+            .Add(x => x.Connections, []));
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find(".folders-add-btn").Click());
+        await MudDialog.WaitForAssertionAsync(() => MudDialog.Find(".folder-name-input input").ShouldNotBeNull());
+        await MudDialog.Find(".folder-name-input input").InputAsync(" my team ");
+
+        // Assert
+        await MudDialog.WaitForAssertionAsync(() =>
+            MudDialog.Find(".folder-create-confirm").HasAttribute("disabled").ShouldBeTrue());
+        MockDispatcher.Verify(x => x.Dispatch(It.IsAny<CreateFolderAction>()), Times.Never);
     }
 
     [Fact]

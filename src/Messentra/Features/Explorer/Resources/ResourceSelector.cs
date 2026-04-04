@@ -31,6 +31,23 @@ public sealed class ResourceSelector
 
     private static ResourceTreeItemData BuildNamespaceItem(NamespaceEntry ns, ResourceTreeNode? selected, HashSet<string> expandedKeys)
     {
+        var folderItems = ns.Folders.Values
+            .OrderBy(f => f.Node.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(f => BuildFolderItem(f, ns, selected, expandedKeys))
+            .ToList<TreeItemData<ResourceTreeNode>>();
+
+        var foldersGroupItem = new ResourceTreeItemData
+        {
+            Text = "Folders",
+            IsReadonly = true,
+            Value = new FoldersTreeNode(ns.ConnectionId, ns.ConnectionName, ns.ConnectionConfig),
+            Icon = Icons.Material.Filled.Folder,
+            IconColor = Color.Warning,
+            Expandable = true,
+            Expanded = expandedKeys.Contains($"folders:{ns.ConnectionName}"),
+            Children = folderItems.Count > 0 ? folderItems : null
+        };
+
         var queueGroupItem = new ResourceTreeItemData
         {
             Text = "Queues",
@@ -72,7 +89,7 @@ public sealed class ResourceSelector
             IsReadonly = true,
             Children = ns.IsLoading
                 ? null
-                : [queueGroupItem, topicGroupItem]
+                : [foldersGroupItem, queueGroupItem, topicGroupItem]
         };
     }
 
@@ -120,4 +137,88 @@ public sealed class ResourceSelector
             Selected = selected is SubscriptionTreeNode s && s.Resource.Url == node.Resource.Url
         };
     }
+
+    private static ResourceTreeItemData BuildFolderItem(FolderEntry entry, NamespaceEntry ns, ResourceTreeNode? selected, HashSet<string> expandedKeys)
+    {
+        var queueItems = new List<ResourceTreeItemData>();
+        var subsByTopicUrl = new Dictionary<string, (TopicEntry Topic, List<SubscriptionEntry> Subs)>();
+
+        foreach (var url in entry.ResourceUrls)
+        {
+            if (ns.Queues.TryGetValue(url, out var queue))
+            {
+                queueItems.Add(WithParentFolder(BuildQueueItem(queue, selected), entry.Node));
+                continue;
+            }
+            foreach (var topicEntry in ns.Topics.Values)
+            {
+                if (!topicEntry.Subscriptions.TryGetValue(url, out var sub)) continue;
+                var topicUrl = topicEntry.Node.Resource.Url;
+                if (!subsByTopicUrl.TryGetValue(topicUrl, out var group))
+                    subsByTopicUrl[topicUrl] = (topicEntry, new List<SubscriptionEntry>());
+                subsByTopicUrl[topicUrl].Subs.Add(sub);
+                break;
+            }
+        }
+
+        var allItems = queueItems
+            .Concat(subsByTopicUrl.Values.Select(TreeItemData<ResourceTreeNode> (g) =>
+                BuildDerivedTopicHeader(g.Topic, g.Subs, selected, expandedKeys, entry.Node)))
+            .OrderBy(i => i.Text, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new ResourceTreeItemData
+        {
+            Text = entry.Node.Name,
+            Value = entry.Node,
+            Icon = Icons.Material.Filled.FolderOpen,
+            IconColor = Color.Warning,
+            Expandable = allItems.Count > 0,
+            Expanded = expandedKeys.Contains($"folder:{entry.Node.FolderId}"),
+            Children = allItems.Count > 0 ? allItems : null,
+            IsReadonly = true
+        };
+    }
+
+    private static ResourceTreeItemData BuildDerivedTopicHeader(
+        TopicEntry topicEntry,
+        List<SubscriptionEntry> subsInFolder,
+        ResourceTreeNode? selected,
+        HashSet<string> expandedKeys,
+        FolderTreeNode parentFolder)
+    {
+        var topicNode = topicEntry.Node with { IsLoading = topicEntry.IsLoading };
+        var subItems = subsInFolder
+            .OrderBy(s => s.Node.Resource.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(TreeItemData<ResourceTreeNode> (s) => WithParentFolder(BuildSubscriptionItem(s, selected), parentFolder))
+            .ToList();
+
+        return new ResourceTreeItemData
+        {
+            Text = topicNode.Resource.Name,
+            Value = topicNode,
+            Icon = Icons.Material.Filled.Topic,
+            IconColor = Color.Secondary,
+            Expandable = subItems.Count > 0,
+            Expanded = expandedKeys.Contains($"topic:{topicNode.Resource.Url}"),
+            Children = subItems.Count > 0 ? subItems : null,
+            Selected = selected is TopicTreeNode t && t.Resource.Url == topicNode.Resource.Url,
+            ParentFolderNode = parentFolder
+        };
+    }
+
+    private static ResourceTreeItemData WithParentFolder(ResourceTreeItemData item, FolderTreeNode folder) =>
+        new()
+        {
+            Text = item.Text,
+            Value = item.Value,
+            Icon = item.Icon,
+            IconColor = item.IconColor,
+            IsReadonly = item.IsReadonly,
+            Expandable = item.Expandable,
+            Expanded = item.Expanded,
+            Selected = item.Selected,
+            Children = item.Children,
+            ParentFolderNode = folder
+        };
 }

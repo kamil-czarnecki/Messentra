@@ -53,6 +53,13 @@ Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;Share
 - **Properties** tab: full resource configuration and storage & quota details
 - **Dead-Letter** sub-queue accessible directly from the resource panel
 
+### 📁 Custom (Virtual) Folders
+Custom folders are virtual groups inside a namespace that help you organize resources by workflow, team, or incident context without changing anything in Azure.
+- Create, rename, and delete folders per namespace
+- Add queues and subscriptions to one or more folders
+- Adding a topic to a folder automatically includes its subscriptions for quick triage
+- Refresh a folder to refresh all resources currently grouped inside it
+
 ### 🔎 Resource Search & Filtering
 - Smart search bar in the Explorer tree with **special-phrase autocomplete**
 - **Plain text** - filter queues, topics, and subscriptions by name
