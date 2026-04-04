@@ -344,6 +344,25 @@ public sealed class ResourceEffects
     }
 
     [EffectMethod]
+    public async Task HandleCreateFolderAndAddResource(CreateFolderAndAddResourceAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            var folderId = await _mediator.Send(new CreateFolderCommand(action.ConnectionId, action.FolderName));
+            var node = new FolderTreeNode(folderId, action.ConnectionId, action.FolderName, action.ConnectionName, action.ConnectionConfig);
+            var entry = new FolderEntry(node, new HashSet<string>());
+            dispatcher.Dispatch(new CreateFolderSuccessAction(action.ConnectionId, action.ConnectionName, entry));
+            await _mediator.Send(new AddResourceToFolderCommand(folderId, action.ResourceUrl));
+            dispatcher.Dispatch(new AddResourceToFolderSuccessAction(folderId, action.ConnectionId, action.ConnectionName, action.ResourceUrl));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create folder and add resource");
+            dispatcher.Dispatch(new CreateFolderFailureAction(action.ConnectionName, ex.Message));
+        }
+    }
+
+    [EffectMethod]
     public async Task HandleRenameFolder(RenameFolderAction action, IDispatcher dispatcher)
     {
         try

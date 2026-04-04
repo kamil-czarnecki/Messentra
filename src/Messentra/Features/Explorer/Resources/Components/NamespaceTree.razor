@@ -1,5 +1,4 @@
 @using Messentra.Features.Explorer.Resources
-@using Messentra.Features.Explorer.Folders
 @using MudBlazor.Utilities
 
 <div class="namespace-tree">
@@ -54,7 +53,7 @@
     }
     else
     {
-        <MudHotkey Key="JsKey.F5" OnHotkeyPressed="@(() => RefreshHotkeyClicked())"/>
+        <MudHotkey Key="JsKey.F5" OnHotkeyPressed="@(RefreshHotkeyClicked)"/>
         <MudAutocomplete T="string"
                          Class="mx-2"
                          Dense="true"
@@ -83,53 +82,6 @@
                 </MudStack>
             </ItemTemplate>
         </MudAutocomplete>
-        @if (_contextMenuOpen)
-        {
-            <div style="position:fixed;inset:0;z-index:1000;"
-                 @onclick="CloseContextMenu"
-                 @oncontextmenu="CloseContextMenu"
-                 @oncontextmenu:preventDefault/>
-            <MudPaper Elevation="4"
-                      Style="@($"position:fixed;left:{_contextMenuX}px;top:{_contextMenuY}px;z-index:1001;min-width:200px;")">
-                @if (_contextFolderNode is not null)
-                {
-                    <MudList Dense="true" T="string">
-                        <MudListItem Text="Rename" OnClick="@(async () => await OnContextRenameFolder())"/>
-                        <MudDivider/>
-                        <MudListItem Text="Delete folder" OnClick="OnContextDeleteFolder" Class="mud-error-text"/>
-                    </MudList>
-                }
-                else if (_contextResourceNode is not null)
-                {
-                    var resourceUrl = GetResourceUrl(_contextResourceNode);
-                    var connectionName = GetConnectionName(_contextResourceNode) ?? "";
-                    var allFolders = GetAllNodes<FolderTreeNode>(connectionName).ToList();
-                    var containingFolders = resourceUrl is not null
-                        ? GetFoldersContainingResource(resourceUrl, connectionName).ToList()
-                        : new List<FolderTreeNode>();
-                    var containingIds = containingFolders.Select(f => f.FolderId).ToHashSet();
-                    var availableFolders = allFolders.Where(f => !containingIds.Contains(f.FolderId)).ToList();
-                    <MudList Dense="true" T="string">
-                        @foreach (var folder in availableFolders)
-                        {
-                            <MudListItem Text="@($"Add to \"{folder.Name}\"")" OnClick="@(() => OnContextAddToFolder(folder))"/>
-                        }
-                        @if (availableFolders.Count > 0 && containingFolders.Count > 0)
-                        {
-                            <MudDivider/>
-                        }
-                        @foreach (var folder in containingFolders)
-                        {
-                            <MudListItem Text="@($"Remove from \"{folder.Name}\"")" OnClick="@(() => OnContextRemoveFromFolder(folder))" Class="mud-error-text"/>
-                        }
-                        @if (allFolders.Count == 0)
-                        {
-                            <MudListItem Disabled="true" Text="No folders yet — create one first"/>
-                        }
-                    </MudList>
-                }
-            </MudPaper>
-        }
         <MudTreeView Ripple="false" Items="@FilteredResources" Dense="true" Class="ma-0 pa-0 mud-height-full compact-tree"
                      tabindex="0"
                      @onfocusin="@(() => _isFocused = true)"
@@ -148,64 +100,173 @@
                                  ReadOnly="@presenter.IsReadonly"
                                  SelectedChanged="@(x => ItemSelected(presenter, x))">
                     <BodyContent Context="node">
-                        <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mud-width-full tree-item-body"
-                                  @oncontextmenu="@(e => OnTreeItemRightClick(e, presenter))">
-                            <MudText Typo="Typo.caption" Class="flex-grow-1 text-truncate">@presenter.Text</MudText>
-                            @if (presenter.Value is { IsLoading: false })
+                        @switch (presenter.Value)
+                        {
+                            case FolderTreeNode folderNode:
+                                <MudMenu ActivationEvent="@MouseEvent.RightClick"
+                                         PositionAtCursor="true"
+                                         AnchorOrigin="Origin.BottomLeft"
+                                         Dense="true"
+                                         Class="mud-width-full">
+                                    <ActivatorContent Context="c">
+                                        <div class="mud-width-full tree-item-body"
+                                             @oncontextmenu="@(async e => await OnTreeItemRightClick(presenter, c, e))"
+                                             @oncontextmenu:preventDefault="true"
+                                             @oncontextmenu:stopPropagation="true">
+                                            <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mud-width-full">
+                                                <MudText Typo="Typo.caption" Class="flex-grow-1 text-truncate">@presenter.Text</MudText>
+                                            </MudStack>
+                                        </div>
+                                    </ActivatorContent>
+                                    <ChildContent>
+                                        <MudMenuItem Label="Rename" Icon="@Icons.Material.Filled.DriveFileRenameOutline" OnClick="@(async () => await OnContextRenameFolder(folderNode))"/>
+                                        <MudDivider/>
+                                        <MudMenuItem Label="Delete" Icon="@Icons.Material.Filled.FolderDelete" OnClick="@(() => OnContextDeleteFolder(folderNode))" Class="mud-error-text"/>
+                                    </ChildContent>
+                                </MudMenu>
+                                break;
+                            case QueueTreeNode or TopicTreeNode or SubscriptionTreeNode:
                             {
-                                switch (presenter.Value)
-                                {
-                                    case FoldersTreeNode foldersNode:
-                                        <MudIconButton Icon="@Icons.Material.Filled.CreateNewFolder"
-                                                       Color="Color.Primary"
-                                                       Size="Size.Small"
-                                                       Ripple="false"
-                                                       Class="folders-add-btn"
-                                                       OnClick="@(async () => await OnAddFolderClicked(foldersNode))"/>
-                                        break;
-                                    case NamespaceTreeNode:
-                                        <MudButton Variant="Variant.Text"
-                                                   Color="Color.Primary"
-                                                   Ripple="false"
-                                                   OnClick="@(_ => Disconnect(presenter))"
-                                                   Class="disconnect-button">
-                                            Disconnect
-                                        </MudButton>
-                                        break;
-                                    case QueuesTreeNode or TopicsTreeNode:
-                                        <MudIconButton
-                                            Icon="@Icons.Material.Filled.Refresh"
-                                            Color="Color.Primary"
-                                            Size="Size.Small"
-                                            Ripple="false"
-                                            OnClick="@(() => OnRefreshClicked(presenter.Value))"/>
-                                        break;
-                                    default:
-                                        <MudText Typo="Typo.caption">
-                                            @GetMessageCountText(presenter.Value)
-                                        </MudText>
-                                        break;
-                                }
+                                var resourceNode = presenter.Value!;
+                                var connectionName = GetConnectionName(resourceNode) ?? "";
+                                var allFolders = GetAllFolderNodes(connectionName).ToList();
+                                <MudMenu ActivationEvent="@MouseEvent.RightClick"
+                                         PositionAtCursor="true"
+                                         AnchorOrigin="Origin.BottomLeft"
+                                         TransformOrigin="Origin.TopLeft"
+                                         Dense="true"
+                                         Class="mud-width-full">
+                                    <ActivatorContent Context="c">
+                                        <div class="mud-width-full tree-item-body"
+                                             @oncontextmenu="@(async e => await OnTreeItemRightClick(presenter, c, e))"
+                                             @oncontextmenu:preventDefault="true"
+                                             @oncontextmenu:stopPropagation="true">
+                                            <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mud-width-full">
+                                                <MudText Typo="Typo.caption" Class="flex-grow-1 text-truncate">@presenter.Text</MudText>
+                                                @if (presenter.Value is { IsLoading: false })
+                                                {
+                                                    <MudText Typo="Typo.caption">
+                                                        @GetMessageCountText(presenter.Value)
+                                                    </MudText>
+                                                }
+                                                else
+                                                {
+                                                    <MudProgressCircular Class="namespace-loading-icon" Color="Color.Primary" Indeterminate="true"/>
+                                                }
+                                            </MudStack>
+                                        </div>
+                                    </ActivatorContent>
+                                    <ChildContent>
+                                        <MudMenuItem Icon="@Icons.Material.Filled.Refresh"
+                                                     Label="Refresh (F5)"
+                                                     OnClick="@(() => OnContextRefreshResource(resourceNode))" />
+                                        <MudDivider/>
+                                        @if (presenter.ParentFolderNode is not null)
+                                        {
+                                            <MudMenuItem Icon="@Icons.Material.Filled.FolderDelete"
+                                                         Label="Delete from folder"
+                                                         OnClick="@(() => OnContextRemoveFromFolder(resourceNode, presenter.ParentFolderNode))"
+                                                         Class="mud-error-text"/>
+                                        }
+                                        else if(allFolders.Count > 0)
+                                        {
+                                            <MudMenu Label="Add to folder">
+                                                @foreach (var folder in allFolders)
+                                                {
+                                                    <MudMenuItem Icon="@Icons.Material.Filled.Folder"
+                                                                 Label="@folder.Name"
+                                                                 OnClick="@(() => OnContextAddToFolder(resourceNode, folder))"/>
+                                                }
+                                            </MudMenu>
+                                        }
+                                        @if (presenter.ParentFolderNode is null)
+                                        {
+                                            <MudMenuItem Icon="@Icons.Material.Filled.CreateNewFolder"
+                                                         Label="Add to new folder..."
+                                                         OnClick="@(async () => await OnContextAddToNewFolder(resourceNode))"/>
+                                        }
+                                    </ChildContent>
+                                </MudMenu>
+                                break;
                             }
-                            else
-                            {
-                                @if (presenter.Value is NamespaceTreeNode namespaceNode)
-                                {
-                                    <div class="namespace-loading-control">
-                                        <MudProgressCircular Class="namespace-loading-icon namespace-loading-spinner" Color="Color.Primary" Indeterminate="true"/>
-                                        <MudIconButton Class="namespace-loading-cancel"
-                                                       Icon="@Icons.Material.Filled.Stop"
-                                                       Color="Color.Error"
-                                                       Size="Size.Small"
-                                                       OnClick="@(() => OnCancelFetchResourcesClicked(namespaceNode.ConnectionName))" />
-                                    </div>
-                                }
-                                else
-                                {
-                                    <MudProgressCircular Class="namespace-loading-icon" Color="Color.Primary" Indeterminate="true"/>
-                                }
-                            }
-                        </MudStack>
+                            case FoldersTreeNode foldersNode:
+                                <MudMenu ActivationEvent="@MouseEvent.RightClick"
+                                         PositionAtCursor="true"
+                                         AnchorOrigin="Origin.BottomLeft"
+                                         Dense="true"
+                                         Class="mud-width-full">
+                                    <ActivatorContent Context="c">
+                                        <div class="mud-width-full tree-item-body"
+                                             @oncontextmenu="@(async e => await OnTreeItemRightClick(presenter, c, e))"
+                                             @oncontextmenu:preventDefault="true"
+                                             @oncontextmenu:stopPropagation="true">
+                                            <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mud-width-full">
+                                                <MudText Typo="Typo.caption" Class="flex-grow-1 text-truncate">@presenter.Text</MudText>
+                                                @if (presenter.Value is { IsLoading: false })
+                                                {
+                                                    <MudIconButton Icon="@Icons.Material.Filled.CreateNewFolder"
+                                                                   Color="Color.Primary"
+                                                                   Size="Size.Small"
+                                                                   Ripple="false"
+                                                                   Class="folders-add-btn"
+                                                                   OnClick="@(async () => await OnAddFolderClicked(foldersNode))"/>
+                                                }
+                                            </MudStack>
+                                        </div>
+                                    </ActivatorContent>
+                                    <ChildContent>
+                                        <MudMenuItem Icon="@Icons.Material.Filled.CreateNewFolder"
+                                                     OnClick="@(async () => await OnAddFolderClicked(foldersNode))">New folder</MudMenuItem>
+                                    </ChildContent>
+                                </MudMenu>
+                                break;
+                            default:
+                                <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mud-width-full tree-item-body">
+                                    <MudText Typo="Typo.caption" Class="flex-grow-1 text-truncate">@presenter.Text</MudText>
+                                    @if (presenter.Value is { IsLoading: false })
+                                    {
+                                        switch (presenter.Value)
+                                        {
+                                            case NamespaceTreeNode:
+                                                <MudButton Variant="Variant.Text"
+                                                           Color="Color.Primary"
+                                                           Ripple="false"
+                                                           OnClick="@(_ => Disconnect(presenter))"
+                                                           Class="disconnect-button">
+                                                    Disconnect
+                                                </MudButton>
+                                                break;
+                                            case QueuesTreeNode or TopicsTreeNode:
+                                                <MudIconButton
+                                                    Icon="@Icons.Material.Filled.Refresh"
+                                                    Color="Color.Primary"
+                                                    Size="Size.Small"
+                                                    Ripple="false"
+                                                    OnClick="@(() => OnRefreshClicked(presenter.Value))"/>
+                                                break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (presenter.Value is NamespaceTreeNode namespaceNode)
+                                        {
+                                            <div class="namespace-loading-control">
+                                                <MudProgressCircular Class="namespace-loading-icon namespace-loading-spinner" Color="Color.Primary" Indeterminate="true"/>
+                                                <MudIconButton Class="namespace-loading-cancel"
+                                                               Icon="@Icons.Material.Filled.Stop"
+                                                               Color="Color.Error"
+                                                               Size="Size.Small"
+                                                               OnClick="@(() => OnCancelFetchResourcesClicked(namespaceNode.ConnectionName))" />
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <MudProgressCircular Class="namespace-loading-icon" Color="Color.Primary" Indeterminate="true"/>
+                                        }
+                                    }
+                                </MudStack>
+                                break;
+                        }
                     </BodyContent>
                 </MudTreeViewItem>
             </ItemTemplate>

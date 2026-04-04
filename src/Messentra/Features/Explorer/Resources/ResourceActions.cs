@@ -39,6 +39,8 @@ public sealed record CreateFolderAction(long ConnectionId, string ConnectionName
 public sealed record CreateFolderSuccessAction(long ConnectionId, string ConnectionName, FolderEntry Entry);
 public sealed record CreateFolderFailureAction(string ConnectionName, string Error);
 
+public sealed record CreateFolderAndAddResourceAction(long ConnectionId, string ConnectionName, ConnectionConfig ConnectionConfig, string FolderName, string ResourceUrl);
+
 public sealed record RenameFolderAction(long FolderId, long ConnectionId, string ConnectionName, string NewName);
 public sealed record RenameFolderSuccessAction(long FolderId, long ConnectionId, string ConnectionName, string NewName);
 public sealed record RenameFolderFailureAction(string ConnectionName, string Error);

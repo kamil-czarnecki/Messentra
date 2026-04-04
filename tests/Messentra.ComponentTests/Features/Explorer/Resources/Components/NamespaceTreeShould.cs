@@ -1,12 +1,11 @@
-using AngleSharp.Dom;
 using Bunit;
 using Messentra.Domain;
-using Messentra.Features.Explorer.Folders;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components;
 using Messentra.Features.Settings.Connections.GetConnections;
 using Messentra.Infrastructure.AzureServiceBus;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using MudBlazor;
@@ -166,6 +165,24 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         MockDispatcher.Verify(
             d => d.Dispatch(It.Is<CancelFetchResourcesAction>(a => a.ConnectionName == "TestNamespace")),
             Times.Once);
+    }
+
+    [Fact]
+    public void RightClickOnResourceRow_DispatchesSelectResourceAction()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, []));
+
+        // Act
+        var queueRow = cut.FindAll(".tree-item-body").First(x => x.TextContent.Contains("queue1"));
+        queueRow.TriggerEvent("oncontextmenu", new MouseEventArgs { Button = 2 });
+
+        // Assert
+        MockDispatcher.Verify(d => d.Dispatch(It.Is<SelectResourceAction>(a =>
+            a.Node is QueueTreeNode &&
+            ((QueueTreeNode)a.Node).Resource.Name == "queue1")), Times.Once);
     }
 
     // --- Filtering ---

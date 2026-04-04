@@ -153,7 +153,8 @@ public sealed class ResourceSelector
             IconColor = Color.Warning,
             Expandable = resourceItems.Count > 0,
             Expanded = expandedKeys.Contains($"folder:{entry.Node.FolderId}"),
-            Children = resourceItems.Count > 0 ? resourceItems : null
+            Children = resourceItems.Count > 0 ? resourceItems : null,
+            IsReadonly = true
         };
     }
 

@@ -74,6 +74,12 @@
     overflow: hidden;
 }
 
+::deep .compact-tree .mud-treeview-item-content .mud-menu {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+}
+
 ::deep .text-truncate {
     white-space: nowrap;
     text-overflow: ellipsis;
