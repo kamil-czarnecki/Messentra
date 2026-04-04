@@ -7,7 +7,7 @@ namespace Messentra.Features.Layout.State;
 public sealed class ThemeEffects(IMediator mediator, IState<ThemeState> themeState)
 {
     [EffectMethod(typeof(ToggleThemeAction))]
-    public async Task HandleToggleTheme(IDispatcher dispatcher)
+    public async Task HandleToggleTheme(IDispatcher _)
     {
         try
         {

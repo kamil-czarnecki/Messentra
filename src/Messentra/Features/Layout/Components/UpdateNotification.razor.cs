@@ -2,7 +2,6 @@ using ElectronNET.API.Entities;
 using Fluxor;
 using Messentra.Features.Layout.State;
 using Messentra.Infrastructure.AutoUpdater;
-using MudBlazor;
 
 namespace Messentra.Features.Layout.Components;
 
