@@ -49,18 +49,19 @@ public partial class MainLayout : IDisposable
     {
         base.OnAfterRender(firstRender);
 
-        if (firstRender && !_connectionsState.Value.IsLoaded && !_connectionsState.Value.IsLoading)
+        if (!firstRender)
+            return;
+
+        if (!_connectionsState.Value.IsLoaded && !_connectionsState.Value.IsLoading)
         {
             _dispatcher.Dispatch(new FetchConnectionsAction());
         }
-
-        if (firstRender)
+        
+        _dispatcher.Dispatch(new LoadThemeSettingsAction());
+        _progressSubscription = _jobProgressNotifier.Subscribe(update =>
         {
-            _progressSubscription = _jobProgressNotifier.Subscribe(update =>
-            {
-                _dispatcher.Dispatch(new JobProgressReceivedAction(update));
-            });
-        }
+            _dispatcher.Dispatch(new JobProgressReceivedAction(update));
+        });
     }
 
     private void OnThemeStateChanged(object? sender, EventArgs e) => InvokeAsync(StateHasChanged);

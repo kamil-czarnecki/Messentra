@@ -41,4 +41,30 @@ public sealed class ThemeReducersShould
         // Assert
         state.IsDarkMode.ShouldBeFalse();
     }
+
+    [Fact]
+    public void ApplyLoadedDarkModePreference()
+    {
+        // Arrange
+        var state = new ThemeState(IsDarkMode: false);
+
+        // Act
+        var result = ThemeReducers.OnLoadThemeSettingsSuccess(state, new LoadThemeSettingsSuccessAction(IsDarkMode: true));
+
+        // Assert
+        result.IsDarkMode.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void ApplyLoadedLightModePreference()
+    {
+        // Arrange
+        var state = new ThemeState(IsDarkMode: true);
+
+        // Act
+        var result = ThemeReducers.OnLoadThemeSettingsSuccess(state, new LoadThemeSettingsSuccessAction(IsDarkMode: false));
+
+        // Assert
+        result.IsDarkMode.ShouldBeFalse();
+    }
 }
