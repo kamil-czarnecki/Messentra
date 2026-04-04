@@ -1,7 +1,6 @@
 using Fluxor;
 using Mediator;
 using Messentra.Features.Layout.State;
-using Messentra.Features.Settings.UserSettings.GetUserSettings;
 using Messentra.Features.Settings.UserSettings.SaveUserSettings;
 using Moq;
 using Xunit;
@@ -19,38 +18,6 @@ public sealed class ThemeEffectsShould
     {
         _themeState.Setup(s => s.Value).Returns(new ThemeState(IsDarkMode: false));
         _sut = new ThemeEffects(_mediator.Object, _themeState.Object);
-    }
-
-    [Fact]
-    public async Task DispatchSuccessActionWithSavedPreferenceOnLoad()
-    {
-        // Arrange
-        _mediator
-            .Setup(m => m.Send(It.IsAny<GetUserSettingsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserSettingsDto(IsDarkMode: true));
-
-        // Act
-        await _sut.HandleLoadThemeSettings(_dispatcher.Object);
-
-        // Assert
-        _dispatcher.Verify(
-            d => d.Dispatch(It.Is<LoadThemeSettingsSuccessAction>(a => a.IsDarkMode == true)),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task DispatchFailureActionWhenLoadThrows()
-    {
-        // Arrange
-        _mediator
-            .Setup(m => m.Send(It.IsAny<GetUserSettingsQuery>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new Exception());
-
-        // Act
-        await _sut.HandleLoadThemeSettings(_dispatcher.Object);
-
-        // Assert
-        _dispatcher.Verify(d => d.Dispatch(It.IsAny<LoadThemeSettingsFailureAction>()), Times.Once);
     }
 
     [Fact]

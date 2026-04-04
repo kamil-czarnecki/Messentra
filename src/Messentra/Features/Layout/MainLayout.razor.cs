@@ -56,8 +56,7 @@ public partial class MainLayout : IDisposable
         {
             _dispatcher.Dispatch(new FetchConnectionsAction());
         }
-        
-        _dispatcher.Dispatch(new LoadThemeSettingsAction());
+
         _progressSubscription = _jobProgressNotifier.Subscribe(update =>
         {
             _dispatcher.Dispatch(new JobProgressReceivedAction(update));

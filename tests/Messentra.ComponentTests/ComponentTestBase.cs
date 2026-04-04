@@ -81,7 +81,7 @@ public class ComponentTestBase : BunitContext
         foreach (var stateType in stateTypes)
         {
             var genericTestStateType = testStateType.MakeGenericType(stateType);
-            var defaultState = Activator.CreateInstance(stateType, BindingFlags.NonPublic | BindingFlags.Instance, null, null, null);
+            var defaultState = CreateDefaultInstance(stateType);
             var testState = Activator.CreateInstance(genericTestStateType, defaultState);
             var interfaceType = stateInterface.MakeGenericType(stateType);
 
@@ -89,11 +89,48 @@ public class ComponentTestBase : BunitContext
         }
     }
 
-    private static Type[] GetStateTypes() =>
-        typeof(Program).Assembly
-            .GetTypes()
+    private static object CreateDefaultInstance(Type stateType)
+    {
+        // Try non-public parameterless constructor first ([FeatureState] convention)
+        try
+        {
+            var instance = Activator.CreateInstance(stateType, BindingFlags.NonPublic | BindingFlags.Instance, null, null, null);
+            if (instance != null) return instance;
+        }
+        catch (MissingMethodException) { }
+
+        // Fall back: use the first public constructor, passing default values for each parameter
+        var ctor = stateType.GetConstructors().FirstOrDefault();
+        if (ctor != null)
+        {
+            var args = ctor.GetParameters()
+                .Select(p => p.ParameterType.IsValueType ? Activator.CreateInstance(p.ParameterType) : null)
+                .ToArray();
+            return Activator.CreateInstance(stateType, args)!;
+        }
+
+        return Activator.CreateInstance(stateType)!;
+    }
+
+    private static Type[] GetStateTypes()
+    {
+        var types = typeof(Program).Assembly.GetTypes();
+
+        // [FeatureState]-decorated types — the type itself is the state
+        var fromAttribute = types
             .Where(t => t.GetCustomAttributes(typeof(FeatureStateAttribute), false).Length > 0)
-            .ToArray();
+            .ToList();
+
+        // Custom Feature<T> subclasses — extract T as the state type
+        var fromCustomFeature = types
+            .Where(t => !t.IsAbstract)
+            .SelectMany(t => t.GetInterfaces()
+                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IFeature<>))
+                .Select(i => i.GetGenericArguments()[0]))
+            .Except(fromAttribute);
+
+        return fromAttribute.Concat(fromCustomFeature).Distinct().ToArray();
+    }
 
     private void RegisterResourceSelector()
     {

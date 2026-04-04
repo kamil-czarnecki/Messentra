@@ -1,4 +1,3 @@
-using Messentra.Infrastructure;
 using Messentra.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
@@ -9,6 +8,7 @@ public abstract class InMemoryDbTestBase : IDisposable
 {
     private readonly SqliteConnection _connection;
     protected readonly MessentraDbContext DbContext;
+    protected readonly TestDbContextFactory DbContextFactory;
 
     protected InMemoryDbTestBase()
     {
@@ -22,7 +22,8 @@ public abstract class InMemoryDbTestBase : IDisposable
 
         // Create the context with the in-memory database
         DbContext = new MessentraDbContext(options);
-        
+        DbContextFactory = new TestDbContextFactory(DbContext);
+
         // Ensure the database schema is created
         DbContext.Database.EnsureCreated();
     }
