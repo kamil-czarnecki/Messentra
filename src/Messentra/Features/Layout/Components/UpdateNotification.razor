@@ -35,6 +35,14 @@
                 </MudTooltip>
             }
                 
+            <MudTooltip Text="@(_themeState.Value.IsDarkMode ? "Switch to light mode" : "Switch to dark mode")">
+                <MudIconButton
+                    Icon="@ThemeToggleIcon"
+                    Size="Size.Small"
+                    Color="Color.Inherit"
+                    Ripple="false"
+                    OnClick="@OnToggleTheme"/>
+            </MudTooltip>
             <MudText Align="Align.Center" Typo="Typo.caption">
                 @_state.Value.CurrentVersion
             </MudText>

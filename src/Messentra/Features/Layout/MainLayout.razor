@@ -3,7 +3,7 @@
 @inherits LayoutComponentBase
 
 <Fluxor.Blazor.Web.StoreInitializer/>
-<MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
+<MudThemeProvider Theme="@_theme" IsDarkMode="@_themeState.Value.IsDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
