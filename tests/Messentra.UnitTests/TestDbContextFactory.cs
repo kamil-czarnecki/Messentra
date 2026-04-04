@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Messentra.UnitTests;
 
-internal sealed class TestDbContextFactory : IDbContextFactory<MessentraDbContext>
+public sealed class TestDbContextFactory : IDbContextFactory<MessentraDbContext>
 {
     private readonly SqliteConnection _connection;
 

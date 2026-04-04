@@ -37,7 +37,18 @@
                 }
             </MudNavMenu>
 
-            <UpdateNotification />
+            <MudStack AlignItems="AlignItems.Center" Justify="Justify.FlexEnd" Class="mud-height-full">
+                <MudTooltip Text="@(_themeState.Value.IsDarkMode ? "Switch to light mode" : "Switch to dark mode")">
+                    <MudIconButton
+                        Icon="@ThemeToggleIcon"
+                        Size="Size.Small"
+                        Color="Color.Inherit"
+                        Ripple="false"
+                        OnClick="@OnToggleTheme"/>
+                </MudTooltip>
+                <UpdateNotification />
+            </MudStack>
+            
         </MudDrawerContainer>
     </MudDrawer>
 </div>

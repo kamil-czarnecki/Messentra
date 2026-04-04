@@ -1,5 +1,6 @@
 using Fluxor;
 using Messentra.Features.Jobs;
+using Messentra.Features.Layout.State;
 using Messentra.Features.Settings.Connections;
 using MudBlazor;
 
@@ -8,16 +9,17 @@ namespace Messentra.Features.Layout;
 public partial class MainLayout : IDisposable
 {
     private readonly IState<ConnectionState> _connectionsState;
+    private readonly IState<ThemeState> _themeState;
     private readonly IDispatcher _dispatcher;
     private readonly IJobProgressNotifier _jobProgressNotifier;
-    private bool _isDarkMode = false;
     private bool _isActivityLogExpanded;
-    private MudTheme? _theme = null;
+    private MudTheme? _theme;
     private IDisposable? _progressSubscription;
 
-    public MainLayout(IState<ConnectionState> connectionsState, IDispatcher dispatcher, IJobProgressNotifier jobProgressNotifier)
+    public MainLayout(IState<ConnectionState> connectionsState, IState<ThemeState> themeState, IDispatcher dispatcher, IJobProgressNotifier jobProgressNotifier)
     {
         _connectionsState = connectionsState;
+        _themeState = themeState;
         _dispatcher = dispatcher;
         _jobProgressNotifier = jobProgressNotifier;
     }
@@ -29,6 +31,7 @@ public partial class MainLayout : IDisposable
     protected override void OnInitialized()
     {
         base.OnInitialized();
+        _themeState.StateChanged += OnThemeStateChanged;
 
         _theme = new MudTheme
         {
@@ -46,24 +49,21 @@ public partial class MainLayout : IDisposable
     {
         base.OnAfterRender(firstRender);
 
-        if (firstRender && !_connectionsState.Value.IsLoaded && !_connectionsState.Value.IsLoading)
+        if (!firstRender)
+            return;
+
+        if (!_connectionsState.Value.IsLoaded && !_connectionsState.Value.IsLoading)
         {
             _dispatcher.Dispatch(new FetchConnectionsAction());
         }
 
-        if (firstRender)
+        _progressSubscription = _jobProgressNotifier.Subscribe(update =>
         {
-            _progressSubscription = _jobProgressNotifier.Subscribe(update =>
-            {
-                _dispatcher.Dispatch(new JobProgressReceivedAction(update));
-            });
-        }
+            _dispatcher.Dispatch(new JobProgressReceivedAction(update));
+        });
     }
 
-    private void DarkModeToggle()
-    {
-        _isDarkMode = !_isDarkMode;
-    }
+    private void OnThemeStateChanged(object? sender, EventArgs e) => InvokeAsync(StateHasChanged);
 
     private Task OnActivityLogExpandedChanged(bool isExpanded)
     {
@@ -87,46 +87,43 @@ public partial class MainLayout : IDisposable
         DrawerIcon = Colors.Gray.Lighten3,
         GrayLight = "#e8e8e8",
         GrayLighter = "#f9f9f9",
-        TextDisabled =  Colors.Gray.Darken2,
+        TextDisabled =  Colors.Gray.Darken2
     };
 
     private readonly PaletteDark _darkPalette = new()
     {
-        Primary = "#7e6fff",
-        Surface = "#1e1e2d",
-        Background = "#1a1a27",
-        BackgroundGray = "#151521",
-        AppbarText = "#92929f",
-        AppbarBackground = "rgba(26,26,39,0.8)",
-        DrawerBackground = "#1a1a27",
-        ActionDefault = "#74718e",
-        ActionDisabled = "#9999994d",
-        ActionDisabledBackground = "#605f6d4d",
-        TextPrimary = "#b2b0bf",
-        TextSecondary = "#92929f",
+        Primary = "#2F90F2",
+        Secondary = "#f97516",
+        Tertiary = "#0b1220",
+        Surface = "#0f1829",
+        Background = "#0f1829",
+        BackgroundGray = "#0b1220",
+        AppbarText = "#8b949e",
+        AppbarBackground = "rgba(13,17,23,0.8)",
+        DrawerBackground = "#0b1220",
+        ActionDefault = "#8b949e",
+        ActionDisabled = "#8b949e4d",
+        ActionDisabledBackground = "#30363d4d",
+        TextPrimary = "#e6edf3",
+        TextSecondary = "#8b949e",
         TextDisabled = "#ffffff33",
-        DrawerIcon = "#92929f",
-        DrawerText = "#92929f",
-        GrayLight = "#2a2833",
-        GrayLighter = "#1e1e2d",
-        Info = "#4a86ff",
+        DrawerText = Colors.Gray.Lighten5,
+        DrawerIcon = Colors.Gray.Lighten3,
+        GrayLight = "#21262d",
+        GrayLighter = "#161b22",
+        Info = "#2F90F2",
         Success = "#3dcb6c",
         Warning = "#ffb545",
         Error = "#ff3f5f",
-        LinesDefault = "#33323e",
-        TableLines = "#33323e",
-        Divider = "#292838",
-        OverlayLight = "#1e1e2d80",
-    };
-
-    public string DarkLightModeButtonIcon => _isDarkMode switch
-    {
-        true => Icons.Material.Rounded.AutoMode,
-        false => Icons.Material.Outlined.DarkMode,
+        LinesDefault = "#30363d",
+        TableLines = "#30363d",
+        Divider = "#21262d",
+        OverlayLight = "#161b2280"
     };
 
     public void Dispose()
     {
+        _themeState.StateChanged -= OnThemeStateChanged;
         _progressSubscription?.Dispose();
     }
 }

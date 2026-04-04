@@ -99,7 +99,6 @@
 
 ::deep .message-tabs .mud-tabs-tabbar-content {
     border-bottom: 1px solid var(--mud-palette-divider);
-    background-color: var(--surface-alternative);
 }
 
 ::deep .message-tabs .mud-tab-panel:focus {
