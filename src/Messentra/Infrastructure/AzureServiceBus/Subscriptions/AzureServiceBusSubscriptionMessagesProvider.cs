@@ -38,7 +38,6 @@ public sealed class AzureServiceBusSubscriptionMessagesProvider : AzureServiceBu
                     ? SubQueue.DeadLetter
                     : SubQueue.None
             });
-            var sender = client.CreateSender(topicName);
             var messages = new List<ServiceBusReceivedMessage>();
             long? nextPeekSequence = options.StartSequence;
 
@@ -69,13 +68,11 @@ public sealed class AzureServiceBusSubscriptionMessagesProvider : AzureServiceBu
                     { Mode: FetchMode.Receive, ReceiveMode: FetchReceiveMode.ReceiveAndDelete })
                     await receiver.DisposeAsync();
 
-                return messages.Select(x => Map(options, receiver, sender, x)).ToList();
+                return messages.Select(x => Map(options, receiver, x)).ToList();
             }
             catch
             {
                 await receiver.DisposeAsync();
-                await sender.DisposeAsync();
-                
                 throw;
             }
         }, cancellationToken);

@@ -2,6 +2,7 @@ using Bunit;
 using Messentra.Domain;
 using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Messages.FetchQueueMessages;
+using Messentra.Features.Explorer.Messages.SendMessage;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components.Details.Tabs;
 using Messentra.Infrastructure.AzureServiceBus;
@@ -150,48 +151,68 @@ public sealed class MessageGridShould : ComponentTestBase
     }
 
     [Fact]
-    public async Task ResendWithAutoCompleteCallsResendAndCompleteOnSelectedMessage()
+    public async Task ResendWithAutoCompleteSendsCommandAndCompletesSelectedMessage()
     {
         // Arrange
         var contextMock = new Mock<IServiceBusMessageContext>();
-        contextMock.Setup(x => x.Resend(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         contextMock.Setup(x => x.Complete(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var message = BuildServiceBusMessage(contextMock, "auto-complete-msg");
         SetupFetchResponse(message);
+
+        MockMediator
+            .Setup(x => x.Send(It.IsAny<SendMessageCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.FromResult(new SendMessageResult(new Success())));
+
         var cut = RenderMessageGrid(BuildQueueNode());
 
         // Act
         await FetchMessagesThroughUi(cut, FetchMode.Receive);
         await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("auto-complete-msg"));
         SelectFirstMessageInGrid(cut);
-        await cut.FindAll("button").Single(x => x.TextContent.Trim() == "Resend").ClickAsync();
+        cut.FindAll("button").Single(x => x.TextContent.Trim() == "Resend").Click();
+
+        // Confirm resend in the dialog
+        await MudDialog.Find("button:contains('Resend All')").ClickAsync();
 
         // Assert
-        contextMock.Verify(x => x.Resend(It.IsAny<CancellationToken>()), Times.Once);
-        contextMock.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
-        cut.Markup.ShouldNotContain("auto-complete-msg");
+        await cut.WaitForAssertionAsync(() =>
+        {
+            MockMediator.Verify(x => x.Send(It.IsAny<SendMessageCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+            contextMock.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
+            cut.Markup.ShouldNotContain("auto-complete-msg");
+        });
     }
 
     [Fact]
-    public async Task ResendWithoutAutoCompleteCallsResendButNotCompleteAndKeepsMessageInGrid()
+    public async Task ResendWithoutAutoCompleteSendsCommandButDoesNotCompleteAndKeepsMessageInGrid()
     {
         // Arrange
         var contextMock = new Mock<IServiceBusMessageContext>();
-        contextMock.Setup(x => x.Resend(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         contextMock.Setup(x => x.Complete(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var message = BuildServiceBusMessage(contextMock, "no-auto-complete-msg");
         SetupFetchResponse(message);
+
+        MockMediator
+            .Setup(x => x.Send(It.IsAny<SendMessageCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.FromResult(new SendMessageResult(new Success())));
+
         var cut = RenderMessageGrid(BuildQueueNode());
 
         // Act
         await FetchMessagesThroughUi(cut);
         await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("no-auto-complete-msg"));
         SelectFirstMessageInGrid(cut);
-        await cut.FindAll("button").Single(x => x.TextContent.Trim() == "Resend").ClickAsync();
+        cut.FindAll("button").Single(x => x.TextContent.Trim() == "Resend").Click();
+
+        // Confirm resend in the dialog
+        await MudDialog.Find("button:contains('Resend All')").ClickAsync();
 
         // Assert
-        contextMock.Verify(x => x.Resend(It.IsAny<CancellationToken>()), Times.Once);
-        contextMock.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Never);
-        cut.Markup.ShouldContain("no-auto-complete-msg");
+        await cut.WaitForAssertionAsync(() =>
+        {
+            MockMediator.Verify(x => x.Send(It.IsAny<SendMessageCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+            contextMock.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Never);
+            cut.Markup.ShouldContain("no-auto-complete-msg");
+        });
     }
 }

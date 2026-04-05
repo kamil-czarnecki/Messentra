@@ -1,0 +1,226 @@
+@using Messentra.Features.Explorer.Messages.SendMessage
+
+<MudStack Spacing="2">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+            <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Color="Color.Primary"/>
+            <MudText Typo="Typo.body2" Class="text-uppercase font-weight-bold">MESSAGE BODY</MudText>
+        </MudStack>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudSelect T="BodyFormat"
+                       @bind-Value="Model.BodyFormat"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Typo="Typo.body2"
+                       Dense="true">
+                <MudSelectItem Value="BodyFormat.Json">
+                    <MudText Typo="Typo.body2">JSON</MudText>
+                </MudSelectItem>
+                <MudSelectItem Value="BodyFormat.PlainText">
+                    <MudText Typo="Typo.body2">Plain Text</MudText>
+                </MudSelectItem>
+            </MudSelect>
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.FormatAlignLeft"
+                       OnClick="@(() => Model.FormatBodyAsJson())"
+                       Disabled="@(Model.BodyFormat != BodyFormat.Json)">
+                <MudText Typo="Typo.body2">Format JSON</MudText>
+            </MudButton>
+        </MudStack>
+    </MudStack>
+    <MudTextField @bind-Value="Model.Body"
+                  Variant="Variant.Outlined"
+                  Typo="Typo.body2"
+                  Lines="8"
+                  Margin="Margin.Dense"
+                  Placeholder="@(Model.BodyFormat == BodyFormat.Json ? "{ \"key\": \"value\" }" : "Enter message body...")"
+                  Immediate="true"/>
+    <MudGrid Spacing="3">
+        <MudItem xs="12" lg="6">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-2">
+                <MudIcon Icon="@Icons.Custom.Brands.MicrosoftAzure" Size="Size.Small" Color="Color.Primary"/>
+                <MudText Typo="Typo.body2" Class="font-weight-bold">BROKER PROPERTIES</MudText>
+            </MudStack>
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudGrid Spacing="2">
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">LABEL / SUBJECT</MudText>
+                        <MudTextField @bind-Value="Model.Label"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Typo="Typo.body2"
+                                      Placeholder="e.g. Order_Processed"
+                                      Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">CORRELATION ID</MudText>
+                        <MudTextField @bind-Value="Model.CorrelationId"
+                                      Variant="Variant.Outlined"
+                                      Typo="Typo.body2"
+                                      Margin="Margin.Dense"
+                                      Placeholder="Optional"
+                                      Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">PARTITION KEY</MudText>
+                        <MudTextField @bind-Value="Model.PartitionKey"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Typo="Typo.body2"
+                                      Placeholder="Optional"
+                                      Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">SCHEDULED TIME (UTC)</MudText>
+                        <MudDatePicker @bind-Date="Model.ScheduledDate"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Square="true"
+                                       Placeholder="Optional"
+                                       Editable="true"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">MESSAGE ID</MudText>
+                        <MudTextField @bind-Value="Model.MessageId"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Placeholder="Optional"
+                                      Typo="Typo.body2"
+                                      Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">CONTENT TYPE</MudText>
+                        <MudTextField @bind-Value="Model.ContentType"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Typo="Typo.body2"
+                                      Placeholder="e.g. application/json"
+                                      Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">SESSION ID</MudText>
+                        <MudTextField @bind-Value="Model.SessionId"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Typo="Typo.body2"
+                                      Placeholder="Optional"
+                                      Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">REPLY-TO SESSION ID</MudText>
+                        <MudTextField @bind-Value="Model.ReplyToSessionId"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Typo="Typo.body2"
+                                      Placeholder="Optional"
+                                      Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">TO</MudText>
+                        <MudTextField @bind-Value="Model.To"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Typo="Typo.body2"
+                                      Placeholder="Optional"
+                                      Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">REPLY-TO</MudText>
+                        <MudTextField @bind-Value="Model.ReplyTo"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Placeholder="Optional"
+                                      Immediate="true"/>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.body2">TIME TO LIVE</MudText>
+                        <MudTextField @bind-Value="Model.TimeToLiveText"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Typo="Typo.body2"
+                                      Placeholder="Optional (e.g. 00:10:00)"
+                                      Immediate="true"/>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" lg="6">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Outlined.Tune" Size="Size.Small" Color="Color.Primary"/>
+                    <MudText Typo="Typo.body2" Class="font-weight-bold">CUSTOM PROPERTIES</MudText>
+                </MudStack>
+                <MudButton Variant="Variant.Text"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.AddCircleOutline"
+                           Color="Color.Primary"
+                           OnClick="@AddCustomProperty">
+                    <MudText Typo="Typo.body2">ADD ROW</MudText>
+                </MudButton>
+            </MudStack>
+            <MudPaper Outlined="true" Class="custom-props-table" Elevation="0">
+                <MudSimpleTable Dense="true" Hover="false" Elevation="0">
+                    <thead>
+                    <tr>
+                        <th>KEY</th>
+                        <th>TYPE</th>
+                        <th>VALUE</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var prop in Model.CustomProperties)
+                    {
+                        <tr>
+                            <td class="custom-prop-key-cell">
+                                <MudTextField Typo="Typo.body2" @bind-Value="prop.Key" Variant="Variant.Text" Margin="Margin.Dense" Placeholder="New Key..." Immediate="true" Class="custom-prop-input"/>
+                            </td>
+                            <td class="custom-prop-type-cell">
+                                <MudSelect T="CustomPropertyType"
+                                           @bind-Value="prop.Type"
+                                           Variant="Variant.Text"
+                                           Margin="Margin.Dense"
+                                           Dense="true"
+                                           Class="custom-prop-input">
+                                    <MudSelectItem Value="CustomPropertyType.String">String</MudSelectItem>
+                                    <MudSelectItem Value="CustomPropertyType.Number">Number</MudSelectItem>
+                                    <MudSelectItem Value="CustomPropertyType.Boolean">Boolean</MudSelectItem>
+                                    <MudSelectItem Value="CustomPropertyType.Date">Date</MudSelectItem>
+                                </MudSelect>
+                            </td>
+                            <td class="custom-prop-value-cell">
+                                @switch (prop.Type)
+                                {
+                                    case CustomPropertyType.String:
+                                        <MudTextField Typo="Typo.body2" @bind-Value="prop.Value" Variant="Variant.Text" Margin="Margin.Dense" Placeholder="New Value..." Immediate="true" Class="custom-prop-input"/>
+                                        break;
+                                    case CustomPropertyType.Number:
+                                        <MudNumericField T="decimal?" Typo="Typo.body2" @bind-Value="prop.NumberValue" Variant="Variant.Text" Margin="Margin.Dense" Placeholder="0" HideSpinButtons="false" Class="custom-prop-input"/>
+                                        break;
+                                    case CustomPropertyType.Boolean:
+                                        <div class="custom-prop-boolean-wrap">
+                                            <MudSwitch T="bool" @bind-Value="prop.BooleanValue" Color="Color.Primary"/>
+                                        </div>
+                                        break;
+                                    case CustomPropertyType.Date:
+                                        <MudStack Row="true" Spacing="1" Class="custom-prop-date-time-wrap">
+                                            <MudDatePicker @bind-Date="prop.DateValue" Variant="Variant.Text" Margin="Margin.Dense" Class="custom-prop-input custom-prop-date"/>
+                                            <MudTimePicker @bind-Time="prop.TimeValue" Variant="Variant.Text" Margin="Margin.Dense" Class="custom-prop-input custom-prop-time"/>
+                                        </MudStack>
+                                        break;
+                                    default:
+                                        throw new ArgumentOutOfRangeException();
+                                }
+                            </td>
+                            <td class="custom-prop-action-cell">
+                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" Color="Color.Primary" OnClick="@(() => RemoveCustomProperty(prop))"/>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudStack>

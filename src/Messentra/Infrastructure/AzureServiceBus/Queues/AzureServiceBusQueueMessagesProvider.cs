@@ -37,7 +37,6 @@ public sealed class AzureServiceBusQueueMessagesProvider : AzureServiceBusProvid
                     : SubQueue.None,
                 PrefetchCount = 0
             });
-            var sender = client.CreateSender(queueName);
             var messages = new List<ServiceBusReceivedMessage>();
             var nextPeekSequence = options.StartSequence;
 
@@ -66,13 +65,11 @@ public sealed class AzureServiceBusQueueMessagesProvider : AzureServiceBusProvid
                     { Mode: FetchMode.Receive, ReceiveMode: FetchReceiveMode.ReceiveAndDelete })
                     await receiver.DisposeAsync();
                 
-                return messages.Select(x => Map(options, receiver, sender, x)).ToList();
+                return messages.Select(x => Map(options, receiver, x)).ToList();
             }
             catch
             {
                 await receiver.DisposeAsync();
-                await sender.DisposeAsync();
-                
                 throw;
             }
             
