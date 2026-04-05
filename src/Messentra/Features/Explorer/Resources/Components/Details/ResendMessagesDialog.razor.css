@@ -1,0 +1,26 @@
+.resend-layout {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.resend-message-list {
+    width: 220px;
+    min-width: 220px;
+    overflow-y: auto;
+    max-height: 580px;
+    flex-shrink: 0;
+}
+
+.resend-form-panel {
+    flex: 1;
+    min-width: 0;
+}
+
+::deep .resend-message-item {
+    border-left: 3px solid transparent;
+}
+
+::deep .resend-message-item--selected {
+    border-left: 3px solid var(--mud-palette-primary);
+}

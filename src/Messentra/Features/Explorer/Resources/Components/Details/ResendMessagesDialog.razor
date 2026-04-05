@@ -1,13 +1,12 @@
 <div>
     <MudDialog>
         <DialogContent>
-            <div style="display: flex; gap: 16px; align-items: flex-start;">
-                <MudPaper Outlined="true" Elevation="0" Style="width: 220px; min-width: 220px; overflow-y: auto; max-height: 580px; flex-shrink: 0;">
+            <div class="resend-layout">
+                <MudPaper Outlined="true" Elevation="0" Class="resend-message-list">
                     @foreach (var (message, index) in Messages.Select((m, i) => (m, i)))
                     {
                         <MudListItem T="string"
-                                     Class="resend-message-item"
-                                     Style="@(_selectedIndex == index ? "border-left: 3px solid var(--mud-palette-primary);" : "border-left: 3px solid transparent;")"
+                                     Class="@($"resend-message-item{(_selectedIndex == index ? " resend-message-item--selected" : "")}")"
                                      OnClick="@(() => _selectedIndex = index)"
                                      Dense="true">
                             <MudStack Spacing="0">
@@ -17,7 +16,7 @@
                         </MudListItem>
                     }
                 </MudPaper>
-                <div style="flex: 1; min-width: 0;">
+                <div class="resend-form-panel">
                     @if (_models.Count > 0)
                     {
                         <MessageEditForm Model="@_models[_selectedIndex]"/>
