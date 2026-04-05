@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <PropertyGroup Label="ElectronNetCommon">
-        <Version>0.2.1</Version>
+        <Version>0.3.0</Version>
         <ElectronVersion>41.0.0</ElectronVersion>
         <ElectronBuilderVersion>26.8.1</ElectronBuilderVersion>
         <ElectronSingleInstance>true</ElectronSingleInstance>
