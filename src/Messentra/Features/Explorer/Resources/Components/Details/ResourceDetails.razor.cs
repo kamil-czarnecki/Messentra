@@ -143,7 +143,7 @@ public partial class ResourceDetails
 
         var options = new DialogOptions
         {
-            MaxWidth = MaxWidth.Large,
+            MaxWidth = MaxWidth.ExtraLarge,
             FullWidth = true,
             CloseButton = true,
             CloseOnEscapeKey = true

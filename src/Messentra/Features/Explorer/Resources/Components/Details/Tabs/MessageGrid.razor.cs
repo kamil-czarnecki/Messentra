@@ -4,7 +4,6 @@ using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Messages.FetchQueueMessages;
 using Messentra.Features.Explorer.Messages.FetchSubscriptionMessages;
 using Messentra.Features.Explorer.Messages.SendMessage;
-using Messentra.Features.Explorer.Resources.Components.Details;
 using Messentra.Features.Layout.State;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
@@ -368,7 +367,7 @@ public partial class MessageGrid : IDisposable
     {
         var dialogOptions = new DialogOptions
         {
-            MaxWidth = MaxWidth.Large,
+            MaxWidth = MaxWidth.ExtraLarge,
             FullWidth = true,
             CloseButton = true,
             CloseOnEscapeKey = true

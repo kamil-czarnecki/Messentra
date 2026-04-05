@@ -1,37 +1,39 @@
-@using Messentra.Features.Explorer.Messages
-@using Messentra.Features.Explorer.Messages.SendMessage
-
-<MudDialog>
-    <DialogContent>
-        <MudStack Row="true" Style="height: 520px; overflow: hidden;">
-            <MudPaper Style="width: 260px; overflow-y: auto; flex-shrink: 0;" Outlined="true" Elevation="0">
-                @foreach (var (message, index) in Messages.Select((m, i) => (m, i)))
-                {
-                    <MudListItem T="string" Class="@($"resend-message-item {(_selectedIndex == index ? "mud-selected-item" : "")}")"
-                                 OnClick="@(() => _selectedIndex = index)"
-                                 Dense="true">
-                        <MudStack Spacing="0">
-                            <MudText Typo="Typo.body2">SEQ #@message.Message.BrokerProperties.SequenceNumber</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@(message.Message.BrokerProperties.MessageId ?? "(no id)")</MudText>
-                        </MudStack>
-                    </MudListItem>
-                }
-            </MudPaper>
-            <div style="flex: 1; overflow-y: auto; padding: 8px;">
-                @if (_models.Count > 0)
-                {
-                    <MessageEditForm Model="@_models[_selectedIndex]"/>
-                }
+<div>
+    <MudDialog>
+        <DialogContent>
+            <div style="display: flex; gap: 16px; align-items: flex-start;">
+                <MudPaper Outlined="true" Elevation="0" Style="width: 220px; min-width: 220px; overflow-y: auto; max-height: 580px; flex-shrink: 0;">
+                    @foreach (var (message, index) in Messages.Select((m, i) => (m, i)))
+                    {
+                        <MudListItem T="string"
+                                     Class="resend-message-item"
+                                     Style="@(_selectedIndex == index ? "border-left: 3px solid var(--mud-palette-primary);" : "border-left: 3px solid transparent;")"
+                                     OnClick="@(() => _selectedIndex = index)"
+                                     Dense="true">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2" Color="@(_selectedIndex == index ? Color.Primary : Color.Default)">SEQ #@message.Message.BrokerProperties.SequenceNumber</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@(message.Message.BrokerProperties.MessageId ?? "(no id)")</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudPaper>
+                <div style="flex: 1; min-width: 0;">
+                    @if (_models.Count > 0)
+                    {
+                        <MessageEditForm Model="@_models[_selectedIndex]"/>
+                    }
+                </div>
             </div>
-        </MudStack>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="@Cancel">Cancel</MudButton>
-        <MudButton Color="Color.Primary"
-                   Variant="Variant.Filled"
-                   OnClick="@Submit"
-                   StartIcon="@Icons.Material.Filled.MoveUp">
-            Resend All
-        </MudButton>
-    </DialogActions>
-</MudDialog>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@Cancel">Cancel</MudButton>
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       OnClick="@Submit"
+                       StartIcon="@Icons.Material.Filled.MoveUp">
+                Resend All
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+
+</div>
