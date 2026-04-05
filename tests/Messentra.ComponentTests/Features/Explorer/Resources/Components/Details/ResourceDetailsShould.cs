@@ -43,6 +43,27 @@ public sealed class ResourceDetailsShould : ComponentTestBase
         return new QueueTreeNode("TestNS", queue, connectionConfig);
     }
 
+    private static TopicTreeNode BuildTopicNode(string name = "my-topic", string status = "Active")
+    {
+        var overview = new ResourceOverview(
+            status,
+            DateTimeOffset.Now,
+            DateTimeOffset.Now,
+            new MessageInfo(0, 0, 0, 0, 0, 0),
+            new SizeInfo(1024, 1024));
+        var props = new TopicProperties(
+            TimeSpan.FromDays(14),
+            TimeSpan.MaxValue,
+            false,
+            false,
+            TimeSpan.Zero,
+            null,
+            string.Empty);
+        var topic = new Resource.Topic(name, $"sb://test/topics/{name}", overview, props, []);
+        var connectionConfig = ConnectionConfig.CreateEntraId("test.servicebus.windows.net", "tenant", "client");
+        return new TopicTreeNode("TestNS", topic, connectionConfig);
+    }
+
     [Fact]
     public void ShowWelcomeMessageWhenNoResourceSelected()
     {
@@ -189,6 +210,34 @@ public sealed class ResourceDetailsShould : ComponentTestBase
 
         // Assert
         cut.Find("button[title='Import']").HasAttribute("disabled").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void HideMessagesAndDeadLetterTabs_WhenTopicIsSelected()
+    {
+        // Arrange
+        var node = BuildTopicNode();
+
+        // Act
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
+
+        // Assert
+        cut.FindAll(".mud-tab").Any(x => x.TextContent.Contains("Messages")).ShouldBeFalse();
+        cut.FindAll(".mud-tab").Any(x => x.TextContent.Contains("Dead-letter")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ShowMessagesAndDeadLetterTabs_WhenQueueIsSelected()
+    {
+        // Arrange
+        var node = BuildQueueNode();
+
+        // Act
+        var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
+
+        // Assert
+        cut.FindAll(".mud-tab").Any(x => x.TextContent.Contains("Messages")).ShouldBeTrue();
+        cut.FindAll(".mud-tab").Any(x => x.TextContent.Contains("Dead-letter")).ShouldBeTrue();
     }
 
     [Fact]

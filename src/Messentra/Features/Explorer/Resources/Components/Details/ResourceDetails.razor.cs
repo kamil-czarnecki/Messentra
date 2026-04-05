@@ -39,6 +39,7 @@ public partial class ResourceDetails
     }
 
     private bool IsRefreshing => SelectedResource is { IsLoading: true };
+    private bool ShowMessageTabs => SelectedResource is not TopicTreeNode;
     private bool IsMessagesOrDeadLetterTab => _activeDetailsTabIndex is 2 or 3;
     private bool IsMessagesTab => _activeDetailsTabIndex == 2;
     private SubQueue ActiveSubQueue => _activeDetailsTabIndex == 3 ? SubQueue.DeadLetter : SubQueue.Active;
@@ -73,6 +74,14 @@ public partial class ResourceDetails
 
     private string StatusText => GetStatusText();
     private Color StatusColor => GetStatusColor();
+
+    protected override void OnParametersSet()
+    {
+        if (!ShowMessageTabs && _activeDetailsTabIndex > 1)
+        {
+            _activeDetailsTabIndex = 0;
+        }
+    }
 
     private async Task CopyResourceName()
     {

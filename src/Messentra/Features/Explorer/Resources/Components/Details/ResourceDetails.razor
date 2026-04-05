@@ -62,12 +62,15 @@
                     <MudTabPanel Text="Properties" Class="pa-0">
                         <PropertiesTab Resource="SelectedResource"/>
                     </MudTabPanel>
-                    <MudTabPanel Text="Messages" Class="pa-0">
-                        <MessagesTab ResourceTreeNode="@SelectedResource" SubQueue="SubQueue.Active" OnRefresh="@RefreshResource"/>
-                    </MudTabPanel>
-                    <MudTabPanel Text="Dead-letter" Class="pa-0">
-                        <MessagesTab ResourceTreeNode="@SelectedResource" SubQueue="SubQueue.DeadLetter" OnRefresh="@RefreshResource"/>
-                    </MudTabPanel>
+                    @if (ShowMessageTabs)
+                    {
+                        <MudTabPanel Text="Messages" Class="pa-0">
+                            <MessagesTab ResourceTreeNode="@SelectedResource" SubQueue="SubQueue.Active" OnRefresh="@RefreshResource"/>
+                        </MudTabPanel>
+                        <MudTabPanel Text="Dead-letter" Class="pa-0">
+                            <MessagesTab ResourceTreeNode="@SelectedResource" SubQueue="SubQueue.DeadLetter" OnRefresh="@RefreshResource"/>
+                        </MudTabPanel>
+                    }
                 </MudTabs>
             </MudStack>
         }
