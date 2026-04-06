@@ -1,0 +1,102 @@
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+
+            <MudChip T="string"
+                     Size="Size.Small"
+                     Color="@(_state switch
+                            {
+                                DialogState.Completed => Color.Success,
+                                DialogState.Cancelled => Color.Default,
+                                _ => Color.Primary
+                            })" Variant="Variant.Filled"
+                     Icon="@ActionIcon">
+                @ActionLabel
+            </MudChip>
+
+            <div>
+                <MudText Typo="Typo.h6">
+                    @(_state switch
+                    {
+                        DialogState.Completed => _failed == 0 ? "All done" : "Completed with errors",
+                        DialogState.Cancelled => "Cancelled",
+                        _ => $"{ActionLabel}ing messages..."
+                    })
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@SubLabel</MudText>
+            </div>
+
+            <div>
+                <MudProgressLinear Value="@ProgressPercent"
+                                   Color="@(_failed > 0 ? Color.Warning : _state == DialogState.Cancelled ? Color.Default : Color.Primary)"
+                                   Rounded="true" Size="Size.Small" Class="mb-1"/>
+                <MudStack Row="true" Justify="Justify.SpaceBetween">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@(_succeeded + _failed) of @TotalCount</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@($"{ProgressPercent:F0}")%</MudText>
+                </MudStack>
+            </div>
+
+            <MudStack Row="true" Justify="Justify.SpaceAround">
+                <MudStack AlignItems="AlignItems.Center" Spacing="0">
+                    <MudText Typo="Typo.h5" Color="Color.Success">@_succeeded</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Succeeded</MudText>
+                </MudStack>
+                <MudStack AlignItems="AlignItems.Center" Spacing="0">
+                    <MudText Typo="Typo.h5" Color="Color.Error">@_failed</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Failed</MudText>
+                </MudStack>
+                <MudStack AlignItems="AlignItems.Center" Spacing="0">
+                    <MudText Typo="Typo.h5" Color="Color.Primary">@_pending</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Pending</MudText>
+                </MudStack>
+            </MudStack>
+
+            @if (_state == DialogState.ConfirmingCancel)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">
+                    <MudText Typo="Typo.body2"><strong>Cancel this action?</strong></MudText>
+                    <MudText Typo="Typo.body2">
+                        @_pending message(s) haven't been processed and will remain in the queue unchanged.
+                    </MudText>
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-2" Spacing="1">
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@OnKeepGoingClicked">Keep going</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error" OnClick="@OnConfirmCancelClicked">Yes, cancel</MudButton>
+                    </MudStack>
+                </MudAlert>
+            }
+
+            @if (_failedMessages.Count > 0)
+            {
+                <MudPaper Elevation="0" Class="pa-2 failure-list">
+                    @foreach (var (id, reason) in _failedMessages.ToList().Take(3))
+                    {
+                        <MudText Typo="Typo.caption"><strong>@id</strong> — @reason</MudText>
+                    }
+                    @if (_failedMessages.Count > 3)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">+ @(_failedMessages.Count - 3) more — see Activity Log</MudText>
+                    }
+                </MudPaper>
+            }
+
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        @if (IsRunning)
+        {
+            <MudButton Color="Color.Error" Variant="Variant.Text"
+                       OnClick="@OnCancelClicked"
+                       Disabled="@(_state == DialogState.ConfirmingCancel)">
+                Cancel
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Color="@(_failed > 0 ? Color.Warning : Color.Success)"
+                       Variant="Variant.Filled"
+                       OnClick="@OnOkClicked">
+                OK
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
