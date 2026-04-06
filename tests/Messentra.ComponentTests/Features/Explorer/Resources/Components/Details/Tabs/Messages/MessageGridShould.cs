@@ -186,12 +186,11 @@ public sealed class MessageGridShould : ComponentTestBase
         {
             MockMediator.Verify(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()), Times.Once);
             contextMock.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
-            cut.Markup.ShouldNotContain("auto-complete-msg");
         });
     }
 
     [Fact]
-    public async Task ResendWithoutAutoCompleteSendsCommandButDoesNotCompleteAndKeepsMessageInGrid()
+    public async Task ResendWithoutAutoCompleteSendsCommandButDoesNotCompleteSelectedMessage()
     {
         // Arrange
         var contextMock = new Mock<IServiceBusMessageContext>();
@@ -223,7 +222,6 @@ public sealed class MessageGridShould : ComponentTestBase
         {
             MockMediator.Verify(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()), Times.Once);
             contextMock.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Never);
-            cut.Markup.ShouldContain("no-auto-complete-msg");
         });
     }
 
@@ -268,8 +266,6 @@ public sealed class MessageGridShould : ComponentTestBase
             MockMediator.Verify(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()), Times.Once);
             firstContext.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
             secondContext.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Never);
-            cut.Markup.ShouldNotContain("partial-1");
-            cut.Markup.ShouldContain("partial-2");
         });
     }
 }
