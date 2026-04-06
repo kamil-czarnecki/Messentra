@@ -436,54 +436,88 @@ public partial class MessageGrid : IDisposable
             totalCount: count,
             onRunAction: async (progress, ct) =>
             {
+                const int resendChunkSize = 200;
+
+                var succeeded = 0;
+                var failed = 0;
+                string? failedId = null;
+                string? failedReason = null;
+                var selectedBySequenceNumber = selectedList
+                    .ToDictionary(x => x.Message.BrokerProperties.SequenceNumber);
+                var addedSuccessfulSequenceNumbers = new HashSet<long>();
+
                 progress.Report(new ActionProgressUpdate(0, 0, count));
 
-                var resendResult = await _mediator.Send(
-                    new SendMessagesCommand(ResourceTreeNode, batchItems), ct);
-
-                var resentMessages = selectedList
-                    .Where(x => resendResult.SentSequenceNumbers.Contains(
-                        x.Message.BrokerProperties.SequenceNumber))
-                    .ToList();
-
-                if (autoComplete && resentMessages.Count > 0)
+                foreach (var batchChunk in batchItems.Chunk(resendChunkSize))
                 {
-                    await Parallel.ForEachAsync(
-                        resentMessages,
-                        new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = ct },
-                        async (message, innerCt) =>
+                    ct.ThrowIfCancellationRequested();
+
+                    var resendResult = await _mediator.Send(
+                        new SendMessagesCommand(ResourceTreeNode, batchChunk), ct);
+
+                    succeeded += resendResult.SentCount;
+                    failed += resendResult.FailedCount;
+
+                    var chunkResentMessages = resendResult.SentSequenceNumbers
+                        .Select(selectedBySequenceNumber.GetValueOrDefault)
+                        .Where(message => message is not null)
+                        .Cast<ServiceBusMessage>()
+                        .ToList();
+
+                    if (autoComplete && chunkResentMessages.Count > 0)
+                    {
+                        await Parallel.ForEachAsync(
+                            chunkResentMessages,
+                            new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = ct },
+                            async (message, innerCt) =>
+                            {
+                                try
+                                {
+                                    await message.MessageContext.Complete(innerCt);
+
+                                    var sequenceNumber = message.Message.BrokerProperties.SequenceNumber;
+                                    lock (addedSuccessfulSequenceNumbers)
+                                    {
+                                        if (addedSuccessfulSequenceNumbers.Add(sequenceNumber))
+                                            successful.Add(message);
+                                    }
+                                }
+                                catch
+                                {
+                                    // ignored
+                                }
+                            });
+                    }
+                    else
+                    {
+                        foreach (var message in chunkResentMessages)
                         {
-                            try
-                            {
-                                await message.MessageContext.Complete(innerCt);
+                            var sequenceNumber = message.Message.BrokerProperties.SequenceNumber;
+                            if (addedSuccessfulSequenceNumbers.Add(sequenceNumber))
                                 successful.Add(message);
-                            }
-                            catch
-                            {
-                                // ignored
-                            }
-                        });
+                        }
+                    }
+
+                    if (resendResult.FailedCount > 0)
+                    {
+                        var firstError = resendResult.Errors.FirstOrDefault();
+                        failedId = firstError?.SourceSequenceNumber.ToString() ?? "unknown";
+                        failedReason = firstError?.Message ?? "Unknown error";
+                    }
+
+                    progress.Report(new ActionProgressUpdate(
+                        succeeded,
+                        failed,
+                        Math.Max(0, count - succeeded - failed),
+                        failedId,
+                        failedReason));
                 }
+
+
+                if (failed == 0)
+                    LogActivity("Info", $"Resent {succeeded}/{count} message(s) from '{ResourceName}'.");
                 else
-                {
-                    foreach (var m in resentMessages)
-                        successful.Add(m);
-                }
-
-                var finalFailed = resendResult.FailedCount;
-                var firstError = resendResult.Errors.FirstOrDefault();
-
-                progress.Report(new ActionProgressUpdate(
-                    resendResult.SentCount,
-                    finalFailed,
-                    0,
-                    finalFailed > 0 ? (firstError?.SourceSequenceNumber.ToString() ?? "unknown") : null,
-                    finalFailed > 0 ? (firstError?.Message ?? "Unknown error") : null));
-
-                if (finalFailed == 0)
-                    LogActivity("Info", $"Resent {resendResult.SentCount}/{count} message(s) from '{ResourceName}'.");
-                else
-                    LogActivity("Warning", $"Resent {resendResult.SentCount}/{count} message(s) from '{ResourceName}'. Failed: {finalFailed}.");
+                    LogActivity("Warning", $"Resent {succeeded}/{count} message(s) from '{ResourceName}'. Failed: {failed}.");
             });
 
         RemoveSuccessful(successful);
