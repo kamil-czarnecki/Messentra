@@ -8,6 +8,7 @@ using Messentra.Features.Layout.State;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
+using System.Collections.Concurrent;
 
 namespace Messentra.Features.Explorer.Resources.Components.Details.Tabs;
 
@@ -365,6 +366,10 @@ public partial class MessageGrid : IDisposable
 
     private async Task OnResendClicked(bool autoComplete)
     {
+        var selectedList = SelectedItems
+            .OrderBy(x => x.Message.BrokerProperties.SequenceNumber)
+            .ToList();
+
         var dialogOptions = new DialogOptions
         {
             MaxWidth = MaxWidth.ExtraLarge,
@@ -375,18 +380,17 @@ public partial class MessageGrid : IDisposable
 
         var parameters = new DialogParameters
         {
-            [nameof(ResendMessagesDialog.Messages)] = SelectedItems.ToList(),
+            [nameof(ResendMessagesDialog.Messages)] = selectedList,
             [nameof(ResendMessagesDialog.ResourceTreeNode)] = ResourceTreeNode
         };
 
         var dialogRef = await _dialogService.ShowAsync<ResendMessagesDialog>("Resend Messages", parameters, dialogOptions);
         var result = await dialogRef.Result;
 
-        if (result is not { Canceled: false, Data: IReadOnlyList<SendMessageCommand> commands })
+        if (result is not { Canceled: false, Data: IReadOnlyList<SendMessageBatchItem> messages })
             return;
 
         _actionOngoing = true;
-        var selectedList = SelectedItems.ToList();
         var count = selectedList.Count;
         var cancellationToken = _resourceOperationCts.Token;
 
@@ -394,15 +398,9 @@ public partial class MessageGrid : IDisposable
 
         try
         {
-            await Parallel.ForEachAsync(
-                Enumerable.Range(0, count),
-                new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = cancellationToken },
-                async (i, ct) =>
-                {
-                    await _mediator.Send(commands[i], ct);
-                    if (autoComplete)
-                        await selectedList[i].MessageContext.Complete(ct);
-                });
+            var resendResult = await _mediator.Send(
+                new SendMessagesCommand(ResourceTreeNode, messages),
+                cancellationToken);
 
             if (cancellationToken.IsCancellationRequested)
             {
@@ -410,13 +408,50 @@ public partial class MessageGrid : IDisposable
                 return;
             }
 
+            var resentMessages = selectedList
+                .Where(x => resendResult.SentSequenceNumbers.Contains(x.Message.BrokerProperties.SequenceNumber))
+                .ToList();
+
             if (autoComplete)
             {
-                _messages = _messages.Except(SelectedItems).ToList();
-                SelectedItems = [];
+                var completedMessages = new ConcurrentBag<ServiceBusMessage>();
+                var completionErrors = new ConcurrentBag<string>();
+
+                await Parallel.ForEachAsync(
+                    resentMessages,
+                    new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = cancellationToken },
+                    async (message, ct) =>
+                    {
+                        try
+                        {
+                            await message.MessageContext.Complete(ct);
+                            completedMessages.Add(message);
+                        }
+                        catch (Exception ex)
+                        {
+                            completionErrors.Add(ex.Message);
+                        }
+                    });
+
+                if (completedMessages.Count > 0)
+                {
+                    _messages = _messages.Except(completedMessages).ToList();
+                    SelectedItems = SelectedItems.Except(completedMessages).ToHashSet();
+                }
+
+                if (completionErrors.Count > 0)
+                    LogActivity("Warning", $"Completed {completedMessages.Count} of {resentMessages.Count} resent message(s) from '{ResourceName}'.");
             }
 
-            LogActivity("Info", $"Resent {count} message(s) from '{ResourceName}'.");
+            if (resendResult.FailedCount == 0)
+            {
+                LogActivity("Info", $"Resent {resendResult.SentCount}/{count} message(s) from '{ResourceName}'.");
+            }
+            else
+            {
+                var firstError = resendResult.Errors.FirstOrDefault()?.Message ?? "Unknown error";
+                LogActivity("Warning", $"Resent {resendResult.SentCount}/{count} message(s) from '{ResourceName}'. Failed: {resendResult.FailedCount}. First failure: {firstError}");
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

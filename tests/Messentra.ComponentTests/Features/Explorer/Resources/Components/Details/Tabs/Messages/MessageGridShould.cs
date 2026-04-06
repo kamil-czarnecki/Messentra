@@ -31,11 +31,14 @@ public sealed class MessageGridShould : ComponentTestBase
         return new QueueTreeNode(connectionName, queue, connectionConfig);
     }
 
-    private static ServiceBusMessage BuildServiceBusMessage(Mock<IServiceBusMessageContext>? contextMock = null, string messageId = "msg-1")
+    private static ServiceBusMessage BuildServiceBusMessage(
+        Mock<IServiceBusMessageContext>? contextMock = null,
+        string messageId = "msg-1",
+        long sequenceNumber = 1)
     {
         var brokerProperties = new BrokerProperties(
             MessageId: messageId,
-            SequenceNumber: 1,
+            SequenceNumber: sequenceNumber,
             CorrelationId: null, SessionId: null, ReplyToSessionId: null,
             EnqueuedTimeUtc: DateTime.UtcNow, ScheduledEnqueueTimeUtc: DateTime.UtcNow,
             TimeToLive: TimeSpan.FromDays(1),
@@ -160,8 +163,12 @@ public sealed class MessageGridShould : ComponentTestBase
         SetupFetchResponse(message);
 
         MockMediator
-            .Setup(x => x.Send(It.IsAny<SendMessageCommand>(), It.IsAny<CancellationToken>()))
-            .Returns(ValueTask.FromResult(new SendMessageResult(new Success())));
+            .Setup(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.FromResult(new SendMessagesResult(
+                TotalCount: 1,
+                SentCount: 1,
+                SentSequenceNumbers: new HashSet<long> { 1 },
+                Errors: [])));
 
         var cut = RenderMessageGrid(BuildQueueNode());
 
@@ -177,7 +184,7 @@ public sealed class MessageGridShould : ComponentTestBase
         // Assert
         await cut.WaitForAssertionAsync(() =>
         {
-            MockMediator.Verify(x => x.Send(It.IsAny<SendMessageCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+            MockMediator.Verify(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()), Times.Once);
             contextMock.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
             cut.Markup.ShouldNotContain("auto-complete-msg");
         });
@@ -193,8 +200,12 @@ public sealed class MessageGridShould : ComponentTestBase
         SetupFetchResponse(message);
 
         MockMediator
-            .Setup(x => x.Send(It.IsAny<SendMessageCommand>(), It.IsAny<CancellationToken>()))
-            .Returns(ValueTask.FromResult(new SendMessageResult(new Success())));
+            .Setup(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.FromResult(new SendMessagesResult(
+                TotalCount: 1,
+                SentCount: 1,
+                SentSequenceNumbers: new HashSet<long> { 1 },
+                Errors: [])));
 
         var cut = RenderMessageGrid(BuildQueueNode());
 
@@ -210,9 +221,55 @@ public sealed class MessageGridShould : ComponentTestBase
         // Assert
         await cut.WaitForAssertionAsync(() =>
         {
-            MockMediator.Verify(x => x.Send(It.IsAny<SendMessageCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+            MockMediator.Verify(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()), Times.Once);
             contextMock.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Never);
             cut.Markup.ShouldContain("no-auto-complete-msg");
+        });
+    }
+
+    [Fact]
+    public async Task ResendWithAutoCompleteOnlyCompletesSuccessfullyResentMessages()
+    {
+        // Arrange
+        var firstContext = new Mock<IServiceBusMessageContext>();
+        firstContext.Setup(x => x.Complete(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var secondContext = new Mock<IServiceBusMessageContext>();
+        secondContext.Setup(x => x.Complete(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var firstMessage = BuildServiceBusMessage(firstContext, "partial-1", sequenceNumber: 1);
+        var secondMessage = BuildServiceBusMessage(secondContext, "partial-2", sequenceNumber: 2);
+        SetupFetchResponse(firstMessage, secondMessage);
+
+        MockMediator
+            .Setup(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.FromResult(new SendMessagesResult(
+                TotalCount: 2,
+                SentCount: 1,
+                SentSequenceNumbers: new HashSet<long> { 1 },
+                Errors: [new SendMessagesError(2, "oversized")])));
+
+        var cut = RenderMessageGrid(BuildQueueNode());
+
+        // Act
+        await FetchMessagesThroughUi(cut, FetchMode.Receive);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("partial-1"));
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("partial-2"));
+
+        var checkboxes = cut.FindAll(".mud-table-body .mud-checkbox input[type='checkbox']");
+        checkboxes[0].Change(true);
+        checkboxes[1].Change(true);
+
+        cut.FindAll("button").Single(x => x.TextContent.Trim() == "Resend").Click();
+        await MudDialog.Find("button:contains('Resend All')").ClickAsync();
+
+        // Assert
+        await cut.WaitForAssertionAsync(() =>
+        {
+            MockMediator.Verify(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+            firstContext.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
+            secondContext.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Never);
+            cut.Markup.ShouldNotContain("partial-1");
+            cut.Markup.ShouldContain("partial-2");
         });
     }
 }

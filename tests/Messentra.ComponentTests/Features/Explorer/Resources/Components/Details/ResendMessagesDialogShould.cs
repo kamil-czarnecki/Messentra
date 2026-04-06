@@ -127,7 +127,7 @@ public sealed class ResendMessagesDialogShould : ComponentTestBase
         var result = await dialogRef.Result;
         result.ShouldNotBeNull();
         result.Canceled.ShouldBeFalse();
-        var commands = result.Data.ShouldBeAssignableTo<IReadOnlyList<SendMessageCommand>>();
+        var commands = result.Data.ShouldBeAssignableTo<IReadOnlyList<SendMessageBatchItem>>();
         commands!.Count.ShouldBe(2);
     }
 
@@ -148,7 +148,7 @@ public sealed class ResendMessagesDialogShould : ComponentTestBase
         await cut.Find("button:contains('Resend All')").ClickAsync();
 
         var result = await dialogRef.Result;
-        var commands = result.Data.ShouldBeAssignableTo<IReadOnlyList<SendMessageCommand>>();
+        var commands = result.Data.ShouldBeAssignableTo<IReadOnlyList<SendMessageBatchItem>>();
         commands![0].MessageId.ShouldBeNull();
     }
 
@@ -182,7 +182,7 @@ public sealed class ResendMessagesDialogShould : ComponentTestBase
         await cut.Find("button:contains('Resend All')").ClickAsync();
 
         var result = await dialogRef.Result;
-        var commands = result.Data.ShouldBeAssignableTo<IReadOnlyList<SendMessageCommand>>();
+        var commands = result.Data.ShouldBeAssignableTo<IReadOnlyList<SendMessageBatchItem>>();
         commands![0].Body.ShouldBe("edited body");
     }
 }

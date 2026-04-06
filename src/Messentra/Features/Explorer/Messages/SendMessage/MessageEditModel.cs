@@ -63,6 +63,23 @@ public sealed class MessageEditModel
             ContentType: NullIfEmpty(ContentType),
             ApplicationProperties: BuildApplicationProperties());
 
+    public SendMessageBatchItem ToSendMessageBatchItem(long sourceSequenceNumber) =>
+        new(
+            SourceSequenceNumber: sourceSequenceNumber,
+            Body: Body,
+            MessageId: NullIfEmpty(MessageId),
+            Label: NullIfEmpty(Label),
+            CorrelationId: NullIfEmpty(CorrelationId),
+            SessionId: NullIfEmpty(SessionId),
+            ReplyToSessionId: NullIfEmpty(ReplyToSessionId),
+            PartitionKey: NullIfEmpty(PartitionKey),
+            ScheduledEnqueueTimeUtc: ScheduledDate,
+            TimeToLive: TimeSpan.TryParse(TimeToLiveText, out var ts) ? ts : null,
+            To: NullIfEmpty(To),
+            ReplyTo: NullIfEmpty(ReplyTo),
+            ContentType: NullIfEmpty(ContentType),
+            ApplicationProperties: BuildApplicationProperties());
+
     public void FormatBodyAsJson()
     {
         if (BodyFormat != BodyFormat.Json || string.IsNullOrWhiteSpace(Body))

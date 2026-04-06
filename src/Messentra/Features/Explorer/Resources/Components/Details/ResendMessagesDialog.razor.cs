@@ -33,11 +33,11 @@ public sealed partial class ResendMessagesDialog
 
     private void Submit()
     {
-        IReadOnlyList<SendMessageCommand> commands = _models
-            .Select(m => m.ToSendMessageCommand(ResourceTreeNode))
+        IReadOnlyList<SendMessageBatchItem> messages = _models
+            .Select((m, i) => m.ToSendMessageBatchItem(Messages[i].Message.BrokerProperties.SequenceNumber))
             .ToList();
 
-        MudDialog.Close(DialogResult.Ok(commands));
+        MudDialog.Close(DialogResult.Ok(messages));
     }
 
     private ValueTask<ItemsProviderResult<int>> LoadMessageIndexes(ItemsProviderRequest request)
