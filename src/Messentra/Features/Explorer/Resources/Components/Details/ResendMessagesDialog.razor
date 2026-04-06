@@ -1,28 +1,33 @@
 <div>
     <MudDialog>
         <DialogContent>
-            <div class="resend-layout">
-                <MudPaper Outlined="true" Elevation="0" Class="resend-message-list">
-                    @foreach (var (message, index) in Messages.Select((m, i) => (m, i)))
-                    {
-                        <MudListItem T="string"
-                                     Class="@($"resend-message-item{(_selectedIndex == index ? " resend-message-item--selected" : "")}")"
-                                     OnClick="@(() => _selectedIndex = index)"
-                                     Dense="true">
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body2" Color="@(_selectedIndex == index ? Color.Primary : Color.Default)">SEQ #@message.Message.BrokerProperties.SequenceNumber</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@(message.Message.BrokerProperties.MessageId ?? "(no id)")</MudText>
-                            </MudStack>
-                        </MudListItem>
-                    }
+            <MudStack Row="true" Class="resend-layout">
+                <MudPaper Class="resend-message-list" Elevation="0">
+                    <MudList T="string" Dense="true" SelectionMode="SelectionMode.SingleSelection" Class="resend-message-list">
+                        <Virtualize TItem="int" ItemsProvider="@LoadMessageIndexes" ItemSize="52">
+                            @{
+                                var index = @context;
+                            }
+                            <MudListItem T="string"
+                                         Class="@($"resend-message-item{(_selectedIndex == index ? " resend-message-item--selected" : "")}")"
+                                         OnClick="@(() => _selectedIndex = index)"
+                                         Dense="true"
+                                         Ripple="false">
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body2" Color="@(_selectedIndex == index ? Color.Primary : Color.Default)">SEQ #@Messages[index].Message.BrokerProperties.SequenceNumber</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@(Messages[index].Message.BrokerProperties.MessageId ?? "(no id)")</MudText>
+                                </MudStack>
+                            </MudListItem>
+                        </Virtualize>
+                    </MudList>
                 </MudPaper>
-                <div class="resend-form-panel">
+                <MudPaper Class="resend-form-panel" Elevation="0">
                     @if (_models.Count > 0)
                     {
                         <MessageEditForm Model="@_models[_selectedIndex]"/>
                     }
-                </div>
-            </div>
+                </MudPaper>
+            </MudStack>
         </DialogContent>
         <DialogActions>
             <MudButton OnClick="@Cancel">Cancel</MudButton>
@@ -34,5 +39,4 @@
             </MudButton>
         </DialogActions>
     </MudDialog>
-
 </div>

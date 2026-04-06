@@ -1,6 +1,7 @@
 using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Messages.SendMessage;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web.Virtualization;
 using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources.Components.Details;
@@ -37,5 +38,19 @@ public sealed partial class ResendMessagesDialog
             .ToList();
 
         MudDialog.Close(DialogResult.Ok(commands));
+    }
+
+    private ValueTask<ItemsProviderResult<int>> LoadMessageIndexes(ItemsProviderRequest request)
+    {
+        var totalCount = _models.Count;
+        var count = Math.Min(request.Count, totalCount - request.StartIndex);
+
+        if (count <= 0)
+        {
+            return ValueTask.FromResult(new ItemsProviderResult<int>([], totalCount));
+        }
+
+        var page = Enumerable.Range(request.StartIndex, count);
+        return ValueTask.FromResult(new ItemsProviderResult<int>(page, totalCount));
     }
 }
