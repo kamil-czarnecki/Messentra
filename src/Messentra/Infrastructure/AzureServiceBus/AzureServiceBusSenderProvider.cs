@@ -38,7 +38,7 @@ public sealed class AzureServiceBusSender : AzureServiceBusProviderBase, IAzureS
     {
         await ExecuteWithClientRecovery(info, async client =>
         {
-            var sender = client.CreateSender(entityPath);
+            await using var sender = client.CreateSender(entityPath);
             await sender.SendMessageAsync(FromSendMessageBatchItem(message), cancellationToken);
         }, cancellationToken);
     }
@@ -82,11 +82,11 @@ public sealed class AzureServiceBusSender : AzureServiceBusProviderBase, IAzureS
 
         return await ExecuteWithClientRecovery(info, async client =>
         {
-            var sender = client.CreateSender(entityPath);
+            await using var sender = client.CreateSender(entityPath);
             using var batch = await sender.CreateMessageBatchAsync(cancellationToken);
             var sentCount = messages
                 .Select(FromSendMessageBatchItem)
-                .TakeWhile(serviceBusMessage => batch.TryAddMessage(serviceBusMessage))
+                .TakeWhile(batch.TryAddMessage)
                 .Count();
 
             if (sentCount == 0)
