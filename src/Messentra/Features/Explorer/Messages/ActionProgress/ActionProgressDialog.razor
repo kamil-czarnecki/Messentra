@@ -2,14 +2,16 @@
     <DialogContent>
         <MudStack Spacing="3">
 
-            <MudChip T="string" Size="Size.Small" 
+            <MudChip T="string"
+                     Size="Size.Small"
                      Color="@(_state switch
                             {
                                 DialogState.Completed => Color.Success,
                                 DialogState.Cancelled => Color.Default,
                                 _ => Color.Primary
-                            })" Variant="Variant.Filled">
-                @ActionIcon @ActionLabel
+                            })" Variant="Variant.Filled"
+                     Icon="@ActionIcon">
+                @ActionLabel
             </MudChip>
 
             <div>
