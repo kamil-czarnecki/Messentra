@@ -1,6 +1,7 @@
 using Fluxor;
 using Mediator;
 using Messentra.Features.Explorer.Messages;
+using Messentra.Features.Explorer.Messages.ActionProgress;
 using Messentra.Features.Explorer.Messages.FetchQueueMessages;
 using Messentra.Features.Explorer.Messages.FetchSubscriptionMessages;
 using Messentra.Features.Explorer.Messages.SendMessage;
@@ -141,52 +142,87 @@ public partial class MessageGrid : IDisposable
             DateTime.Now)));
     }
 
-    private async Task ExecuteMessageAction(
-        string operationName,
-        string successVerb,
-        Func<ServiceBusMessage, CancellationToken, Task> operation,
-        bool removeProcessedMessages)
+    private static DialogOptions ActionProgressDialogOptions() => new()
+    {
+        MaxWidth = MaxWidth.ExtraSmall,
+        FullWidth = true,
+        CloseButton = false,
+        CloseOnEscapeKey = false,
+        BackdropClick = false
+    };
+
+    private async Task ShowActionProgressDialog(
+        string actionLabel,
+        string actionIcon,
+        string subLabel,
+        int totalCount,
+        Func<IProgress<ActionProgressUpdate>, CancellationToken, Task> onRunAction)
     {
         _actionOngoing = true;
-        var count = SelectedItems.Count;
-        var cancellationToken = _resourceOperationCts.Token;
 
-        LogActivity("Debug", $"{operationName} {count} message(s) from '{ResourceName}'...");
-
-        try
+        var parameters = new DialogParameters
         {
-            await Parallel.ForEachAsync(
-                SelectedItems,
-                new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = cancellationToken },
-                async (message, ct) => await operation(message, ct));
+            [nameof(ActionProgressDialog.ActionLabel)] = actionLabel,
+            [nameof(ActionProgressDialog.ActionIcon)] = actionIcon,
+            [nameof(ActionProgressDialog.SubLabel)] = subLabel,
+            [nameof(ActionProgressDialog.TotalCount)] = totalCount,
+            [nameof(ActionProgressDialog.OnRunAction)] = onRunAction
+        };
 
-            if (cancellationToken.IsCancellationRequested)
+        var dialogRef = await _dialogService.ShowAsync<ActionProgressDialog>(
+            string.Empty, parameters, ActionProgressDialogOptions());
+
+        await dialogRef.Result;
+        _actionOngoing = false;
+    }
+
+    private static async Task RunParallelAction(
+        IReadOnlyList<ServiceBusMessage> messages,
+        ConcurrentBag<ServiceBusMessage> successful,
+        IProgress<ActionProgressUpdate> progress,
+        CancellationToken ct,
+        Func<ServiceBusMessage, CancellationToken, Task> operation)
+    {
+        var succeeded = 0;
+        var failed = 0;
+        var total = messages.Count;
+
+        await Parallel.ForEachAsync(
+            messages,
+            new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = ct },
+            async (message, innerCt) =>
             {
-                LogCanceledOperation(operationName);
-                return;
-            }
+                string? failedId = null;
+                string? failedReason = null;
 
-            if (removeProcessedMessages)
-            {
-                _messages = _messages.Except(SelectedItems).ToList();
-                SelectedItems = [];
-            }
+                try
+                {
+                    await operation(message, innerCt);
+                    Interlocked.Increment(ref succeeded);
+                    successful.Add(message);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Interlocked.Increment(ref failed);
+                    failedId = message.Message.BrokerProperties.MessageId
+                        ?? message.Message.BrokerProperties.SequenceNumber.ToString();
+                    failedReason = ex.Message;
+                }
 
-            LogActivity("Info", $"{successVerb} {count} message(s) from '{ResourceName}'.");
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            LogCanceledOperation(operationName);
-        }
-        catch (Exception ex)
-        {
-            LogActivity("Error", $"{operationName} messages from '{ResourceName}' failed: {ex.Message}");
-        }
-        finally
-        {
-            _actionOngoing = false;
-            await OnRefresh.InvokeAsync();
-        }
+                var pending = Math.Max(0, total - succeeded - failed);
+                progress.Report(new ActionProgressUpdate(succeeded, failed, pending, failedId, failedReason));
+            });
+    }
+
+    private void RemoveSuccessful(ConcurrentBag<ServiceBusMessage> successful)
+    {
+        if (successful.IsEmpty) return;
+        _messages = _messages.Except(successful).ToList();
+        SelectedItems = SelectedItems.Except(successful).ToHashSet();
     }
 
     private static DialogOptions CreateFetchDialogOptions() => new()
@@ -387,111 +423,127 @@ public partial class MessageGrid : IDisposable
         var dialogRef = await _dialogService.ShowAsync<ResendMessagesDialog>("Resend Messages", parameters, dialogOptions);
         var result = await dialogRef.Result;
 
-        if (result is not { Canceled: false, Data: IReadOnlyList<SendMessageBatchItem> messages })
+        if (result is not { Canceled: false, Data: IReadOnlyList<SendMessageBatchItem> batchItems })
             return;
 
-        _actionOngoing = true;
+        var successful = new ConcurrentBag<ServiceBusMessage>();
         var count = selectedList.Count;
-        var cancellationToken = _resourceOperationCts.Token;
 
-        LogActivity("Debug", $"Resending {count} message(s) from '{ResourceName}'...");
-
-        try
-        {
-            var resendResult = await _mediator.Send(
-                new SendMessagesCommand(ResourceTreeNode, messages),
-                cancellationToken);
-
-            if (cancellationToken.IsCancellationRequested)
+        await ShowActionProgressDialog(
+            actionLabel: "Resend",
+            actionIcon: Icons.Material.Filled.MoveUp,
+            subLabel: ResourceName,
+            totalCount: count,
+            onRunAction: async (progress, ct) =>
             {
-                LogCanceledOperation("Resending");
-                return;
-            }
+                progress.Report(new ActionProgressUpdate(0, 0, count));
 
-            var resentMessages = selectedList
-                .Where(x => resendResult.SentSequenceNumbers.Contains(x.Message.BrokerProperties.SequenceNumber))
-                .ToList();
+                var resendResult = await _mediator.Send(
+                    new SendMessagesCommand(ResourceTreeNode, batchItems), ct);
 
-            if (autoComplete)
-            {
-                var completedMessages = new ConcurrentBag<ServiceBusMessage>();
-                var completionErrors = new ConcurrentBag<string>();
+                var resentMessages = selectedList
+                    .Where(x => resendResult.SentSequenceNumbers.Contains(
+                        x.Message.BrokerProperties.SequenceNumber))
+                    .ToList();
 
-                await Parallel.ForEachAsync(
-                    resentMessages,
-                    new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = cancellationToken },
-                    async (message, ct) =>
-                    {
-                        try
-                        {
-                            await message.MessageContext.Complete(ct);
-                            completedMessages.Add(message);
-                        }
-                        catch (Exception ex)
-                        {
-                            completionErrors.Add(ex.Message);
-                        }
-                    });
-
-                if (completedMessages.Count > 0)
+                if (autoComplete && resentMessages.Count > 0)
                 {
-                    _messages = _messages.Except(completedMessages).ToList();
-                    SelectedItems = SelectedItems.Except(completedMessages).ToHashSet();
+                    await Parallel.ForEachAsync(
+                        resentMessages,
+                        new ParallelOptions { MaxDegreeOfParallelism = 100, CancellationToken = ct },
+                        async (message, innerCt) =>
+                        {
+                            try
+                            {
+                                await message.MessageContext.Complete(innerCt);
+                                successful.Add(message);
+                            }
+                            catch
+                            {
+                                // ignored
+                            }
+                        });
+                }
+                else
+                {
+                    foreach (var m in resentMessages)
+                        successful.Add(m);
                 }
 
-                if (completionErrors.Count > 0)
-                    LogActivity("Warning", $"Completed {completedMessages.Count} of {resentMessages.Count} resent message(s) from '{ResourceName}'.");
-            }
+                var finalFailed = resendResult.FailedCount;
+                var firstError = resendResult.Errors.FirstOrDefault();
 
-            if (resendResult.FailedCount == 0)
-            {
-                LogActivity("Info", $"Resent {resendResult.SentCount}/{count} message(s) from '{ResourceName}'.");
-            }
-            else
-            {
-                var firstError = resendResult.Errors.FirstOrDefault()?.Message ?? "Unknown error";
-                LogActivity("Warning", $"Resent {resendResult.SentCount}/{count} message(s) from '{ResourceName}'. Failed: {resendResult.FailedCount}. First failure: {firstError}");
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            LogCanceledOperation("Resending");
-        }
-        catch (Exception ex)
-        {
-            LogActivity("Error", $"Resending messages from '{ResourceName}' failed: {ex.Message}");
-        }
-        finally
-        {
-            _actionOngoing = false;
-            await OnRefresh.InvokeAsync();
-        }
+                progress.Report(new ActionProgressUpdate(
+                    resendResult.SentCount,
+                    finalFailed,
+                    0,
+                    finalFailed > 0 ? (firstError?.SourceSequenceNumber.ToString() ?? "unknown") : null,
+                    finalFailed > 0 ? (firstError?.Message ?? "Unknown error") : null));
+
+                if (finalFailed == 0)
+                    LogActivity("Info", $"Resent {resendResult.SentCount}/{count} message(s) from '{ResourceName}'.");
+                else
+                    LogActivity("Warning", $"Resent {resendResult.SentCount}/{count} message(s) from '{ResourceName}'. Failed: {finalFailed}.");
+            });
+
+        RemoveSuccessful(successful);
+        await OnRefresh.InvokeAsync();
     }
 
     private async Task OnCompleteClicked()
     {
-        await ExecuteMessageAction(
-            operationName: "Completing",
-            successVerb: "Completed",
-            operation: async (message, ct) => await message.MessageContext.Complete(ct),
-            removeProcessedMessages: true);
+        var messages = SelectedItems.ToList();
+        var successful = new ConcurrentBag<ServiceBusMessage>();
+
+        await ShowActionProgressDialog(
+            actionLabel: "Complete",
+            actionIcon: Icons.Material.Filled.Check,
+            subLabel: ResourceName,
+            totalCount: messages.Count,
+            onRunAction: (progress, ct) =>
+                RunParallelAction(messages, successful, progress, ct,
+                    (msg, innerCt) => msg.MessageContext.Complete(innerCt)));
+
+        RemoveSuccessful(successful);
+        LogActivity("Info", $"Completed {successful.Count}/{messages.Count} message(s) from '{ResourceName}'.");
+        await OnRefresh.InvokeAsync();
     }
 
     private async Task OnAbandonClicked()
     {
-        await ExecuteMessageAction(
-            operationName: "Abandoning",
-            successVerb: "Abandoned",
-            operation: async (message, ct) => await message.MessageContext.Abandon(ct),
-            removeProcessedMessages: true);
+        var messages = SelectedItems.ToList();
+        var successful = new ConcurrentBag<ServiceBusMessage>();
+
+        await ShowActionProgressDialog(
+            actionLabel: "Abandon",
+            actionIcon: Icons.Material.Filled.LockOpen,
+            subLabel: ResourceName,
+            totalCount: messages.Count,
+            onRunAction: (progress, ct) =>
+                RunParallelAction(messages, successful, progress, ct,
+                    (msg, innerCt) => msg.MessageContext.Abandon(innerCt)));
+
+        RemoveSuccessful(successful);
+        LogActivity("Info", $"Abandoned {successful.Count}/{messages.Count} message(s) from '{ResourceName}'.");
+        await OnRefresh.InvokeAsync();
     }
 
     private async Task OnDeadLetterClicked()
     {
-        await ExecuteMessageAction(
-            operationName: "Dead-lettering",
-            successVerb: "Dead-lettered",
-            operation: async (message, ct) => await message.MessageContext.DeadLetter(ct),
-            removeProcessedMessages: true);
+        var messages = SelectedItems.ToList();
+        var successful = new ConcurrentBag<ServiceBusMessage>();
+
+        await ShowActionProgressDialog(
+            actionLabel: "Dead-letter",
+            actionIcon: Icons.Material.Filled.Delete,
+            subLabel: ResourceName,
+            totalCount: messages.Count,
+            onRunAction: (progress, ct) =>
+                RunParallelAction(messages, successful, progress, ct,
+                    (msg, innerCt) => msg.MessageContext.DeadLetter(innerCt)));
+
+        RemoveSuccessful(successful);
+        LogActivity("Info", $"Dead-lettered {successful.Count}/{messages.Count} message(s) from '{ResourceName}'.");
+        await OnRefresh.InvokeAsync();
     }
 }

@@ -1,0 +1,5 @@
+.failure-list {
+    background: var(--mud-palette-error-lighten);
+    max-height: 100px;
+    overflow-y: auto;
+}
