@@ -1,0 +1,22 @@
+::deep .resend-layout {
+    height: 80vh;
+    overflow: auto;
+}
+
+::deep .resend-message-list {
+    height: 100%;
+    overflow-y: auto;
+}
+
+::deep .resend-form-panel {
+    flex: 1;
+    overflow: auto;
+}
+
+::deep .resend-message-item {
+    border-left: 3px solid transparent;
+}
+
+::deep .resend-message-item--selected {
+    border-left: 3px solid var(--mud-palette-primary);
+}

@@ -372,7 +372,7 @@ public sealed class AzureServiceBusSenderShould
         var info = new ConnectionInfo.ConnectionString(ConnectionString);
 
         // Act
-        var result = await _sut.SendBatchChunk(info, EntityPath, [], CancellationToken.None);
+        var result = await _sut.SendBatchChunk(info, EntityPath, (IReadOnlyList<ServiceBusMessageDto>)[], CancellationToken.None);
 
         // Assert
         result.ShouldBe(0);

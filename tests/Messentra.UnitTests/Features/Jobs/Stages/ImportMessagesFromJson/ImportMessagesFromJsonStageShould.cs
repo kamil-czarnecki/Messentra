@@ -92,6 +92,7 @@ public sealed class ImportMessagesFromJsonStageShould : InMemoryDbTestBase
 
         job.StageProgress.Stage.ShouldBe("Preparing messages");
         job.StageProgress.Progress.ShouldBe(100);
+        await WaitForProgressToContain(progressValues, 100);
         progressValues.ToArray().ShouldContain(100);
     }
 
@@ -200,7 +201,7 @@ public sealed class ImportMessagesFromJsonStageShould : InMemoryDbTestBase
         await action.ShouldThrowAsync<InvalidOperationException>();
     }
 
-    private TestJob CreateJob(long id, string sourcePath, string sourceContent, ConcurrentQueue<int> progressValues)
+    private static TestJob CreateJob(long id, string sourcePath, string sourceContent, ConcurrentQueue<int> progressValues)
     {
         var sourceHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceContent)));
         var job = new TestJob
@@ -238,6 +239,22 @@ public sealed class ImportMessagesFromJsonStageShould : InMemoryDbTestBase
                 TransactionPartitionKey: null,
                 EnqueuedTimeUtc: null),
             new Dictionary<string, object>());
+
+    private static async Task WaitForProgressToContain(
+        ConcurrentQueue<int> progressValues,
+        int expectedProgress,
+        int timeoutMs = 1000)
+    {
+        var started = DateTime.UtcNow;
+
+        while ((DateTime.UtcNow - started).TotalMilliseconds < timeoutMs)
+        {
+            if (progressValues.Contains(expectedProgress))
+                return;
+
+            await Task.Delay(20);
+        }
+    }
 
     private sealed class TestJob : Job, IHasImportMessagesFile
     {
