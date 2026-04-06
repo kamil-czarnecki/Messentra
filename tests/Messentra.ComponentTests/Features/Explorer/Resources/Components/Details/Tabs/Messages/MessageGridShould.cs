@@ -243,8 +243,8 @@ public sealed class MessageGridShould : ComponentTestBase
             .Returns(ValueTask.FromResult(new SendMessagesResult(
                 TotalCount: 2,
                 SentCount: 1,
-                SentSequenceNumbers: new HashSet<long> { 1 },
-                Errors: [new SendMessagesError(2, "oversized")])));
+                SentSequenceNumbers: new HashSet<long> { 2 },
+                Errors: [new SendMessagesError(1, "oversized")])));
 
         var cut = RenderMessageGrid(BuildQueueNode());
 
@@ -264,8 +264,8 @@ public sealed class MessageGridShould : ComponentTestBase
         await cut.WaitForAssertionAsync(() =>
         {
             MockMediator.Verify(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()), Times.Once);
-            firstContext.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
-            secondContext.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Never);
+            firstContext.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Never);
+            secondContext.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
         });
     }
 }
