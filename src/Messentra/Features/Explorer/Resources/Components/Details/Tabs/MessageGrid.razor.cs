@@ -5,6 +5,9 @@ using Messentra.Features.Explorer.Messages.ActionProgress;
 using Messentra.Features.Explorer.Messages.FetchQueueMessages;
 using Messentra.Features.Explorer.Messages.FetchSubscriptionMessages;
 using Messentra.Features.Explorer.Messages.SendMessage;
+using Messentra.Features.Jobs.ExportSelectedMessages;
+using Messentra.Features.Jobs.ExportSelectedMessages.EnqueueExportSelectedMessages;
+using Messentra.Features.Jobs.Stages;
 using Messentra.Features.Layout.State;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
@@ -397,6 +400,47 @@ public partial class MessageGrid : IDisposable
                 if (IsReceiveAndDeleteMode)
                     await OnRefresh.InvokeAsync();
             }
+        }
+    }
+
+    private async Task OnExportSelectedClicked()
+    {
+        var selectedList = SelectedItems
+            .OrderBy(x => x.Message.BrokerProperties.SequenceNumber)
+            .ToList();
+
+        var count = selectedList.Count;
+        var confirm = await _dialogService.ShowMessageBoxAsync(
+            "Export Selected Messages",
+            $"This will export {count} selected message(s) from '{ResourceName}'. No messages will be lost. Continue?",
+            yesText: "Export",
+            cancelText: "Cancel");
+
+        if (confirm != true)
+            return;
+
+        _actionOngoing = true;
+
+        try
+        {
+            var dtos = selectedList
+                .Select(x => ServiceBusMessageDto.From(x.Message))
+                .ToList();
+
+            var resourceLabel = $"{ResourceName}-{SubQueue}";
+
+            await _mediator.Send(new EnqueueExportSelectedMessagesCommand(
+                new ExportSelectedMessagesJobRequest(dtos, resourceLabel)));
+
+            LogActivity("Info", $"Enqueued export of {count} selected message(s) from '{ResourceName}'.");
+        }
+        catch (Exception ex)
+        {
+            LogActivity("Error", $"Exporting messages from '{ResourceName}' failed: {ex.Message}");
+        }
+        finally
+        {
+            _actionOngoing = false;
         }
     }
 

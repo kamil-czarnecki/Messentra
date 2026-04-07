@@ -25,6 +25,10 @@
                                OnClick="@(() => OnResendClicked(_fetchMessagesOptions is { Mode: FetchMode.Receive, ReceiveMode: FetchReceiveMode.PeekLock }))" Disabled="@(!SelectedItems.Any() || _actionOngoing)">
                         <MudText Typo="Typo.body2">Resend</MudText>
                     </MudButton>
+                    <MudButton IconSize="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.SaveAlt" Ripple="false"
+                               OnClick="@(OnExportSelectedClicked)" Disabled="@(!SelectedItems.Any() || _actionOngoing)">
+                        <MudText Typo="Typo.body2">Export selected</MudText>
+                    </MudButton>
                     @if (_fetchMessagesOptions is { Mode: FetchMode.Receive })
                     {
                         <MudHidden Breakpoint="Breakpoint.MdAndDown">

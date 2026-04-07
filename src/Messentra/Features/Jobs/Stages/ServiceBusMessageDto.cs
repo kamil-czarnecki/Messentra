@@ -27,7 +27,7 @@ public sealed record ServiceBusMessageDto(
                 message.BrokerProperties.EnqueuedTimeUtc
             ),
             message.ApplicationProperties);
-    
+
     private static object GetBody(MessageDto message)
     {
         if (message.BrokerProperties.ContentType != "application/json")
