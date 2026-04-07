@@ -5,6 +5,7 @@ using Messentra.Features.Explorer.Messages.ActionProgress;
 using Messentra.Features.Explorer.Messages.FetchQueueMessages;
 using Messentra.Features.Explorer.Messages.FetchSubscriptionMessages;
 using Messentra.Features.Explorer.Messages.SendMessage;
+using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.ExportSelectedMessages;
 using Messentra.Features.Jobs.ExportSelectedMessages.EnqueueExportSelectedMessages;
 using Messentra.Features.Jobs.Stages;
@@ -432,7 +433,8 @@ public partial class MessageGrid : IDisposable
             await _mediator.Send(new EnqueueExportSelectedMessagesCommand(
                 new ExportSelectedMessagesJobRequest(dtos, resourceLabel)));
 
-            LogActivity("Info", $"Enqueued export of {count} selected message(s) from '{ResourceName}'.");
+            _dispatcher.Dispatch(new FetchJobsAction());
+            LogActivity("Info", $"Export job enqueued for {count} selected message(s) from '{ResourceName}' ({SubQueue}). Go to Jobs menu to monitor progress.");
         }
         catch (Exception ex)
         {

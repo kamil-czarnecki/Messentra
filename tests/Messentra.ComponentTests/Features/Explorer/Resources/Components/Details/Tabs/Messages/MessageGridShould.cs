@@ -6,6 +6,7 @@ using Messentra.Features.Explorer.Messages.FetchQueueMessages;
 using Messentra.Features.Explorer.Messages.SendMessage;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components.Details.Tabs;
+using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.ExportSelectedMessages.EnqueueExportSelectedMessages;
 using Messentra.Infrastructure.AzureServiceBus;
 using Microsoft.AspNetCore.Components;
@@ -283,20 +284,22 @@ public sealed class MessageGridShould : ComponentTestBase
 
         var cut = RenderMessageGrid(BuildQueueNode());
 
-        // Act — fetch, select, open overflow menu, click Export, confirm dialog
+        // Act — fetch, select, click Export selected, confirm dialog
         await FetchMessagesThroughUi(cut);
         await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("export-msg-1"));
         SelectFirstMessageInGrid(cut);
 
-        cut.Find(".export-overflow-menu button").Click();
-        MudPopover.Find(".mud-menu-item").Click();
+        cut.FindAll("button").Single(x => x.TextContent.Trim().StartsWith("Export selected")).Click();
 
         await MudDialog.Find("button.mud-button-text-primary").ClickAsync();
 
         // Assert
         await cut.WaitForAssertionAsync(() =>
+        {
             MockMediator.Verify(
                 x => x.Send(It.IsAny<EnqueueExportSelectedMessagesCommand>(), It.IsAny<CancellationToken>()),
-                Times.Once));
+                Times.Once);
+            MockDispatcher.Verify(x => x.Dispatch(It.IsAny<FetchJobsAction>()), Times.Once);
+        });
     }
 }
