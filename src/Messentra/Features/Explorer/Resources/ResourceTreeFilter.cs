@@ -68,20 +68,19 @@ public static class ResourceTreeFilter
         var childrenAreNested = children.OfType<ResourceTreeItemData>().Any(c => c.Children is { Count: > 0 });
         if (childrenAreNested)
         {
+            if (nameMatches && !query.HasDlq)
+                return CloneExpanded(item, children.ToList(), item.Selected);
+
             var filteredChildren = children
                 .OfType<ResourceTreeItemData>()
                 .Select(c => FilterItem(c, query))
                 .OfType<ResourceTreeItemData>()
                 .ToList<ITreeItemData<ResourceTreeNode>>();
 
-            if (!nameMatches && filteredChildren.Count == 0)
+            if (filteredChildren.Count == 0)
                 return null;
 
-            var nestedToShow = nameMatches && !query.HasDlq ? children.ToList() : filteredChildren;
-            if (query.HasDlq && nestedToShow.Count == 0)
-                return null;
-
-            return CloneExpanded(item, nestedToShow, item.Selected);
+            return CloneExpanded(item, filteredChildren, item.Selected);
         }
 
         var matchingSubs = children
