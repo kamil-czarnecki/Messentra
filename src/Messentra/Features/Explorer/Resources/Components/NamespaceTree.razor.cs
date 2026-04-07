@@ -29,11 +29,23 @@ public partial class NamespaceTree
     private List<ResourceTreeItemData>? _lastResources;
     private string? _lastFilterPhrase;
 
+    private Dictionary<string, List<FolderTreeNode>> _foldersByConnection = [];
+    private List<ResourceTreeItemData>? _lastFolderResources;
+
     protected override void OnParametersSet()
     {
         base.OnParametersSet();
         if (SearchPhrase != _localSearchPhrase)
             _localSearchPhrase = SearchPhrase;
+        
+        if (ReferenceEquals(_lastFolderResources, Resources))
+            return;
+        
+        _foldersByConnection = FlattenNodes(Resources)
+            .OfType<FolderTreeNode>()
+            .GroupBy(f => f.ConnectionName)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        _lastFolderResources = Resources;
     }
 
     private readonly NavigationManager _navigationManager;
@@ -229,8 +241,8 @@ public partial class NamespaceTree
         _ => null
     };
 
-    private IEnumerable<FolderTreeNode> GetAllFolderNodes(string connectionName) =>
-        GetAllNodes<FolderTreeNode>(connectionName);
+    private List<FolderTreeNode> GetAllFolderNodes(string connectionName) =>
+        _foldersByConnection.TryGetValue(connectionName, out var folders) ? folders : [];
 
     private void ItemSelected(ResourceTreeItemData presenter, bool selected)
     {
