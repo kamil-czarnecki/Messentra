@@ -154,7 +154,7 @@ public sealed class ResourceDetailsShould : ComponentTestBase
         var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
 
         // Assert
-        cut.Find("button[title='Export']").HasAttribute("disabled").ShouldBeTrue();
+        cut.Find("button[title='Export all']").HasAttribute("disabled").ShouldBeTrue();
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public sealed class ResourceDetailsShould : ComponentTestBase
         await cut.Find(".mud-tab:contains('Messages')").ClickAsync();
 
         // Assert
-        cut.Find("button[title='Export']").HasAttribute("disabled").ShouldBeFalse();
+        cut.Find("button[title='Export all']").HasAttribute("disabled").ShouldBeFalse();
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public sealed class ResourceDetailsShould : ComponentTestBase
         await cut.Find(".mud-tab:contains('Dead-letter')").ClickAsync();
 
         // Act
-        cut.Find("button[title='Export']").Click();
+        cut.Find("button[title='Export all']").Click();
         await MudDialog.Find("button:contains('Export')").ClickAsync();
 
         // Assert

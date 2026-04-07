@@ -1,6 +1,7 @@
 using Fluxor;
 using Messentra.Domain;
 using Messentra.Features.Jobs.ExportMessages;
+using Messentra.Features.Jobs.ExportSelectedMessages;
 using Messentra.Features.Jobs.ImportMessages;
 
 namespace Messentra.Features.Jobs;
@@ -47,11 +48,15 @@ public sealed record JobListItem(
     private static JobOutput? GetOutput(Job job) =>
         job switch
         {
-            ImportMessagesJob importMessagesJob => null,
+            ImportMessagesJob => null,
             ExportMessagesJob exportMessagesJob =>
                 exportMessagesJob.Output is null
                     ? null
                     : new JobOutput.ExportMessagesJobOutput(exportMessagesJob.Output.PathToJson),
+            ExportSelectedMessagesJob exportSelectedMessagesJob =>
+                exportSelectedMessagesJob.Output is null
+                    ? null
+                    : new JobOutput.ExportSelectedMessagesJobOutput(exportSelectedMessagesJob.Output.PathToJson),
             _ => throw new ArgumentOutOfRangeException(nameof(job))
         };
 }
@@ -59,4 +64,5 @@ public sealed record JobListItem(
 public abstract record JobOutput
 {
     public sealed record ExportMessagesJobOutput(string FilePath) : JobOutput;
+    public sealed record ExportSelectedMessagesJobOutput(string FilePath) : JobOutput;
 }

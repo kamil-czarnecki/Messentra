@@ -42,8 +42,8 @@
                         <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Send" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenSendMessageDialog" Disabled="@(IsRefreshing || SelectedResource is NamespaceTreeNode or QueuesTreeNode or TopicsTreeNode or SubscriptionTreeNode)">
                             <MudText Typo="Typo.body2">Send</MudText>
                         </MudButton>
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FileDownload" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenExportDialog" Disabled="@(!CanExportMessages)" title="Export">
-                            <MudText Typo="Typo.body2">Export</MudText>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FileDownload" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenExportDialog" Disabled="@(!CanExportMessages)" title="Export all">
+                            <MudText Typo="Typo.body2">Export all</MudText>
                         </MudButton>
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FileUpload" Ripple="false" Size="Size.Small" Color="Color.Primary" DropShadow="false" OnClick="@OpenImportDialog" Disabled="@(!CanImportMessages)" title="Import">
                             <MudText Typo="Typo.body2">Import</MudText>

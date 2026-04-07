@@ -97,6 +97,16 @@
                                                        title="Download" />
                                     </MudTooltip>
                                 }
+                                
+                                @if (context is { Status: JobStatus.Completed, Output: JobOutput.ExportSelectedMessagesJobOutput exportSelectedMessagesOutput })
+                                {
+                                    <MudTooltip Text="Download">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Download"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => DownloadAsync(exportSelectedMessagesOutput.FilePath))"
+                                                       title="Download" />
+                                    </MudTooltip>
+                                }
 
                                 @if (context.Status != JobStatus.Running)
                                 {

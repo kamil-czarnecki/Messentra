@@ -1,5 +1,6 @@
 using Messentra.Domain;
 using Messentra.Features.Jobs.ExportMessages;
+using Messentra.Features.Jobs.ExportSelectedMessages;
 using Messentra.Features.Jobs.ImportMessages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -20,7 +21,8 @@ public sealed class JobConfiguration : IEntityTypeConfiguration<Job>
         builder
             .HasDiscriminator<string>("Type")
             .HasValue<ExportMessagesJob>("ExportMessagesJob")
-            .HasValue<ImportMessagesJob>("ImportMessagesJob");
+            .HasValue<ImportMessagesJob>("ImportMessagesJob")
+            .HasValue<ExportSelectedMessagesJob>("ExportSelectedMessagesJob");
         builder.Property(x => x.Label).HasMaxLength(200).IsRequired();
         builder.Property("InputRaw").HasMaxLength(5000);
         builder.Property("OutputRaw").HasMaxLength(5000);

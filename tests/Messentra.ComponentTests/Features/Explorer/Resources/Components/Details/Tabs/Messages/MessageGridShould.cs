@@ -1,10 +1,13 @@
 using Bunit;
+using Mediator;
 using Messentra.Domain;
 using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Messages.FetchQueueMessages;
 using Messentra.Features.Explorer.Messages.SendMessage;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components.Details.Tabs;
+using Messentra.Features.Jobs;
+using Messentra.Features.Jobs.ExportSelectedMessages.EnqueueExportSelectedMessages;
 using Messentra.Infrastructure.AzureServiceBus;
 using Microsoft.AspNetCore.Components;
 using Moq;
@@ -266,6 +269,37 @@ public sealed class MessageGridShould : ComponentTestBase
             MockMediator.Verify(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()), Times.Once);
             firstContext.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Never);
             secondContext.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
+        });
+    }
+
+    [Fact]
+    public async Task EnqueueExportSelectedMessagesJobWhenExportConfirmed()
+    {
+        // Arrange
+        var message = BuildServiceBusMessage(messageId: "export-msg-1", sequenceNumber: 1);
+        SetupFetchResponse(message);
+        MockMediator
+            .Setup(x => x.Send(It.IsAny<EnqueueExportSelectedMessagesCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.FromResult(Unit.Value));
+
+        var cut = RenderMessageGrid(BuildQueueNode());
+
+        // Act — fetch, select, click Export selected, confirm dialog
+        await FetchMessagesThroughUi(cut);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("export-msg-1"));
+        SelectFirstMessageInGrid(cut);
+
+        cut.FindAll("button").Single(x => x.TextContent.Trim().StartsWith("Export selected")).Click();
+
+        await MudDialog.Find("button.mud-button-text-primary").ClickAsync();
+
+        // Assert
+        await cut.WaitForAssertionAsync(() =>
+        {
+            MockMediator.Verify(
+                x => x.Send(It.IsAny<EnqueueExportSelectedMessagesCommand>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+            MockDispatcher.Verify(x => x.Dispatch(It.IsAny<FetchJobsAction>()), Times.Once);
         });
     }
 }
