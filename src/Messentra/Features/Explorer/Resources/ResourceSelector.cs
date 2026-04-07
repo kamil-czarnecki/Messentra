@@ -8,32 +8,41 @@ public sealed class ResourceSelector
     public IStateSelection<ResourceState, List<ResourceTreeItemData>> TreeItems { get; }
     public IStateSelection<ResourceState, ResourceTreeNode?> SelectedResource { get; }
     public IStateSelection<ResourceState, string?> SearchPhrase { get; }
+    public IStateSelection<ResourceState, HashSet<string>> ExpandedKeys { get; }
+
+    // Per-instance cache — ResourceSelector must be registered as scoped, not singleton.
+    private List<NamespaceEntry>? _lastNamespaces;
+    private List<ResourceTreeItemData> _lastTree = [];
 
     public ResourceSelector(IFeature<ResourceState> feature)
     {
         TreeItems = new StateSelection<ResourceState, List<ResourceTreeItemData>>(feature);
         SelectedResource = new StateSelection<ResourceState, ResourceTreeNode?>(feature);
         SearchPhrase = new StateSelection<ResourceState, string?>(feature);
+        ExpandedKeys = new StateSelection<ResourceState, HashSet<string>>(feature);
 
-        TreeItems.Select(
-            state => BuildTreeItems(state.Namespaces, state.SelectedResource, state.ExpandedKeys));
+        TreeItems.Select(state =>
+        {
+            if (_lastNamespaces is not null && ReferenceEquals(_lastNamespaces, state.Namespaces))
+                return _lastTree;
+            _lastNamespaces = state.Namespaces;
+            return _lastTree = BuildTreeItems(state.Namespaces);
+        });
         SelectedResource.Select(
             state => state.SelectedResource,
             ReferenceEquals);
         SearchPhrase.Select(state => state.SearchPhrase);
+        ExpandedKeys.Select(state => state.ExpandedKeys);
     }
 
-    private static List<ResourceTreeItemData> BuildTreeItems(
-        List<NamespaceEntry> namespaces,
-        ResourceTreeNode? selected,
-        HashSet<string> expandedKeys) =>
-        namespaces.Select(ns => BuildNamespaceItem(ns, selected, expandedKeys)).ToList();
+    private static List<ResourceTreeItemData> BuildTreeItems(List<NamespaceEntry> namespaces) =>
+        namespaces.Select(BuildNamespaceItem).ToList();
 
-    private static ResourceTreeItemData BuildNamespaceItem(NamespaceEntry ns, ResourceTreeNode? selected, HashSet<string> expandedKeys)
+    private static ResourceTreeItemData BuildNamespaceItem(NamespaceEntry ns)
     {
         var folderItems = ns.Folders.Values
             .OrderBy(f => f.Node.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(f => BuildFolderItem(f, ns, selected, expandedKeys))
+            .Select(f => BuildFolderItem(f, ns))
             .ToList<TreeItemData<ResourceTreeNode>>();
 
         var foldersGroupItem = new ResourceTreeItemData
@@ -44,7 +53,6 @@ public sealed class ResourceSelector
             Icon = Icons.Material.Filled.Folder,
             IconColor = Color.Warning,
             Expandable = true,
-            Expanded = expandedKeys.Contains($"folders:{ns.ConnectionName}"),
             Children = folderItems.Count > 0 ? folderItems : null
         };
 
@@ -56,10 +64,9 @@ public sealed class ResourceSelector
             Icon = Icons.Material.Filled.ViewList,
             IconColor = Color.Secondary,
             Expandable = true,
-            Expanded = expandedKeys.Contains($"queues:{ns.ConnectionName}"),
             Children = ns.Queues.Values
                 .OrderBy(t => t.Node.Resource.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(q => BuildQueueItem(q, selected))
+                .Select(BuildQueueItem)
                 .ToList<TreeItemData<ResourceTreeNode>>()
         };
 
@@ -71,10 +78,9 @@ public sealed class ResourceSelector
             Icon = Icons.Material.Filled.DynamicFeed,
             IconColor = Color.Secondary,
             Expandable = true,
-            Expanded = expandedKeys.Contains($"topics:{ns.ConnectionName}"),
             Children = ns.Topics.Values
                 .OrderBy(t => t.Node.Resource.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(t => BuildTopicItem(t, selected, expandedKeys))
+                .Select(BuildTopicItem)
                 .ToList<TreeItemData<ResourceTreeNode>>()
         };
 
@@ -85,7 +91,6 @@ public sealed class ResourceSelector
             Icon = Icons.Material.Filled.Cloud,
             IconColor = Color.Primary,
             Expandable = true,
-            Expanded = expandedKeys.Contains($"ns:{ns.ConnectionName}"),
             IsReadonly = true,
             Children = ns.IsLoading
                 ? null
@@ -93,24 +98,23 @@ public sealed class ResourceSelector
         };
     }
 
-    private static ResourceTreeItemData BuildQueueItem(QueueEntry entry, ResourceTreeNode? selected)
+    private static ResourceTreeItemData BuildQueueItem(QueueEntry entry)
     {
         var node = entry.Node with { IsLoading = entry.IsLoading };
         return new ResourceTreeItemData
         {
             Text = node.Resource.Name,
             Value = node,
-            Expandable = false,
-            Selected = selected is QueueTreeNode s && s.Resource.Url == node.Resource.Url
+            Expandable = false
         };
     }
 
-    private static ResourceTreeItemData BuildTopicItem(TopicEntry entry, ResourceTreeNode? selected, HashSet<string> expandedKeys)
+    private static ResourceTreeItemData BuildTopicItem(TopicEntry entry)
     {
         var node = entry.Node with { IsLoading = entry.IsLoading };
         var subscriptionItems = entry.Subscriptions.Values
             .OrderBy(s => s.Node.Resource.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(s => BuildSubscriptionItem(s, selected))
+            .Select(BuildSubscriptionItem)
             .ToList<TreeItemData<ResourceTreeNode>>();
 
         return new ResourceTreeItemData
@@ -120,25 +124,22 @@ public sealed class ResourceSelector
             Icon = Icons.Material.Filled.Topic,
             IconColor = Color.Secondary,
             Expandable = subscriptionItems.Count > 0,
-            Expanded = expandedKeys.Contains($"topic:{node.Resource.Url}"),
-            Children = subscriptionItems.Count > 0 ? subscriptionItems : null,
-            Selected = selected is TopicTreeNode t && t.Resource.Url == node.Resource.Url
+            Children = subscriptionItems.Count > 0 ? subscriptionItems : null
         };
     }
 
-    private static ResourceTreeItemData BuildSubscriptionItem(SubscriptionEntry entry, ResourceTreeNode? selected)
+    private static ResourceTreeItemData BuildSubscriptionItem(SubscriptionEntry entry)
     {
         var node = entry.Node with { IsLoading = entry.IsLoading };
         return new ResourceTreeItemData
         {
             Text = node.Resource.Name,
             Value = node,
-            Expandable = false,
-            Selected = selected is SubscriptionTreeNode s && s.Resource.Url == node.Resource.Url
+            Expandable = false
         };
     }
 
-    private static ResourceTreeItemData BuildFolderItem(FolderEntry entry, NamespaceEntry ns, ResourceTreeNode? selected, HashSet<string> expandedKeys)
+    private static ResourceTreeItemData BuildFolderItem(FolderEntry entry, NamespaceEntry ns)
     {
         var queueItems = new List<ResourceTreeItemData>();
         var subsByTopicUrl = new Dictionary<string, (TopicEntry Topic, List<SubscriptionEntry> Subs)>();
@@ -147,15 +148,15 @@ public sealed class ResourceSelector
         {
             if (ns.Queues.TryGetValue(url, out var queue))
             {
-                queueItems.Add(WithParentFolder(BuildQueueItem(queue, selected), entry.Node));
+                queueItems.Add(WithParentFolder(BuildQueueItem(queue), entry.Node));
                 continue;
             }
             foreach (var topicEntry in ns.Topics.Values)
             {
                 if (!topicEntry.Subscriptions.TryGetValue(url, out var sub)) continue;
                 var topicUrl = topicEntry.Node.Resource.Url;
-                if (!subsByTopicUrl.TryGetValue(topicUrl, out var group))
-                    subsByTopicUrl[topicUrl] = (topicEntry, new List<SubscriptionEntry>());
+                if (!subsByTopicUrl.TryGetValue(topicUrl, out _))
+                    subsByTopicUrl[topicUrl] = (topicEntry, []);
                 subsByTopicUrl[topicUrl].Subs.Add(sub);
                 break;
             }
@@ -163,7 +164,7 @@ public sealed class ResourceSelector
 
         var allItems = queueItems
             .Concat(subsByTopicUrl.Values.Select(TreeItemData<ResourceTreeNode> (g) =>
-                BuildDerivedTopicHeader(g.Topic, g.Subs, selected, expandedKeys, entry.Node)))
+                BuildDerivedTopicHeader(g.Topic, g.Subs, entry.Node)))
             .OrderBy(i => i.Text, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -174,7 +175,6 @@ public sealed class ResourceSelector
             Icon = Icons.Material.Filled.FolderOpen,
             IconColor = Color.Warning,
             Expandable = allItems.Count > 0,
-            Expanded = expandedKeys.Contains($"folder:{entry.Node.FolderId}"),
             Children = allItems.Count > 0 ? allItems : null,
             IsReadonly = true
         };
@@ -183,14 +183,12 @@ public sealed class ResourceSelector
     private static ResourceTreeItemData BuildDerivedTopicHeader(
         TopicEntry topicEntry,
         List<SubscriptionEntry> subsInFolder,
-        ResourceTreeNode? selected,
-        HashSet<string> expandedKeys,
         FolderTreeNode parentFolder)
     {
         var topicNode = topicEntry.Node with { IsLoading = topicEntry.IsLoading };
         var subItems = subsInFolder
             .OrderBy(s => s.Node.Resource.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(TreeItemData<ResourceTreeNode> (s) => WithParentFolder(BuildSubscriptionItem(s, selected), parentFolder))
+            .Select(TreeItemData<ResourceTreeNode> (s) => WithParentFolder(BuildSubscriptionItem(s), parentFolder))
             .ToList();
 
         return new ResourceTreeItemData
@@ -200,9 +198,7 @@ public sealed class ResourceSelector
             Icon = Icons.Material.Filled.Topic,
             IconColor = Color.Secondary,
             Expandable = subItems.Count > 0,
-            Expanded = expandedKeys.Contains($"topic:{topicNode.Resource.Url}"),
             Children = subItems.Count > 0 ? subItems : null,
-            Selected = selected is TopicTreeNode t && t.Resource.Url == topicNode.Resource.Url,
             ParentFolderNode = parentFolder
         };
     }
@@ -216,8 +212,6 @@ public sealed class ResourceSelector
             IconColor = item.IconColor,
             IsReadonly = item.IsReadonly,
             Expandable = item.Expandable,
-            Expanded = item.Expanded,
-            Selected = item.Selected,
             Children = item.Children,
             ParentFolderNode = folder
         };
