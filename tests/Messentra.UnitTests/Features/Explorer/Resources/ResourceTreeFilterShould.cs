@@ -271,6 +271,92 @@ public sealed class ResourceTreeFilterShould
         result.ShouldBeEmpty();
     }
 
+    [Fact]
+    public void KeepFolderGroupWhenSubscriptionNameMatchesPhraseUnderDerivedTopicHeader()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var sub = ResourceTestData.CreateSubscription("orders-sub", "orders-topic");
+        var subItem = new ResourceTreeItemData { Text = "orders-sub", Value = new SubscriptionTreeNode("test", sub, config) };
+        var topic = ResourceTestData.CreateTopic("orders-topic");
+        var derivedTopicHeader = new ResourceTreeItemData
+        {
+            Text = "orders-topic",
+            Value = new TopicTreeNode("test", topic, config),
+            Children = [subItem]
+        };
+        var folderItem = new ResourceTreeItemData
+        {
+            Text = "My Team",
+            Value = new FolderTreeNode(1L, 1L, "My Team", "test", config),
+            Children = [derivedTopicHeader]
+        };
+        var foldersGroupItem = new ResourceTreeItemData
+        {
+            Text = "Folders",
+            Value = new FoldersTreeNode(1L, "test", config),
+            Children = [folderItem]
+        };
+        var nsItem = new ResourceTreeItemData
+        {
+            Text = "test-ns",
+            Value = new NamespaceTreeNode("test", config),
+            Children = [foldersGroupItem]
+        };
+
+        // Act
+        var result = ResourceTreeFilter.Filter([nsItem], SearchQueryParser.Parse("orders-sub"));
+
+        // Assert
+        result.ShouldHaveSingleItem();
+        var folder = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().Single();
+        folder.Value.ShouldBeOfType<FolderTreeNode>();
+        var topicHeader = folder.Children!.OfType<ResourceTreeItemData>().Single();
+        topicHeader.Value.ShouldBeOfType<TopicTreeNode>();
+        topicHeader.Children!.OfType<ResourceTreeItemData>().Single().Text.ShouldBe("orders-sub");
+    }
+
+    [Fact]
+    public void HideFolderGroupWhenSubscriptionNameDoesNotMatchPhrase()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+        var sub = ResourceTestData.CreateSubscription("orders-sub", "orders-topic");
+        var subItem = new ResourceTreeItemData { Text = "orders-sub", Value = new SubscriptionTreeNode("test", sub, config) };
+        var topic = ResourceTestData.CreateTopic("orders-topic");
+        var derivedTopicHeader = new ResourceTreeItemData
+        {
+            Text = "orders-topic",
+            Value = new TopicTreeNode("test", topic, config),
+            Children = [subItem]
+        };
+        var folderItem = new ResourceTreeItemData
+        {
+            Text = "My Team",
+            Value = new FolderTreeNode(1L, 1L, "My Team", "test", config),
+            Children = [derivedTopicHeader]
+        };
+        var foldersGroupItem = new ResourceTreeItemData
+        {
+            Text = "Folders",
+            Value = new FoldersTreeNode(1L, "test", config),
+            Children = [folderItem]
+        };
+        var nsItem = new ResourceTreeItemData
+        {
+            Text = "test-ns",
+            Value = new NamespaceTreeNode("test", config),
+            Children = [foldersGroupItem]
+        };
+
+        // Act
+        var result = ResourceTreeFilter.Filter([nsItem], SearchQueryParser.Parse("invoices"));
+
+        // Assert
+        result.ShouldBeEmpty();
+    }
+
     // --- HasDlqMessages helper ---
 
     [Fact]

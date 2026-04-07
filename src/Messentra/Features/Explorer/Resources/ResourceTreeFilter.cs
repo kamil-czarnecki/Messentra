@@ -56,11 +56,32 @@ public static class ResourceTreeFilter
         {
             if (!nameMatches)
                 return null;
-            
+
             if (query.HasDlq && !HasDlqMessages(item.Value))
                 return null;
-            
+
             return item;
+        }
+
+        // When children themselves have children (e.g. folder containing derived topic headers),
+        // recurse rather than treating those children as leaf subscriptions.
+        var childrenAreNested = children.OfType<ResourceTreeItemData>().Any(c => c.Children is { Count: > 0 });
+        if (childrenAreNested)
+        {
+            var filteredChildren = children
+                .OfType<ResourceTreeItemData>()
+                .Select(c => FilterItem(c, query))
+                .OfType<ResourceTreeItemData>()
+                .ToList<ITreeItemData<ResourceTreeNode>>();
+
+            if (!nameMatches && filteredChildren.Count == 0)
+                return null;
+
+            var nestedToShow = nameMatches && !query.HasDlq ? children.ToList() : filteredChildren;
+            if (query.HasDlq && nestedToShow.Count == 0)
+                return null;
+
+            return CloneExpanded(item, nestedToShow, item.Selected);
         }
 
         var matchingSubs = children

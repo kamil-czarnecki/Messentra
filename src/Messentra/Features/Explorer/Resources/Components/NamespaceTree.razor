@@ -90,7 +90,7 @@
                 @{
                     var presenter = (context as ResourceTreeItemData)!;
                 }
-                <MudTreeViewItem Expanded="@ExpandedKeys.Contains(GetNodeKey(presenter.Value))"
+                <MudTreeViewItem Expanded="@IsExpanded(presenter)"
                                  ExpandedChanged="@(x => OnExpandedChanged(presenter, x))"
                                  Items="@presenter.Children"
                                  Value="@presenter.Value"

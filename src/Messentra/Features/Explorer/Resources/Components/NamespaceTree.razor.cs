@@ -62,6 +62,10 @@ public partial class NamespaceTree
     private bool IsSelected(ResourceTreeNode? node) =>
         node is not null && GetNodeKey(node) == GetNodeKey(SelectedResource);
 
+    private bool IsExpanded(ResourceTreeItemData presenter) =>
+        !string.IsNullOrEmpty(_localSearchPhrase) && presenter.Children?.Count > 0
+            || ExpandedKeys.Contains(GetNodeKey(presenter.Value));
+
     private void OnExpandedChanged(ResourceTreeItemData item, bool expanded) =>
         _dispatcher.Dispatch(new ToggleExpandedAction(GetNodeKey(item.Value), expanded));
 
