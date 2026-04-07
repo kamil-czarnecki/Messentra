@@ -64,7 +64,7 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             .Add(x => x.Resources, [])
             .Add(x => x.Connections, [connection]));
 
-        // Act - open menu then click the connection item
+        // Act
         cut.Find(".mud-menu button").Click();
         MudPopover.Find(".mud-menu-item:last-child").Click();
 
@@ -81,7 +81,7 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             .Add(x => x.Resources, [])
             .Add(x => x.Connections, []));
 
-        // Act - open menu then click "Add connection"
+        // Act
         cut.Find(".mud-menu button").Click();
         MudPopover.Find(".mud-menu-item").Click();
 
@@ -95,7 +95,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1", "queue2"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.FindAll(".tree-item-body .mud-icon-button")[0].Click();
@@ -111,7 +112,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1", "queue2"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.Find("input").Input("queue2");
@@ -134,7 +136,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1", "queue2"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.Find("input").Input("namespace:TestNamespace");
@@ -156,7 +159,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildLoadingNamespaceTree())
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, new HashSet<string> { "ns:TestNamespace" }));
 
         // Act
         cut.Find(".namespace-loading-cancel").Click();
@@ -173,7 +177,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         var queueRow = cut.FindAll(".tree-item-body").First(x => x.TextContent.Contains("queue1"));
@@ -184,8 +189,6 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             a.Node is QueueTreeNode &&
             ((QueueTreeNode)a.Node).Resource.Name == "queue1")), Times.Once);
     }
-
-    // --- Filtering ---
 
     private static ResourceTreeItemData QueueItem(string name) => new() { Text = name };
 
@@ -204,6 +207,9 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     private static ConnectionConfig BuildConnectionConfig() =>
         ConnectionConfig.CreateConnectionString(
             "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=k;SharedAccessKey=key=");
+
+    private static HashSet<string> DefaultExpandedKeys(string connectionName = "TestNamespace") =>
+        [$"ns:{connectionName}", $"queues:{connectionName}", $"topics:{connectionName}"];
 
     private static Resource.Queue BuildQueueResource(string name)
     {
@@ -244,7 +250,6 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             Value = new QueuesTreeNode(connectionName, config),
             IsReadonly = true,
             Expandable = true,
-            Expanded = true,
             Children = queueItems
         };
 
@@ -254,7 +259,6 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             Value = new TopicsTreeNode(connectionName, config),
             IsReadonly = true,
             Expandable = true,
-            Expanded = true,
             Children = new List<TreeItemData<ResourceTreeNode>>
             {
                 new ResourceTreeItemData { Text = "topic1", Value = topicNode }
@@ -269,7 +273,6 @@ public sealed class NamespaceTreeShould : ComponentTestBase
                 Value = new NamespaceTreeNode(connectionName, config),
                 IsReadonly = true,
                 Expandable = true,
-                Expanded = true,
                 Children = [queuesGroup, topicsGroup]
             }
         ];
@@ -288,7 +291,6 @@ public sealed class NamespaceTreeShould : ComponentTestBase
                 Value = new NamespaceTreeNode(connectionName, config, IsLoading: true),
                 IsReadonly = true,
                 Expandable = true,
-                Expanded = true,
                 Children = []
             }
         ];
@@ -304,28 +306,30 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         {
             Text = name,
             Expandable = subs.Count > 0,
-            Expanded = true,
             Children = subs.Count > 0 ? subs : null
         };
     }
 
     private static List<ResourceTreeItemData> BuildNamespaceTree(string[] queueNames, params ResourceTreeItemData[] topicItems)
     {
+        var config = BuildConnectionConfig();
+        const string connectionName = "TestNamespace";
+
         var queuesGroup = new ResourceTreeItemData
         {
             Text = "Queues",
+            Value = new QueuesTreeNode(connectionName, config),
             IsReadonly = true,
             Expandable = true,
-            Expanded = true,
             Children = queueNames.Select(QueueItem).ToList<TreeItemData<ResourceTreeNode>>()
         };
 
         var topicsGroup = new ResourceTreeItemData
         {
             Text = "Topics",
+            Value = new TopicsTreeNode(connectionName, config),
             IsReadonly = true,
             Expandable = true,
-            Expanded = true,
             Children = topicItems.ToList<TreeItemData<ResourceTreeNode>>()
         };
 
@@ -333,10 +337,10 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         [
             new ResourceTreeItemData
             {
-                Text = "TestNamespace",
+                Text = connectionName,
+                Value = new NamespaceTreeNode(connectionName, config),
                 IsReadonly = true,
                 Expandable = true,
-                Expanded = true,
                 Children = new[] { queuesGroup, topicsGroup }.ToList<TreeItemData<ResourceTreeNode>>()
             }
         ];
@@ -348,7 +352,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange & Act
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Assert
         cut.Markup.ShouldContain("queue1");
@@ -361,7 +366,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.Find("input").Input("queue2");
@@ -380,7 +386,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.Find("input").Input("xyznomatch");
@@ -399,7 +406,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.Find("input").Input("QUEUE2");
@@ -418,7 +426,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act - filter then clear
         cut.Find("input").Input("queue2");
@@ -440,7 +449,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree([], TopicItem("topic1", "sub1", "sub2")))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.Find("input").Input("topic1");
@@ -460,7 +470,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree([], TopicItem("topic1", "sub1", "sub2")))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.Find("input").Input("sub1");
@@ -480,7 +491,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.Find("input").Input("namespace:TestNamespace");
@@ -499,7 +511,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.Find("input").Input("namespace:production");
@@ -516,9 +529,12 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     public void HasDlqFilter_ShowsOnlyQueuesWithDlqMessages()
     {
         // Arrange
+        var config = BuildConnectionConfig();
         var queuesGroup = new ResourceTreeItemData
         {
-            Text = "Queues", IsReadonly = true, Expandable = true, Expanded = true,
+            Text = "Queues",
+            Value = new QueuesTreeNode("TestNamespace", config),
+            IsReadonly = true, Expandable = true,
             Children = new List<TreeItemData<ResourceTreeNode>>
             {
                 QueueItemWithDlq("dlq-queue", dlq: 5),
@@ -527,12 +543,17 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         };
         var resources = new List<ResourceTreeItemData>
         {
-            new() { Text = "TestNamespace", IsReadonly = true, Expandable = true, Expanded = true,
-                Children = new List<TreeItemData<ResourceTreeNode>> { queuesGroup } }
+            new() {
+                Text = "TestNamespace",
+                Value = new NamespaceTreeNode("TestNamespace", config),
+                IsReadonly = true, Expandable = true,
+                Children = new List<TreeItemData<ResourceTreeNode>> { queuesGroup }
+            }
         };
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, resources)
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         // Act
         cut.Find("input").Input("has:dlq");
@@ -544,8 +565,6 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             cut.Markup.ShouldNotContain("clean-queue");
         });
     }
-
-    // --- Autocomplete suggestions ---
 
     private static async Task<List<string>> GetSuggestions(IRenderedComponent<NamespaceTree> cut, string input)
     {
@@ -560,7 +579,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "");
 
@@ -573,7 +593,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "n");
 
@@ -586,7 +607,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "h");
 
@@ -599,7 +621,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "namespace:");
 
@@ -611,7 +634,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "namespace:Test");
 
@@ -623,7 +647,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "namespace:zzznomatch");
 
@@ -635,7 +660,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "has:dlq");
 
@@ -647,7 +673,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "queue1 ");
 
@@ -660,7 +687,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "queue1 h");
 
@@ -673,7 +701,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestionsUpper = await GetSuggestions(cut, "HAS");
         var suggestionsNamespace = await GetSuggestions(cut, "NAMESPACE:");
@@ -687,7 +716,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
         var ac = cut.FindComponent<MudAutocomplete<string>>();
 
         await cut.InvokeAsync(() => ac.Instance.ValueChanged.InvokeAsync("has:dlq"));
@@ -702,7 +732,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "namespace:TestNamespace");
 
@@ -714,7 +745,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     {
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
         var suggestions = await GetSuggestions(cut, "NAMESPACE:TESTNAMESPACE");
 
@@ -751,7 +783,8 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Act
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, [nsItem])
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, new HashSet<string> { "ns:Test Namespace", "folders:Test Namespace" }));
 
         // Assert
         cut.Markup.ShouldContain("Folders");
@@ -769,23 +802,18 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             Value = new NamespaceTreeNode("Test Namespace", config),
             IsReadonly = true,
             Expandable = true,
-            Expanded = true,
             Children = new List<TreeItemData<ResourceTreeNode>> { foldersGroup }
         };
 
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, [nsItem])
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, new HashSet<string> { "ns:Test Namespace", "folders:Test Namespace" }));
 
-        // Act — click the + button on the Folders group row
-        // The OnAddFolderClicked is async (opens dialog via IDialogService), so we use InvokeAsync
-        // to start the async flow, and WaitForAssertion to wait for the dialog to appear
+        // Act
         await cut.InvokeAsync(() => cut.Find(".folders-add-btn").Click());
 
-        // Wait for dialog to render in MudDialogProvider
         await MudDialog.WaitForAssertionAsync(() => MudDialog.Find(".folder-name-input input").ShouldNotBeNull());
-
-        // Enter a name in the dialog (dialog renders through IDialogService into MudDialogProvider)
         await MudDialog.Find(".folder-name-input input").InputAsync("My Team");
         await MudDialog.Find(".folder-create-confirm").ClickAsync();
 
@@ -816,13 +844,13 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             Value = new NamespaceTreeNode("Test Namespace", config),
             IsReadonly = true,
             Expandable = true,
-            Expanded = true,
             Children = new List<TreeItemData<ResourceTreeNode>> { foldersGroup }
         };
 
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, [nsItem])
-            .Add(x => x.Connections, []));
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, new HashSet<string> { "ns:Test Namespace", "folders:Test Namespace" }));
 
         // Act
         await cut.InvokeAsync(() => cut.Find(".folders-add-btn").Click());
@@ -842,15 +870,17 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
             .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys())
             .Add(x => x.SearchPhrase, "queue1"));
 
         cut.Markup.ShouldNotContain("queue2");
 
-        // Act — simulate an external state reset by re-rendering with a null phrase
+        // Act
         cut.Render(p => p
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys())
             .Add(x => x.SearchPhrase, (string?)null));
 
-        // Assert — both queues visible again, confirming _localSearchPhrase was synced
+        // Assert
         cut.Markup.ShouldContain("queue1");
         cut.Markup.ShouldContain("queue2");
     }

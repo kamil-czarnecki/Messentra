@@ -21,6 +21,7 @@ public partial class ExplorerPage : IDisposable
         _resourceSelector.TreeItems.SelectedValueChanged += OnStateChanged;
         _resourceSelector.SelectedResource.SelectedValueChanged += OnStateChanged;
         _resourceSelector.SearchPhrase.SelectedValueChanged += OnStateChanged;
+        _resourceSelector.ExpandedKeys.SelectedValueChanged += OnStateChanged;
     }
 
     private void OnStateChanged<T>(object? sender, T _) => InvokeAsync(StateHasChanged);
@@ -30,5 +31,6 @@ public partial class ExplorerPage : IDisposable
         _resourceSelector.TreeItems.SelectedValueChanged -= OnStateChanged;
         _resourceSelector.SelectedResource.SelectedValueChanged -= OnStateChanged;
         _resourceSelector.SearchPhrase.SelectedValueChanged -= OnStateChanged;
+        _resourceSelector.ExpandedKeys.SelectedValueChanged -= OnStateChanged;
     }
 }

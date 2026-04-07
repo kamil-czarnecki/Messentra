@@ -170,6 +170,41 @@ public sealed class ResourceSelectorShould
     }
 
     [Fact]
+    public void TreeItemsDoNotChangeWhenSelectedResourceChanges()
+    {
+        // Arrange
+        var state = StateWithQueues("queue-1");
+        var feature = new Mock<IFeature<ResourceState>>();
+        feature.Setup(f => f.State).Returns(state);
+        var selector = new ResourceSelector(feature.Object);
+
+        var initialTree = selector.TreeItems.Value;
+
+        // Act — simulate a SelectResourceAction by updating feature state to have a selected resource
+        var queueNode = state.Namespaces[0].Queues.Values.First().Node;
+        var stateWithSelection = state with { SelectedResource = queueNode };
+        feature.Setup(f => f.State).Returns(stateWithSelection);
+
+        // Raise StateChanged to trigger selector re-evaluation
+        feature.Raise(f => f.StateChanged += null, feature.Object, stateWithSelection);
+
+        // Assert — same reference means no rebuild occurred
+        selector.TreeItems.Value.ShouldBeSameAs(initialTree);
+    }
+
+    [Fact]
+    public void ExpandedKeysValueReflectsStateExpandedKeys()
+    {
+        // Arrange
+        var expectedKeys = new HashSet<string> { "ns:test-ns", "queues:test-ns" };
+        var state = new ResourceState([], null, expectedKeys);
+        var selector = BuildSelector(state);
+
+        // Assert
+        selector.ExpandedKeys.Value.ShouldBeSameAs(expectedKeys);
+    }
+
+    [Fact]
     public void RenderFolderWithItsResources()
     {
         // Arrange

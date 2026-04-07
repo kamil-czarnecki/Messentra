@@ -19,15 +19,33 @@ public partial class NamespaceTree
     [Parameter]
     public ResourceTreeNode? SelectedResource { get; init; }
     [Parameter]
+    public HashSet<string> ExpandedKeys { get; init; } = [];
+    [Parameter]
     public string? SearchPhrase { get; set; }
 
     private string? _localSearchPhrase;
+
+    private List<ResourceTreeItemData>? _filteredCache;
+    private List<ResourceTreeItemData>? _lastResources;
+    private string? _lastFilterPhrase;
+
+    private Dictionary<string, List<FolderTreeNode>> _foldersByConnection = [];
+    private List<ResourceTreeItemData>? _lastFolderResources;
 
     protected override void OnParametersSet()
     {
         base.OnParametersSet();
         if (SearchPhrase != _localSearchPhrase)
             _localSearchPhrase = SearchPhrase;
+        
+        if (ReferenceEquals(_lastFolderResources, Resources))
+            return;
+        
+        _foldersByConnection = FlattenNodes(Resources)
+            .OfType<FolderTreeNode>()
+            .GroupBy(f => f.ConnectionName)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        _lastFolderResources = Resources;
     }
 
     private readonly NavigationManager _navigationManager;
@@ -40,6 +58,13 @@ public partial class NamespaceTree
         _dispatcher = dispatcher;
         _dialogService = dialogService;
     }
+
+    private bool IsSelected(ResourceTreeNode? node) =>
+        node is not null && GetNodeKey(node) == GetNodeKey(SelectedResource);
+
+    private bool IsExpanded(ResourceTreeItemData presenter) =>
+        !string.IsNullOrEmpty(_localSearchPhrase) && presenter.Children?.Count > 0
+            || ExpandedKeys.Contains(GetNodeKey(presenter.Value));
 
     private void OnExpandedChanged(ResourceTreeItemData item, bool expanded) =>
         _dispatcher.Dispatch(new ToggleExpandedAction(GetNodeKey(item.Value), expanded));
@@ -113,9 +138,6 @@ public partial class NamespaceTree
         if (result is { Canceled: false, Data: string newName } && !string.IsNullOrWhiteSpace(newName))
             _dispatcher.Dispatch(new RenameFolderAction(folder.FolderId, folder.ConnectionId, folder.ConnectionName, newName));
     }
-
-    private async Task OnContextNewFolder(FolderTreeNode folder) =>
-        await OnAddFolderClicked(new FoldersTreeNode(folder.ConnectionId, folder.ConnectionName, folder.ConnectionConfig));
 
     private void OnContextDeleteFolder(FolderTreeNode folder) =>
         _dispatcher.Dispatch(new DeleteFolderAction(folder.FolderId, folder.ConnectionId, folder.ConnectionName));
@@ -223,8 +245,8 @@ public partial class NamespaceTree
         _ => null
     };
 
-    private IEnumerable<FolderTreeNode> GetAllFolderNodes(string connectionName) =>
-        GetAllNodes<FolderTreeNode>(connectionName);
+    private List<FolderTreeNode> GetAllFolderNodes(string connectionName) =>
+        _foldersByConnection.TryGetValue(connectionName, out var folders) ? folders : [];
 
     private void ItemSelected(ResourceTreeItemData presenter, bool selected)
     {
@@ -299,14 +321,14 @@ public partial class NamespaceTree
                 foreach (var topicNode in filteredTopicNodes)
                     _dispatcher.Dispatch(new RefreshTopicAction(topicNode));
                 break;
-            
+
             case FolderTreeNode folder:
                 var folderPresenter = FindFolderPresenter(Resources, folder.FolderId);
                 if (folderPresenter?.Children is null)
                     break;
-                
+
                 var descendants = FlattenItemPresenters(folderPresenter.Children.OfType<ResourceTreeItemData>()).ToList();
-                
+
                 foreach (var queue in descendants
                              .Select(i => i.Value)
                              .OfType<QueueTreeNode>()
@@ -314,7 +336,7 @@ public partial class NamespaceTree
                 {
                     _dispatcher.Dispatch(new RefreshQueueAction(queue));
                 }
-                
+
                 foreach (var topic in descendants
                              .Select(i => i.Value)
                              .OfType<TopicTreeNode>()
@@ -325,19 +347,19 @@ public partial class NamespaceTree
                 break;
         }
     }
-    
+
     private static ResourceTreeItemData? FindFolderPresenter(IEnumerable<ResourceTreeItemData> roots, long folderId) =>
         FlattenItemPresenters(roots).FirstOrDefault(i => i.Value is FolderTreeNode f && f.FolderId == folderId);
-    
+
     private static IEnumerable<ResourceTreeItemData> FlattenItemPresenters(IEnumerable<ResourceTreeItemData> items)
     {
         foreach (var item in items)
         {
             yield return item;
-    
+
             if (item.Children is null)
                 continue;
-    
+
             foreach (var nested in FlattenItemPresenters(item.Children.OfType<ResourceTreeItemData>()))
                 yield return nested;
         }
@@ -371,10 +393,10 @@ public partial class NamespaceTree
         FoldersTreeNode n => n.ConnectionName,
         FolderTreeNode n => n.ConnectionName,
         QueuesTreeNode n => n.ConnectionName,
-        TopicsTreeNode n => n.ConnectionName,
         QueueTreeNode n => n.ConnectionName,
         TopicTreeNode n => n.ConnectionName,
         SubscriptionTreeNode n => n.ConnectionName,
+        TopicsTreeNode n => n.ConnectionName,
         _ => null
     };
 
@@ -417,7 +439,7 @@ public partial class NamespaceTree
                 break;
         }
     }
-    
+
     private void OnTextChanged(string? searchPhrase)
     {
         if (searchPhrase == _localSearchPhrase) return;
@@ -463,8 +485,21 @@ public partial class NamespaceTree
             ? Icons.Material.Filled.Cloud
             : Icons.Material.Filled.AllInbox;
 
-    private List<ResourceTreeItemData> FilteredResources =>
-        ResourceTreeFilter.Filter(Resources, SearchQueryParser.Parse(_localSearchPhrase));
+    private List<ResourceTreeItemData> FilteredResources
+    {
+        get
+        {
+            if (_filteredCache is not null
+                && ReferenceEquals(_lastResources, Resources)
+                && _lastFilterPhrase == _localSearchPhrase)
+                return _filteredCache;
+
+            _filteredCache = ResourceTreeFilter.Filter(Resources, SearchQueryParser.Parse(_localSearchPhrase));
+            _lastResources = Resources;
+            _lastFilterPhrase = _localSearchPhrase;
+            return _filteredCache;
+        }
+    }
 
     private static readonly string[] SourceArray = ["namespace:", "has:dlq"];
 
