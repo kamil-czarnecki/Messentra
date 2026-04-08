@@ -1,12 +1,12 @@
-<MudDialog>
+<MudDialog DefaultFocus="DefaultFocus.FirstChild">
     <DialogContent>
         <MudTextField @bind-Value="_folderName"
                       Label="Folder name"
                       Immediate="true"
-                      AutoFocus="true"
                       Error="@HasDuplicateName"
                       ErrorText="Folder with this name already exists"
-                      Class="folder-name-input"/>
+                      Class="folder-name-input"
+                      OnKeyUp="@(e => { if (e.Key == "Enter") Confirm(); })"/>
 
         @if (HasDuplicateName)
         {
