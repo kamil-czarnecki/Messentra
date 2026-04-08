@@ -60,27 +60,14 @@ public partial class NamespaceTree
     }
 
     private bool IsSelected(ResourceTreeNode? node) =>
-        node is not null && GetNodeKey(node) == GetNodeKey(SelectedResource);
+        node is not null && ResourceTreeItemKeys.GetKey(node) == ResourceTreeItemKeys.GetKey(SelectedResource);
 
     private bool IsExpanded(ResourceTreeItemData presenter) =>
         !string.IsNullOrEmpty(_localSearchPhrase) && presenter.Children?.Count > 0
-            || ExpandedKeys.Contains(GetNodeKey(presenter.Value));
+            || ExpandedKeys.Contains(ResourceTreeItemKeys.GetKey(presenter.Value));
 
     private void OnExpandedChanged(ResourceTreeItemData item, bool expanded) =>
-        _dispatcher.Dispatch(new ToggleExpandedAction(GetNodeKey(item.Value), expanded));
-
-    private static string GetNodeKey(ResourceTreeNode? node) => node switch
-    {
-        NamespaceTreeNode n => $"ns:{n.ConnectionName}",
-        FoldersTreeNode n => $"folders:{n.ConnectionName}",
-        FolderTreeNode n => $"folder:{n.FolderId}",
-        QueuesTreeNode n => $"queues:{n.ConnectionName}",
-        TopicsTreeNode n => $"topics:{n.ConnectionName}",
-        QueueTreeNode n => $"queue:{n.Resource.Url}",
-        TopicTreeNode n => $"topic:{n.Resource.Url}",
-        SubscriptionTreeNode n => $"sub:{n.Resource.Url}",
-        _ => string.Empty
-    };
+        _dispatcher.Dispatch(new ToggleExpandedAction(ResourceTreeItemKeys.GetKey(item.Value), expanded));
 
     private void OpenConnections()
     {
@@ -382,8 +369,8 @@ public partial class NamespaceTree
     private static bool ContainsSameNodes<TNode>(IEnumerable<TNode> filteredNodes, IEnumerable<TNode> allNodes)
         where TNode : ResourceTreeNode
     {
-        var filteredNodeKeys = filteredNodes.Select(GetNodeKey).ToHashSet(StringComparer.Ordinal);
-        var allNodeKeys = allNodes.Select(GetNodeKey).ToHashSet(StringComparer.Ordinal);
+        var filteredNodeKeys = filteredNodes.Select(ResourceTreeItemKeys.GetKey).ToHashSet(StringComparer.Ordinal);
+        var allNodeKeys = allNodes.Select(ResourceTreeItemKeys.GetKey).ToHashSet(StringComparer.Ordinal);
         return filteredNodeKeys.SetEquals(allNodeKeys);
     }
 
