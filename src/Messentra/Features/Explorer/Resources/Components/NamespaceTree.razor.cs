@@ -1,8 +1,11 @@
+using ElectronNET.API;
+using ElectronNET.API.Entities;
 using Fluxor;
 using Messentra.Domain;
 using Messentra.Features.Layout.State;
 using Messentra.Features.Settings.Connections.GetConnections;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor;
 
@@ -110,6 +113,41 @@ public partial class NamespaceTree
                 node.ConnectionConfig,
                 folderName));
         }
+    }
+
+    private async Task OnContextExportFolders(FoldersTreeNode node)
+    {
+        var window = Electron.WindowManager.BrowserWindows.FirstOrDefault();
+        if (window is null) return;
+
+        var destinationPath = await Electron.Dialog.ShowSaveDialogAsync(window, new SaveDialogOptions
+        {
+            Title = "Export folders",
+            DefaultPath = $"{node.ConnectionName}-folders.json",
+            Filters = [new FileFilter { Name = "JSON Files", Extensions = ["json"] }]
+        });
+
+        if (string.IsNullOrWhiteSpace(destinationPath)) return;
+
+        _dispatcher.Dispatch(new ExportFoldersAction(
+            node.ConnectionId, node.ConnectionName, node.ConnectionConfig, destinationPath));
+    }
+
+    private async Task OnContextImportFolders(FoldersTreeNode node)
+    {
+        var dialog = await _dialogService.ShowAsync<ImportFoldersDialog>(
+            "Import folders",
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: IBrowserFile file }) return;
+
+        using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        using var reader = new StreamReader(stream);
+        var jsonContent = await reader.ReadToEndAsync();
+
+        _dispatcher.Dispatch(new ImportFoldersAction(
+            node.ConnectionId, node.ConnectionName, node.ConnectionConfig, jsonContent));
     }
 
     private async Task OnContextRenameFolder(FolderTreeNode folder)

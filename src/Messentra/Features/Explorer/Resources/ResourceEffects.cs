@@ -1,10 +1,11 @@
 using Fluxor;
 using Mediator;
-using Messentra.Features.Explorer.Folders;
 using Messentra.Features.Explorer.Folders.AddResourceToFolder;
 using Messentra.Features.Explorer.Folders.CreateFolder;
 using Messentra.Features.Explorer.Folders.DeleteFolder;
 using Messentra.Features.Explorer.Folders.GetFoldersByConnectionId;
+using Messentra.Features.Explorer.Folders.ExportFolders;
+using Messentra.Features.Explorer.Folders.ImportFolders;
 using Messentra.Features.Explorer.Folders.RemoveResourceFromFolder;
 using Messentra.Features.Explorer.Folders.RenameFolder;
 using Messentra.Features.Explorer.Resources.Queues.GetAllQueueResources;
@@ -444,6 +445,46 @@ public sealed class ResourceEffects
         }
     }
 
+    [EffectMethod]
+    public async Task HandleExportFolders(ExportFoldersAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            await _mediator.Send(new ExportFoldersCommand(action.ConnectionId, action.ConnectionConfig, action.DestinationPath));
+            dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                action.ConnectionName, "Info", "Folders exported successfully.", DateTime.Now)));
+            dispatcher.Dispatch(new ExportFoldersSuccessAction(action.ConnectionName));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to export folders for connection '{ConnectionName}'", action.ConnectionName);
+            dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                action.ConnectionName, "Error", $"Exporting folders failed: {ex.Message}", DateTime.Now)));
+            dispatcher.Dispatch(new ExportFoldersFailureAction(action.ConnectionName, ex.Message));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleImportFolders(ImportFoldersAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            await _mediator.Send(new ImportFoldersCommand(action.ConnectionId, action.ConnectionConfig, action.JsonContent));
+            var folders = await _mediator.Send(new GetFoldersByConnectionIdQuery(action.ConnectionId));
+            dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                action.ConnectionName, "Info", "Folders imported successfully.", DateTime.Now)));
+            dispatcher.Dispatch(new ImportFoldersSuccessAction(
+                action.ConnectionId, action.ConnectionName, action.ConnectionConfig, folders.ToList()));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to import folders for connection '{ConnectionName}'", action.ConnectionName);
+            dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
+                action.ConnectionName, "Error", $"Importing folders failed: {ex.Message}", DateTime.Now)));
+            dispatcher.Dispatch(new ImportFoldersFailureAction(action.ConnectionName, ex.Message));
+        }
+    }
+
     private static string BuildExceptionSummary(Exception ex)
     {
         var parts = new List<string>();
@@ -470,4 +511,3 @@ public sealed class ResourceEffects
     }
 
 }
-
