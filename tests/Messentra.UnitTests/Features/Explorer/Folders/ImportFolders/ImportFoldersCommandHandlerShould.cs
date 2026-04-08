@@ -63,6 +63,7 @@ public sealed class ImportFoldersCommandHandlerShould : InMemoryDbTestBase
 
         var existingFolder = new Folder { ConnectionId = connection.Id, Name = "Critical" };
         await DbContext.Set<Folder>().AddAsync(existingFolder, TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         await DbContext.Set<FolderResource>().AddAsync(new FolderResource { FolderId = existingFolder.Id, ResourceUrl = $"{NamespacePrefix}/old-queue" }, TestContext.Current.CancellationToken);
         await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 

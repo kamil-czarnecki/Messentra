@@ -28,6 +28,7 @@ public sealed class ExportFoldersCommandHandlerShould : InMemoryDbTestBase
 
         var folder = new Folder { ConnectionId = connection.Id, Name = "Critical" };
         await DbContext.Set<Folder>().AddAsync(folder, TestContext.Current.CancellationToken);
+        await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         await DbContext.Set<FolderResource>().AddAsync(new FolderResource { FolderId = folder.Id, ResourceUrl = $"{namespacePrefix}/orders-queue" }, TestContext.Current.CancellationToken);
         await DbContext.Set<FolderResource>().AddAsync(new FolderResource { FolderId = folder.Id, ResourceUrl = $"{namespacePrefix}/topics/my-topic/subscriptions/sub1" }, TestContext.Current.CancellationToken);
         await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
