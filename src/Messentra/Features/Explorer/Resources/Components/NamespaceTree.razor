@@ -90,16 +90,13 @@
                 @{
                     var presenter = (context as ResourceTreeItemData)!;
                 }
-                <MudTreeViewItem Expanded="@IsExpanded(presenter)"
-                                 ExpandedChanged="@(x => OnExpandedChanged(presenter, x))"
-                                 Items="@presenter.Children"
-                                 Value="@presenter.Value"
-                                 Icon="@presenter.Icon"
-                                 IconColor="@presenter.IconColor"
-                                 Selected="@IsSelected(presenter.Value)"
-                                 ReadOnly="@presenter.IsReadonly"
-                                 SelectedChanged="@(x => ItemSelected(presenter, x))">
-                    <BodyContent Context="node">
+                <ResourceTreeItemWrapper @key="@ResourceTreeItemKeys.GetKey(presenter.Value)"
+                                         Presenter="@presenter"
+                                         IsSelected="@IsSelected(presenter.Value)"
+                                         IsExpanded="@IsExpanded(presenter)"
+                                         ExpandedChanged="@(x => OnExpandedChanged(presenter, x))"
+                                         SelectedChanged="@(x => ItemSelected(presenter, x))">
+                    <ItemContent>
                         @switch (presenter.Value)
                         {
                             case FolderTreeNode folderNode:
@@ -291,8 +288,8 @@
                                 </MudStack>
                                 break;
                         }
-                    </BodyContent>
-                </MudTreeViewItem>
+                    </ItemContent>
+                </ResourceTreeItemWrapper>
             </ItemTemplate>
         </MudTreeView>
     }

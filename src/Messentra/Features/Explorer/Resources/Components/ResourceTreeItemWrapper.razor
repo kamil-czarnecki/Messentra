@@ -1,0 +1,13 @@
+<MudTreeViewItem Expanded="@IsExpanded"
+                 ExpandedChanged="@ExpandedChanged"
+                 Items="@Presenter.Children"
+                 Value="@Presenter.Value"
+                 Icon="@Presenter.Icon"
+                 IconColor="@Presenter.IconColor"
+                 Selected="@IsSelected"
+                 ReadOnly="@Presenter.IsReadonly"
+                 SelectedChanged="@SelectedChanged">
+    <BodyContent Context="_">
+        @ItemContent
+    </BodyContent>
+</MudTreeViewItem>
