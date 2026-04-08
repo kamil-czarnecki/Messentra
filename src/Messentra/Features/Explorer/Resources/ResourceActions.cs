@@ -58,3 +58,11 @@ public sealed record AddResourceToFolderFailureAction(string ConnectionName, str
 public sealed record RemoveResourceFromFolderAction(long FolderId, long ConnectionId, string ConnectionName, string ResourceUrl);
 public sealed record RemoveResourceFromFolderSuccessAction(long FolderId, long ConnectionId, string ConnectionName, string ResourceUrl);
 public sealed record RemoveResourceFromFolderFailureAction(string ConnectionName, string Error);
+
+public sealed record ExportFoldersAction(long ConnectionId, string ConnectionName, ConnectionConfig ConnectionConfig, string DestinationPath);
+public sealed record ExportFoldersSuccessAction(string ConnectionName);
+public sealed record ExportFoldersFailureAction(string ConnectionName, string Error);
+
+public sealed record ImportFoldersAction(long ConnectionId, string ConnectionName, ConnectionConfig ConnectionConfig, string JsonContent);
+public sealed record ImportFoldersSuccessAction(long ConnectionId, string ConnectionName, ConnectionConfig ConnectionConfig, IReadOnlyList<FolderDto> Folders);
+public sealed record ImportFoldersFailureAction(string ConnectionName, string Error);

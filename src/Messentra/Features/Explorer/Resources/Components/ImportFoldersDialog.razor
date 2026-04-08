@@ -1,0 +1,38 @@
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudAlert Severity="Severity.Warning" Dense="true">
+                Importing will replace any existing folders with the same name.
+            </MudAlert>
+
+            <MudFileUpload T="IBrowserFile"
+                           Accept=".json"
+                           @bind-Files="_selectedFile"
+                           Hidden="true">
+                <CustomContent Context="fileUpload">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.CloudUpload"
+                               OnClick="@(() => fileUpload.OpenFilePickerAsync())">
+                        Browse files
+                    </MudButton>
+                </CustomContent>
+            </MudFileUpload>
+
+            @if (_selectedFile is not null)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Primary">@_selectedFile.Name</MudText>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(_selectedFile is null)"
+                   OnClick="@Submit"
+                   StartIcon="@Icons.Material.Filled.FileUpload">
+            Import
+        </MudButton>
+    </DialogActions>
+</MudDialog>

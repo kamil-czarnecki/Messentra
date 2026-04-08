@@ -580,6 +580,23 @@ public static class ResourceReducers
                     })
                 .ToList()
         };
+
+    [ReducerMethod]
+    public static ResourceState ReduceImportFoldersSuccess(ResourceState state, ImportFoldersSuccessAction action) =>
+        state with
+        {
+            Namespaces = state.Namespaces
+                .Select(ns => ns.ConnectionId != action.ConnectionId ? ns
+                    : ns with
+                    {
+                        Folders = action.Folders
+                            .Select(f => new FolderEntry(
+                                new FolderTreeNode(f.Id, action.ConnectionId, f.Name, action.ConnectionName, action.ConnectionConfig),
+                                f.ResourceUrls))
+                            .ToDictionary(e => e.Node.FolderId)
+                    })
+                .ToList()
+        };
 }
 
 internal static class DictionaryExtensions

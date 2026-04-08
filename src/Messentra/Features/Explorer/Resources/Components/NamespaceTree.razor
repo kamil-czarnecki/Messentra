@@ -238,6 +238,11 @@
                                     <ChildContent>
                                         <MudMenuItem Icon="@Icons.Material.Filled.CreateNewFolder"
                                                      OnClick="@(async () => await OnAddFolderClicked(foldersNode))">New folder</MudMenuItem>
+                                        <MudDivider />
+                                        <MudMenuItem Icon="@Icons.Material.Filled.FileDownload"
+                                                     OnClick="@(async () => await OnContextExportFolders(foldersNode))">Export folders</MudMenuItem>
+                                        <MudMenuItem Icon="@Icons.Material.Filled.FileUpload"
+                                                     OnClick="@(async () => await OnContextImportFolders(foldersNode))">Import folders</MudMenuItem>
                                     </ChildContent>
                                 </MudMenu>
                                 break;
