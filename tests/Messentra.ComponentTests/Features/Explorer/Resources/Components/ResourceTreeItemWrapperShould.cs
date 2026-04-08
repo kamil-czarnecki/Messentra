@@ -47,7 +47,7 @@ public sealed class ResourceTreeItemWrapperShould : ComponentTestBase
     }
 
     [Fact]
-    public void InvokesExpandedChangedCallbackWhenTriggered()
+    public async Task InvokesExpandedChangedCallbackWhenTriggered()
     {
         // Arrange
         bool? captured = null;
@@ -56,10 +56,10 @@ public sealed class ResourceTreeItemWrapperShould : ComponentTestBase
             .Add(x => x.Presenter, presenter)
             .Add(x => x.IsSelected, false)
             .Add(x => x.IsExpanded, false)
-            .Add(x => x.ExpandedChanged, (bool v) => captured = v));
+            .Add(x => x.ExpandedChanged, v => captured = v));
 
         // Act
-        cut.InvokeAsync(() =>
+        await cut.InvokeAsync(() =>
             cut.Instance.ExpandedChanged.InvokeAsync(true));
 
         // Assert
@@ -67,7 +67,7 @@ public sealed class ResourceTreeItemWrapperShould : ComponentTestBase
     }
 
     [Fact]
-    public void InvokesSelectedChangedCallbackWhenTriggered()
+    public async Task InvokesSelectedChangedCallbackWhenTriggered()
     {
         // Arrange
         bool? captured = null;
@@ -76,10 +76,10 @@ public sealed class ResourceTreeItemWrapperShould : ComponentTestBase
             .Add(x => x.Presenter, presenter)
             .Add(x => x.IsSelected, false)
             .Add(x => x.IsExpanded, false)
-            .Add(x => x.SelectedChanged, (bool v) => captured = v));
+            .Add(x => x.SelectedChanged, v => captured = v));
 
         // Act
-        cut.InvokeAsync(() =>
+        await cut.InvokeAsync(() =>
             cut.Instance.SelectedChanged.InvokeAsync(true));
 
         // Assert
