@@ -67,10 +67,10 @@ public partial class NamespaceTree
 
     private bool IsExpanded(ResourceTreeItemData presenter) =>
         !string.IsNullOrEmpty(_localSearchPhrase) && presenter.Children?.Count > 0
-            || ExpandedKeys.Contains(ResourceTreeItemKeys.GetKey(presenter.Value));
+            || ExpandedKeys.Contains(GetExpandedKey(presenter));
 
     private void OnExpandedChanged(ResourceTreeItemData item, bool expanded) =>
-        _dispatcher.Dispatch(new ToggleExpandedAction(ResourceTreeItemKeys.GetKey(item.Value), expanded));
+        _dispatcher.Dispatch(new ToggleExpandedAction(GetExpandedKey(item), expanded));
 
     private void OpenConnections()
     {
@@ -534,4 +534,15 @@ public partial class NamespaceTree
             .Where(folder => folder.ConnectionId == connectionId)
             .Select(folder => folder.Name)
             .ToList();
+
+    private static string GetExpandedKey(ResourceTreeItemData presenter)
+    {
+        var baseKey = ResourceTreeItemKeys.GetKey(presenter.Value);
+        if (string.IsNullOrEmpty(baseKey))
+            return baseKey;
+
+        return presenter.ParentFolderNode is null
+            ? baseKey
+            : $"{baseKey}|folder:{presenter.ParentFolderNode.ConnectionName}:{presenter.ParentFolderNode.FolderId}";
+    }
 }

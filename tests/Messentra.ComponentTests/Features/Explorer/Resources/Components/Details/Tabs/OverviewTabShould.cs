@@ -1,7 +1,9 @@
+using Bunit;
 using Messentra.Domain;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components.Details.Tabs.Overview;
 using Messentra.Infrastructure.AzureServiceBus;
+using MudBlazor;
 using Shouldly;
 using Xunit;
 
@@ -50,17 +52,45 @@ public sealed class OverviewTabShould : ComponentTestBase
     public void RenderStatusForQueueResource()
     {
         // Arrange & Act
-        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, (ResourceTreeNode)BuildQueueNode()));
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, BuildQueueNode()));
 
         // Assert
         cut.Markup.ShouldContain("Active");
     }
 
     [Fact]
+    public void UseErrorStatusColorForDisabledQueue()
+    {
+        // Arrange
+        var node = BuildQueueNode(status: "Disabled");
+
+        // Act
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, node));
+        var statusIcon = cut.FindComponent<MudIcon>();
+
+        // Assert
+        statusIcon.Instance.Color.ShouldBe(Color.Error);
+    }
+
+    [Fact]
+    public void UseWarningStatusColorForSendDisabledQueue()
+    {
+        // Arrange
+        var node = BuildQueueNode(status: "SendDisabled");
+
+        // Act
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, node));
+        var statusIcon = cut.FindComponent<MudIcon>();
+
+        // Assert
+        statusIcon.Instance.Color.ShouldBe(Color.Warning);
+    }
+
+    [Fact]
     public void RenderMessageCountsForQueueResource()
     {
         // Arrange & Act
-        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, (ResourceTreeNode)BuildQueueNode()));
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, BuildQueueNode()));
 
         // Assert
         cut.Markup.ShouldContain("10");
@@ -70,7 +100,7 @@ public sealed class OverviewTabShould : ComponentTestBase
     public void RenderStatusForTopicResource()
     {
         // Arrange & Act
-        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, (ResourceTreeNode)BuildTopicNode()));
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, BuildTopicNode()));
 
         // Assert
         cut.Markup.ShouldContain("Active");
@@ -80,7 +110,7 @@ public sealed class OverviewTabShould : ComponentTestBase
     public void RenderStatusForSubscriptionResource()
     {
         // Arrange & Act
-        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, (ResourceTreeNode)BuildSubscriptionNode()));
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, BuildSubscriptionNode()));
 
         // Assert
         cut.Markup.ShouldContain("Active");
@@ -94,7 +124,7 @@ public sealed class OverviewTabShould : ComponentTestBase
         var node = new NamespaceTreeNode("TestNS", connectionConfig);
 
         // Act
-        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, (ResourceTreeNode)node));
+        var cut = Render<OverviewTab>(p => p.Add(x => x.Resource, node));
 
         // Assert
         cut.Markup.ShouldNotBeEmpty();

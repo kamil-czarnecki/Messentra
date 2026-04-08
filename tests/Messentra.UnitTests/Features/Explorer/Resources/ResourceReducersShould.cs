@@ -469,7 +469,8 @@ public sealed class ResourceReducersShould
             ConnectionId: 1L, ConnectionName, config, false, Queues: [],
             Topics: new Dictionary<string, TopicEntry> { [topic.Url] = new(loadingNode, true, []) }, Folders: []);
         var state = new ResourceState(Namespaces: [entry], SelectedResource: loadingNode, ExpandedKeys: []);
-        var action = new RefreshTopicFailureAction(loadingNode, "error");
+        var topicsNode = new TopicsTreeNode(ConnectionName, config);
+        var action = new RefreshTopicsFailureAction(topicsNode, "error");
 
         // Act
         var newState = ResourceReducers.Reduce(state, action);
@@ -997,6 +998,115 @@ public sealed class ResourceReducersShould
 
         // Assert
         newState.Namespaces[0].Folders[10L].ResourceUrls.ShouldNotContain("queue:orders");
+    }
+
+    [Fact]
+    public void DisconnectResourceAction_RemovesOnlyExpandedKeysForDisconnectedNamespace()
+    {
+        // Arrange
+        var config = ResourceTestData.CreateConnectionConfig();
+
+        const string sharedTopicUrl = "https://shared/topics/orders";
+        const string sharedSubscriptionUrl = "https://shared/topics/orders/subscriptions/processor";
+
+        var queueA = ResourceTestData.CreateQueue("queue-a");
+        var subscriptionA = ResourceTestData.CreateSubscription("sub-a", "topic-a") with { Url = sharedSubscriptionUrl };
+        var topicA = ResourceTestData.CreateTopic("topic-a", [subscriptionA]) with { Url = sharedTopicUrl };
+        var namespaceA = new NamespaceEntry(
+            1L,
+            "connection-a",
+            config,
+            false,
+            new Dictionary<string, QueueEntry>
+            {
+                [queueA.Url] = new(new QueueTreeNode("connection-a", queueA, config), false)
+            },
+            new Dictionary<string, TopicEntry>
+            {
+                [topicA.Url] = new(
+                    new TopicTreeNode("connection-a", topicA, config),
+                    false,
+                    new Dictionary<string, SubscriptionEntry>
+                    {
+                        [subscriptionA.Url] = new(new SubscriptionTreeNode("connection-a", subscriptionA, config), false)
+                    })
+            },
+            new Dictionary<long, FolderEntry>
+            {
+                [10L] = new(new FolderTreeNode(10L, 1L, "folder-a", "connection-a", config), new HashSet<string>())
+            });
+
+        var queueB = ResourceTestData.CreateQueue("queue-b");
+        var subscriptionB = ResourceTestData.CreateSubscription("sub-b", "topic-b") with { Url = sharedSubscriptionUrl };
+        var topicB = ResourceTestData.CreateTopic("topic-b", [subscriptionB]) with { Url = sharedTopicUrl };
+        var namespaceB = new NamespaceEntry(
+            2L,
+            "connection-b",
+            config,
+            false,
+            new Dictionary<string, QueueEntry>
+            {
+                [queueB.Url] = new(new QueueTreeNode("connection-b", queueB, config), false)
+            },
+            new Dictionary<string, TopicEntry>
+            {
+                [topicB.Url] = new(
+                    new TopicTreeNode("connection-b", topicB, config),
+                    false,
+                    new Dictionary<string, SubscriptionEntry>
+                    {
+                        [subscriptionB.Url] = new(new SubscriptionTreeNode("connection-b", subscriptionB, config), false)
+                    })
+            },
+            new Dictionary<long, FolderEntry>
+            {
+                [20L] = new(new FolderTreeNode(20L, 2L, "folder-b", "connection-b", config), new HashSet<string>())
+            });
+
+        var state = new ResourceState(
+            Namespaces: [namespaceA, namespaceB],
+            SelectedResource: null,
+            ExpandedKeys: new HashSet<string>
+            {
+                "ns:connection-a", "queues:connection-a", "topics:connection-a", "folders:connection-a",
+                $"queue:connection-a:{queueA.Url}", $"topic:connection-a:{topicA.Url}", $"sub:connection-a:{subscriptionA.Url}", "folder:connection-a:10",
+                $"topic:connection-a:{topicA.Url}|folder:connection-a:10",
+                $"sub:connection-a:{subscriptionA.Url}|folder:connection-a:10",
+                "ns:connection-b", "queues:connection-b", "topics:connection-b", "folders:connection-b",
+                $"queue:connection-b:{queueB.Url}", $"topic:connection-b:{topicB.Url}", $"sub:connection-b:{subscriptionB.Url}", "folder:connection-b:20",
+                $"topic:connection-b:{topicB.Url}|folder:connection-b:20",
+                $"sub:connection-b:{subscriptionB.Url}|folder:connection-b:20"
+            });
+
+        var action = new DisconnectResourceAction("connection-a");
+
+        // Act
+        var newState = ResourceReducers.Reduce(state, action);
+
+        // Assert
+        newState.Namespaces.Select(n => n.ConnectionName).ShouldBe(new[] { "connection-b" });
+
+        newState.ExpandedKeys.ShouldNotContain("ns:connection-a");
+        newState.ExpandedKeys.ShouldNotContain("queues:connection-a");
+        newState.ExpandedKeys.ShouldNotContain("topics:connection-a");
+        newState.ExpandedKeys.ShouldNotContain("folders:connection-a");
+        newState.ExpandedKeys.ShouldNotContain($"queue:connection-a:{queueA.Url}");
+        newState.ExpandedKeys.ShouldNotContain($"topic:connection-a:{topicA.Url}");
+        newState.ExpandedKeys.ShouldNotContain($"sub:connection-a:{subscriptionA.Url}");
+        newState.ExpandedKeys.ShouldNotContain("folder:connection-a:10");
+        newState.ExpandedKeys.ShouldNotContain($"topic:connection-a:{topicA.Url}|folder:connection-a:10");
+        newState.ExpandedKeys.ShouldNotContain($"sub:connection-a:{subscriptionA.Url}|folder:connection-a:10");
+
+        newState.ExpandedKeys.ShouldContain("ns:connection-b");
+        newState.ExpandedKeys.ShouldContain("queues:connection-b");
+        newState.ExpandedKeys.ShouldContain("topics:connection-b");
+        newState.ExpandedKeys.ShouldContain("folders:connection-b");
+        newState.ExpandedKeys.ShouldContain($"queue:connection-b:{queueB.Url}");
+        newState.ExpandedKeys.ShouldContain($"topic:connection-b:{topicB.Url}");
+        newState.ExpandedKeys.ShouldContain($"sub:connection-b:{subscriptionB.Url}");
+        newState.ExpandedKeys.ShouldContain("folder:connection-b:20");
+        newState.ExpandedKeys.ShouldContain($"topic:connection-b:{topicB.Url}|folder:connection-b:20");
+        newState.ExpandedKeys.ShouldContain($"sub:connection-b:{subscriptionB.Url}|folder:connection-b:20");
     }
 }
 

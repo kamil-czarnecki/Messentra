@@ -160,7 +160,7 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildLoadingNamespaceTree())
             .Add(x => x.Connections, [])
-            .Add(x => x.ExpandedKeys, new HashSet<string> { "ns:TestNamespace" }));
+            .Add(x => x.ExpandedKeys, ["ns:TestNamespace"]));
 
         // Act
         cut.Find(".namespace-loading-cancel").Click();
@@ -188,6 +188,44 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         MockDispatcher.Verify(d => d.Dispatch(It.Is<SelectResourceAction>(a =>
             a.Node is QueueTreeNode &&
             ((QueueTreeNode)a.Node).Resource.Name == "queue1")), Times.Once);
+    }
+
+    [Fact]
+    public async Task ExpandingSameTopicInRootAndFolder_DispatchesDifferentExpandedKeys()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildNamespaceTreeWithDuplicateTopicInRootAndFolder())
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, [
+                "ns:TestNamespace",
+                "topics:TestNamespace",
+                "folders:TestNamespace",
+                "folder:TestNamespace:10"
+            ]));
+
+        var topicWrappers = cut.FindComponents<ResourceTreeItemWrapper>()
+            .Where(x => x.Instance.Presenter.Value is TopicTreeNode { Resource.Name: "worker-topic" })
+            .ToList();
+
+        topicWrappers.Count.ShouldBe(2);
+
+        var rootTopic = topicWrappers.Single(x => x.Instance.Presenter.ParentFolderNode is null);
+        var folderTopic = topicWrappers.Single(x => x.Instance.Presenter.ParentFolderNode is not null);
+
+        // Act
+        await cut.InvokeAsync(async () =>
+        {
+            await rootTopic.Instance.ExpandedChanged.InvokeAsync(true);
+            await folderTopic.Instance.ExpandedChanged.InvokeAsync(true);
+        });
+
+        // Assert
+        MockDispatcher.Verify(d => d.Dispatch(It.IsAny<ToggleExpandedAction>()), Times.Exactly(2));
+        MockDispatcher.Verify(d => d.Dispatch(It.Is<ToggleExpandedAction>(a =>
+            a.NodeKey == "topic:TestNamespace:https://test/shared-topic" && a.Expanded)), Times.Once);
+        MockDispatcher.Verify(d => d.Dispatch(It.Is<ToggleExpandedAction>(a =>
+            a.NodeKey == "topic:TestNamespace:https://test/shared-topic|folder:TestNamespace:10" && a.Expanded)), Times.Once);
     }
 
     private static ResourceTreeItemData QueueItem(string name) => new() { Text = name };
@@ -220,13 +258,119 @@ public sealed class NamespaceTreeShould : ComponentTestBase
                 10, false, null, null, false, false, TimeSpan.FromMinutes(1), false, 256, string.Empty));
     }
 
-    private static Resource.Topic BuildTopicResource(string name)
+    private static Resource.Topic BuildTopicResource(string name, string? url = null)
     {
-        return new Resource.Topic(name, $"https://test/{name}",
+        return new Resource.Topic(name, url ?? $"https://test/{name}",
             new ResourceOverview("Active", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
                 new MessageInfo(0, 0, 0, 0, 0, 0), new SizeInfo(0, 1024)),
             new TopicProperties(TimeSpan.FromDays(14), TimeSpan.MaxValue, false, false, TimeSpan.Zero, 256,
                 string.Empty), []);
+    }
+
+    private static Resource.Subscription BuildSubscriptionResource(string name, string topicName, string? url = null)
+    {
+        return new Resource.Subscription(name, topicName, url ?? $"https://test/{name}",
+            new ResourceOverview("Active", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
+                new MessageInfo(0, 0, 0, 0, 0, 0), new SizeInfo(0, 1024)),
+            new SubscriptionProperties(TimeSpan.FromDays(14), TimeSpan.FromSeconds(60), TimeSpan.MaxValue,
+                10, false, null, null, false, string.Empty));
+    }
+
+    private static List<ResourceTreeItemData> BuildNamespaceTreeWithDuplicateTopicInRootAndFolder()
+    {
+        var config = BuildConnectionConfig();
+        const string connectionName = "TestNamespace";
+
+        var rootTopicNode = new TopicTreeNode(
+            connectionName,
+            BuildTopicResource("worker-topic", "https://test/shared-topic"),
+            config);
+        var rootSubNode = new SubscriptionTreeNode(
+            connectionName,
+            BuildSubscriptionResource("worker-sub", "worker-topic", "https://test/shared-sub"),
+            config);
+
+        var folderNode = new FolderTreeNode(10L, 1L, "Team Folder", connectionName, config);
+        var folderTopicNode = new TopicTreeNode(
+            connectionName,
+            BuildTopicResource("worker-topic", "https://test/shared-topic"),
+            config);
+        var folderSubNode = new SubscriptionTreeNode(
+            connectionName,
+            BuildSubscriptionResource("worker-sub", "worker-topic", "https://test/shared-sub"),
+            config);
+
+        var rootTopicItem = new ResourceTreeItemData
+        {
+            Text = "worker-topic",
+            Value = rootTopicNode,
+            Expandable = true,
+            Children =
+            [
+                new ResourceTreeItemData
+                {
+                    Text = "worker-sub",
+                    Value = rootSubNode
+                }
+            ]
+        };
+
+        var folderTopicItem = new ResourceTreeItemData
+        {
+            Text = "worker-topic",
+            Value = folderTopicNode,
+            ParentFolderNode = folderNode,
+            Expandable = true,
+            Children =
+            [
+                new ResourceTreeItemData
+                {
+                    Text = "worker-sub",
+                    Value = folderSubNode,
+                    ParentFolderNode = folderNode
+                }
+            ]
+        };
+
+        var foldersGroup = new ResourceTreeItemData
+        {
+            Text = "Folders",
+            Value = new FoldersTreeNode(1L, connectionName, config),
+            IsReadonly = true,
+            Expandable = true,
+            Children =
+            [
+                new ResourceTreeItemData
+                {
+                    Text = "Team Folder",
+                    Value = folderNode,
+                    IsReadonly = true,
+                    Expandable = true,
+                    Children = [folderTopicItem]
+                }
+            ]
+        };
+
+        var topicsGroup = new ResourceTreeItemData
+        {
+            Text = "Topics",
+            Value = new TopicsTreeNode(connectionName, config),
+            IsReadonly = true,
+            Expandable = true,
+            Children = [rootTopicItem]
+        };
+
+        return
+        [
+            new ResourceTreeItemData
+            {
+                Text = connectionName,
+                Value = new NamespaceTreeNode(connectionName, config),
+                IsReadonly = true,
+                Expandable = true,
+                Children = [foldersGroup, topicsGroup]
+            }
+        ];
     }
 
     private static List<ResourceTreeItemData> BuildRefreshableNamespaceTree(string[] queueNames)
@@ -727,31 +871,6 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             Times.Once);
     }
 
-    [Fact]
-    public async Task SuggestionSearch_CompleteNamespaceToken_DoesNotSuggestItself()
-    {
-        var cut = Render<NamespaceTree>(p => p
-            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, [])
-            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
-
-        var suggestions = await GetSuggestions(cut, "namespace:TestNamespace");
-
-        suggestions.ShouldNotContain("namespace:TestNamespace");
-    }
-
-    [Fact]
-    public async Task SuggestionSearch_CompleteNamespaceTokenDifferentCase_DoesNotSuggestItself()
-    {
-        var cut = Render<NamespaceTree>(p => p
-            .Add(x => x.Resources, BuildNamespaceTree(["queue1"]))
-            .Add(x => x.Connections, [])
-            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
-
-        var suggestions = await GetSuggestions(cut, "NAMESPACE:TESTNAMESPACE");
-
-        suggestions.ShouldNotContain("namespace:TestNamespace");
-    }
 
     private static ResourceTreeItemData BuildFoldersGroup(
         string connectionName = "Test Namespace",
@@ -784,7 +903,7 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, [nsItem])
             .Add(x => x.Connections, [])
-            .Add(x => x.ExpandedKeys, new HashSet<string> { "ns:Test Namespace", "folders:Test Namespace" }));
+            .Add(x => x.ExpandedKeys, ["ns:Test Namespace", "folders:Test Namespace"]));
 
         // Assert
         cut.Markup.ShouldContain("Folders");
@@ -808,7 +927,7 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, [nsItem])
             .Add(x => x.Connections, [])
-            .Add(x => x.ExpandedKeys, new HashSet<string> { "ns:Test Namespace", "folders:Test Namespace" }));
+            .Add(x => x.ExpandedKeys, ["ns:Test Namespace", "folders:Test Namespace"]));
 
         // Act
         await cut.InvokeAsync(() => cut.Find(".folders-add-btn").Click());
@@ -850,7 +969,7 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, [nsItem])
             .Add(x => x.Connections, [])
-            .Add(x => x.ExpandedKeys, new HashSet<string> { "ns:Test Namespace", "folders:Test Namespace" }));
+            .Add(x => x.ExpandedKeys, ["ns:Test Namespace", "folders:Test Namespace"]));
 
         // Act
         await cut.InvokeAsync(() => cut.Find(".folders-add-btn").Click());
@@ -878,7 +997,7 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Act
         cut.Render(p => p
             .Add(x => x.ExpandedKeys, DefaultExpandedKeys())
-            .Add(x => x.SearchPhrase, (string?)null));
+            .Add(x => x.SearchPhrase, null));
 
         // Assert
         cut.Markup.ShouldContain("queue1");

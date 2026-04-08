@@ -94,6 +94,7 @@ public static class ResourceReducers
     [ReducerMethod]
     public static ResourceState Reduce(ResourceState state, DisconnectResourceAction action)
     {
+        var disconnectedNamespace = state.Namespaces.FirstOrDefault(n => n.ConnectionName == action.ConnectionName);
         var updatedSelected = state.SelectedResource switch
         {
             NamespaceTreeNode n when n.ConnectionName == action.ConnectionName => null,
@@ -107,11 +108,15 @@ public static class ResourceReducers
             _ => state.SelectedResource
         };
 
+        var keysToRemove = GetExpandedKeysForNamespace(disconnectedNamespace);
+
         return state with
         {
             Namespaces = state.Namespaces.Where(n => n.ConnectionName != action.ConnectionName).ToList(),
             SelectedResource = updatedSelected,
-            ExpandedKeys = []
+            ExpandedKeys = state.ExpandedKeys
+                .Where(k => !keysToRemove.Any(removed => k == removed || k.StartsWith(removed + "|", StringComparison.Ordinal)))
+                .ToHashSet()
         };
     }
 
@@ -597,6 +602,36 @@ public static class ResourceReducers
                     })
                 .ToList()
         };
+
+    private static HashSet<string> GetExpandedKeysForNamespace(NamespaceEntry? ns)
+    {
+        if (ns is null)
+            return [];
+
+        var keys = new HashSet<string>
+        {
+            $"ns:{ns.ConnectionName}",
+            $"queues:{ns.ConnectionName}",
+            $"topics:{ns.ConnectionName}",
+            $"folders:{ns.ConnectionName}"
+        };
+
+        foreach (var folderId in ns.Folders.Keys)
+            keys.Add($"folder:{ns.ConnectionName}:{folderId}");
+
+        foreach (var queueUrl in ns.Queues.Keys)
+            keys.Add($"queue:{ns.ConnectionName}:{queueUrl}");
+
+        foreach (var topic in ns.Topics.Values)
+        {
+            keys.Add($"topic:{ns.ConnectionName}:{topic.Node.Resource.Url}");
+
+            foreach (var subscriptionUrl in topic.Subscriptions.Keys)
+                keys.Add($"sub:{ns.ConnectionName}:{subscriptionUrl}");
+        }
+
+        return keys;
+    }
 }
 
 internal static class DictionaryExtensions

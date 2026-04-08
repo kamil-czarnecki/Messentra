@@ -79,7 +79,7 @@ public sealed class ResendMessagesDialogShould : ComponentTestBase
 
         var cut = RenderDialog<ResendMessagesDialog>(p =>
         {
-            p[nameof(ResendMessagesDialog.Messages)] = (IReadOnlyList<ServiceBusMessage>)messages;
+            p[nameof(ResendMessagesDialog.Messages)] = messages;
             p[nameof(ResendMessagesDialog.ResourceTreeNode)] = BuildQueueNode();
         });
 
@@ -96,7 +96,7 @@ public sealed class ResendMessagesDialogShould : ComponentTestBase
 
         var cut = RenderDialog<ResendMessagesDialog>(p =>
         {
-            p[nameof(ResendMessagesDialog.Messages)] = (IReadOnlyList<ServiceBusMessage>)messages;
+            p[nameof(ResendMessagesDialog.Messages)] = messages;
             p[nameof(ResendMessagesDialog.ResourceTreeNode)] = BuildQueueNode();
         }, out var dialogRef);
 
@@ -118,7 +118,7 @@ public sealed class ResendMessagesDialogShould : ComponentTestBase
 
         var cut = RenderDialog<ResendMessagesDialog>(p =>
         {
-            p[nameof(ResendMessagesDialog.Messages)] = (IReadOnlyList<ServiceBusMessage>)messages;
+            p[nameof(ResendMessagesDialog.Messages)] = messages;
             p[nameof(ResendMessagesDialog.ResourceTreeNode)] = BuildQueueNode();
         }, out var dialogRef);
 
@@ -141,14 +141,14 @@ public sealed class ResendMessagesDialogShould : ComponentTestBase
 
         var cut = RenderDialog<ResendMessagesDialog>(p =>
         {
-            p[nameof(ResendMessagesDialog.Messages)] = (IReadOnlyList<ServiceBusMessage>)messages;
+            p[nameof(ResendMessagesDialog.Messages)] = messages;
             p[nameof(ResendMessagesDialog.ResourceTreeNode)] = BuildQueueNode();
         }, out var dialogRef);
 
         await cut.Find("button:contains('Resend All')").ClickAsync();
 
         var result = await dialogRef.Result;
-        var commands = result.Data.ShouldBeAssignableTo<IReadOnlyList<SendMessageBatchItem>>();
+        var commands = result!.Data.ShouldBeAssignableTo<IReadOnlyList<SendMessageBatchItem>>();
         commands![0].MessageId.ShouldBeNull();
     }
 
@@ -163,7 +163,7 @@ public sealed class ResendMessagesDialogShould : ComponentTestBase
 
         var cut = RenderDialog<ResendMessagesDialog>(p =>
         {
-            p[nameof(ResendMessagesDialog.Messages)] = (IReadOnlyList<ServiceBusMessage>)messages;
+            p[nameof(ResendMessagesDialog.Messages)] = messages;
             p[nameof(ResendMessagesDialog.ResourceTreeNode)] = BuildQueueNode();
         }, out var dialogRef);
 
@@ -182,7 +182,7 @@ public sealed class ResendMessagesDialogShould : ComponentTestBase
         await cut.Find("button:contains('Resend All')").ClickAsync();
 
         var result = await dialogRef.Result;
-        var commands = result.Data.ShouldBeAssignableTo<IReadOnlyList<SendMessageBatchItem>>();
+        var commands = result!.Data.ShouldBeAssignableTo<IReadOnlyList<SendMessageBatchItem>>();
         commands![0].Body.ShouldBe("edited body");
     }
 }

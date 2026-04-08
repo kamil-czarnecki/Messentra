@@ -105,15 +105,7 @@ public partial class ResourceDetails
             _ => "Unknown"
         };
 
-    private Color GetStatusColor() =>
-        GetStatusText() switch
-        {
-            "Active" => Color.Success,
-            "Disabled" => Color.Error,
-            "SendDisabled" => Color.Warning,
-            "ReceiveDisabled" => Color.Warning,
-            _ => Color.Default
-        };
+    private Color GetStatusColor() => ResourceStatusColorMapper.GetStatusColor(GetStatusText());
 
     private void RefreshResource()
     {

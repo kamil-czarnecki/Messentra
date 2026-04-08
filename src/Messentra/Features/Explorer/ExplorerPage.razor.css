@@ -1,6 +1,5 @@
 ::deep .explorer-left-panel {
     z-index: 1;
-    max-width: 420px;
 }
 
 ::deep .explorer-right-panel {

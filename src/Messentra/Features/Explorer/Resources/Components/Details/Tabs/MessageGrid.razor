@@ -27,7 +27,7 @@
                     </MudButton>
                     <MudButton IconSize="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.SaveAlt" Ripple="false"
                                OnClick="@(OnExportSelectedClicked)" Disabled="@(!SelectedItems.Any() || _actionOngoing)">
-                        <MudText Typo="Typo.body2">Export selected</MudText>
+                        <MudText Class="text-no-wrap" Typo="Typo.body2">Export selected</MudText>
                     </MudButton>
                     @if (_fetchMessagesOptions is { Mode: FetchMode.Receive })
                     {
