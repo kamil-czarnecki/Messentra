@@ -145,6 +145,31 @@ public sealed class ActionProgressDialogShould : ComponentTestBase
     }
 
     [Fact]
+    public async Task IgnoresStaleOutOfOrderProgressUpdates()
+    {
+        // Arrange — simulate a race where a later update (10 of 10) is followed by
+        // a stale earlier one (9 of 10). The counter must not go backwards.
+        var cut = RenderDialog<ActionProgressDialog>(p =>
+        {
+            foreach (var (k, v) in BuildParams(
+                totalCount: 10,
+                onRunAction: (progress, _) =>
+                {
+                    progress.Report(new ActionProgressUpdate(Succeeded: 10, Failed: 0, Pending: 0));
+                    progress.Report(new ActionProgressUpdate(Succeeded: 9,  Failed: 0, Pending: 1)); // stale
+                    return Task.CompletedTask;
+                }))
+                p.Add(k, v);
+        });
+
+        // Act
+        await cut.InvokeAsync(() => { });
+
+        // Assert — the stale update must not replace the newer one
+        cut.Markup.ShouldContain("10 of 10");
+    }
+
+    [Fact]
     public async Task YesCancelTransitionsToOkState()
     {
         // Arrange

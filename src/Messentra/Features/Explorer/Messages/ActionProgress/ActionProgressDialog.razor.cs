@@ -48,6 +48,8 @@ public sealed partial class ActionProgressDialog : IDisposable
 
         var progress = new Progress<ActionProgressUpdate>(update =>
         {
+            if (update.Succeeded + update.Failed < _succeeded + _failed) return;
+
             _succeeded = update.Succeeded;
             _failed = update.Failed;
             _pending = update.Pending;
