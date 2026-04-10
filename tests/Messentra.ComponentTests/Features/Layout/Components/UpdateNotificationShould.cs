@@ -263,48 +263,6 @@ public sealed class UpdateNotificationShould : ComponentTestBase
         MockDispatcher.Verify(d => d.Dispatch(new DownloadUpdateAction()), Times.Once);
     }
 
-    // --- Error ---
-
-    [Fact]
-    public void RenderErrorAlert_WhenErrorMessageSet()
-    {
-        // Arrange
-        var state = GetState<AutoUpdateState>();
-        state.SetState(state.Value with { ErrorMessage = "Update failed" });
-
-        // Act
-        var cut = Render<UpdateNotification>();
-
-        // Assert
-        cut.FindComponents<MudAlert>().ShouldNotBeEmpty();
-        cut.Markup.ShouldContain("Update failed");
-    }
-
-    [Fact]
-    public void NotRenderErrorAlert_WhenNoErrorMessage()
-    {
-        // Arrange & Act
-        var cut = Render<UpdateNotification>();
-
-        // Assert
-        cut.FindComponents<MudAlert>().ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void DispatchDismissUpdateErrorAction_WhenErrorAlertClosed()
-    {
-        // Arrange
-        var state = GetState<AutoUpdateState>();
-        state.SetState(state.Value with { ErrorMessage = "Update failed" });
-        var cut = Render<UpdateNotification>();
-
-        // Act — click the close button inside the alert (CurrentVersion is null so it's the only button)
-        cut.Find("button").Click();
-
-        // Assert
-        MockDispatcher.Verify(d => d.Dispatch(new DismissUpdateErrorAction()), Times.Once);
-    }
-
     // --- Downloading ---
 
     [Fact]

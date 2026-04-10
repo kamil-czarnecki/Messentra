@@ -1,11 +1,5 @@
 <div class="update-notification">
     <MudStack Justify="Justify.FlexEnd" AlignItems="AlignItems.Center" Class="mud-height-full" Spacing="2">
-        @if(_state.Value.ErrorMessage != null)
-        {
-            <MudAlert Severity="Severity.Error" ShowCloseIcon="true" Dense="true" Variant="Variant.Outlined" Class="update-alert mb-2" CloseIconClicked="@OnCloseErrorClick">
-                <MudText Typo="Typo.caption">@_state.Value.ErrorMessage</MudText>
-            </MudAlert>
-        }
         @if (_state.Value.CurrentVersion != null)
         {
             @if (_state.Value.IsUpdateAvailable && !_state.Value.IsDownloading && !_state.Value.IsReadyToInstall)
