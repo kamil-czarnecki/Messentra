@@ -83,14 +83,19 @@ public sealed class MessageGridShould : ComponentTestBase
     private async Task FetchMessagesThroughUi(IRenderedComponent<MessageGrid> cut, FetchMode mode = FetchMode.Peek)
     {
         // ClickAsync causes deadlock 
-        cut.FindAll("button").Single(x => x.TextContent.Trim() == "Fetch").Click();
+        cut.FindAll("button").First(x => x.TextContent.Trim() == "Fetch").Click();
+
+        await cut.WaitForAssertionAsync(() =>
+            MudDialog.FindAll("button").Any(x => x.TextContent.Trim() == "Fetch").ShouldBeTrue());
 
         if (mode == FetchMode.Receive)
         {
+            await cut.WaitForAssertionAsync(() =>
+                MudDialog.FindAll(".mud-toggle-item").Count.ShouldBeGreaterThan(0));
             await MudDialog.FindAll(".mud-toggle-item").Last().ClickAsync();
         }
 
-        await MudDialog.FindAll("button").Single(x => x.TextContent.Trim() == "Fetch").ClickAsync();
+        await MudDialog.FindAll("button").First(x => x.TextContent.Trim() == "Fetch").ClickAsync();
         await cut.InvokeAsync(() => Task.CompletedTask);
     }
 
