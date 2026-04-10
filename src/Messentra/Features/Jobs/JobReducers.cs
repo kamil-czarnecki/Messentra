@@ -74,4 +74,8 @@ public static class JobReducers
 
         return state with { Jobs = jobs };
     }
+
+    [ReducerMethod]
+    public static JobState Reduce(JobState state, JobCreatedAction action) =>
+        state with { Jobs = [action.Job, ..state.Jobs] };
 }

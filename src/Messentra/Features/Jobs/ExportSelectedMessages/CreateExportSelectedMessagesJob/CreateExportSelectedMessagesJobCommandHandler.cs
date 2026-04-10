@@ -3,51 +3,45 @@ using Messentra.Domain;
 using Messentra.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 
-namespace Messentra.Features.Jobs.ExportSelectedMessages.EnqueueExportSelectedMessages;
+namespace Messentra.Features.Jobs.ExportSelectedMessages.CreateExportSelectedMessagesJob;
 
-public sealed class EnqueueExportSelectedMessagesCommandHandler : ICommandHandler<EnqueueExportSelectedMessagesCommand>
+public sealed class CreateExportSelectedMessagesJobCommandHandler : ICommandHandler<CreateExportSelectedMessagesJobCommand, JobListItem>
 {
     private readonly IDbContextFactory<MessentraDbContext> _dbContextFactory;
-    private readonly IBackgroundJobQueue _backgroundJobQueue;
-    private readonly ILogger<EnqueueExportSelectedMessagesCommandHandler> _logger;
+    private readonly ILogger<CreateExportSelectedMessagesJobCommandHandler> _logger;
 
-    public EnqueueExportSelectedMessagesCommandHandler(
+    public CreateExportSelectedMessagesJobCommandHandler(
         IDbContextFactory<MessentraDbContext> dbContextFactory,
-        IBackgroundJobQueue backgroundJobQueue,
-        ILogger<EnqueueExportSelectedMessagesCommandHandler> logger)
+        ILogger<CreateExportSelectedMessagesJobCommandHandler> logger)
     {
         _dbContextFactory = dbContextFactory;
-        _backgroundJobQueue = backgroundJobQueue;
         _logger = logger;
     }
 
-    public async ValueTask<Unit> Handle(EnqueueExportSelectedMessagesCommand command, CancellationToken cancellationToken)
+    public async ValueTask<JobListItem> Handle(CreateExportSelectedMessagesJobCommand command, CancellationToken cancellationToken)
     {
         if (command.Request.Messages.Count == 0)
         {
             _logger.LogWarning(
-                "Skipping export selected messages job enqueue due to empty message list. ResourceLabel: {ResourceLabel}",
+                "Cannot create export selected messages job: empty message list. ResourceLabel: {ResourceLabel}",
                 command.Request.ResourceLabel);
-            return Unit.Value;
+            throw new InvalidOperationException("Cannot create export selected messages job with empty message list.");
         }
 
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        var now = DateTime.UtcNow;
         var count = command.Request.Messages.Count;
         var exportJob = new ExportSelectedMessagesJob
         {
             Label = $"ExportSelectedMessages-{command.Request.ResourceLabel}-{count}msgs",
             Input = command.Request,
-            CreatedAt = now,
+            CreatedAt = DateTime.UtcNow,
             MaxRetries = 3
         };
 
         await dbContext.Set<Job>().AddAsync(exportJob, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        await _backgroundJobQueue.Enqueue(exportJob.Id, cancellationToken);
-
-        return Unit.Value;
+        return JobListItem.FromJob(exportJob);
     }
 }

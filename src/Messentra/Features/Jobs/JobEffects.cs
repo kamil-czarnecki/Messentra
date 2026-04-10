@@ -1,7 +1,11 @@
 using Fluxor;
 using Mediator;
 using Messentra.Features.Jobs.DeleteJob;
+using Messentra.Features.Jobs.EnqueueJob;
+using Messentra.Features.Jobs.ExportMessages.CreateExportMessagesJob;
+using Messentra.Features.Jobs.ExportSelectedMessages.CreateExportSelectedMessagesJob;
 using Messentra.Features.Jobs.GetJobs;
+using Messentra.Features.Jobs.ImportMessages.CreateImportMessagesJob;
 using Messentra.Features.Jobs.PauseJob;
 using Messentra.Features.Jobs.ResumeJob;
 
@@ -81,6 +85,54 @@ public sealed class JobEffects
         {
             _logger.LogError(ex, "Failed to delete job {JobId}.", action.JobId);
             dispatcher.Dispatch(new DeleteJobFailureAction(action.JobId));
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleEnqueueExportMessages(EnqueueExportMessagesAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            var job = await _mediator.Send(new CreateExportMessagesJobCommand(action.Request), CancellationToken.None);
+            dispatcher.Dispatch(new JobCreatedAction(job));
+            await _mediator.Send(new EnqueueJobCommand(job.Id), CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to enqueue export messages job.");
+            dispatcher.Dispatch(new EnqueueExportMessagesFailureAction());
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleEnqueueImportMessages(EnqueueImportMessagesAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            var job = await _mediator.Send(new CreateImportMessagesJobCommand(action.Request), CancellationToken.None);
+            dispatcher.Dispatch(new JobCreatedAction(job));
+            await _mediator.Send(new EnqueueJobCommand(job.Id), CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to enqueue import messages job.");
+            dispatcher.Dispatch(new EnqueueImportMessagesFailureAction());
+        }
+    }
+
+    [EffectMethod]
+    public async Task HandleEnqueueExportSelectedMessages(EnqueueExportSelectedMessagesAction action, IDispatcher dispatcher)
+    {
+        try
+        {
+            var job = await _mediator.Send(new CreateExportSelectedMessagesJobCommand(action.Request), CancellationToken.None);
+            dispatcher.Dispatch(new JobCreatedAction(job));
+            await _mediator.Send(new EnqueueJobCommand(job.Id), CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to enqueue export selected messages job.");
+            dispatcher.Dispatch(new EnqueueExportSelectedMessagesFailureAction());
         }
     }
 }
