@@ -424,4 +424,29 @@ public sealed class MessageGridShould : ComponentTestBase
         await cut.WaitForAssertionAsync(() =>
             (cut.Find("input[placeholder='Search']").GetAttribute("value") ?? string.Empty).ShouldBe(string.Empty));
     }
+
+    [Fact]
+    public async Task KeepSelectedMessageExpandedAfterFilterHideAndClear()
+    {
+        // Arrange
+        var selectedMessage = BuildServiceBusMessage(messageId: "expand-me", sequenceNumber: 1);
+        var otherMessage = BuildServiceBusMessage(messageId: "other-item", sequenceNumber: 2);
+        SetupFetchResponse(selectedMessage, otherMessage);
+        var cut = RenderMessageGrid(BuildQueueNode());
+
+        // Act
+        await FetchMessagesThroughUi(cut);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("expand-me"));
+        SelectFirstMessageInGrid(cut);
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".message-tabs").Count.ShouldBe(1));
+
+        cut.Find("input[placeholder='Search']").Input("other-item");
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldNotContain("expand-me"));
+
+        cut.Find("input[placeholder='Search']").Input(string.Empty);
+
+        // Assert
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("expand-me"));
+        await cut.WaitForAssertionAsync(() => cut.FindAll(".message-tabs").Count.ShouldBe(1));
+    }
 }

@@ -49,6 +49,19 @@ public partial class MessageGrid : IDisposable
     private string _searchTerm = string.Empty;
     private int _searchFieldRenderKey;
 
+    private string SearchTerm
+    {
+        get => _searchTerm;
+        set
+        {
+            if (_searchTerm == value)
+                return;
+
+            _searchTerm = value;
+            SyncHierarchyWithVisibleSelection();
+        }
+    }
+
     private bool IsReceiveAndDeleteMode =>
         _fetchMessagesOptions is { Mode: FetchMode.Receive, ReceiveMode: FetchReceiveMode.ReceiveAndDelete };
 
@@ -67,9 +80,14 @@ public partial class MessageGrid : IDisposable
 
             var filteredSet = FilteredMessages.ToHashSet();
             _selectedMessages = [.._selectedMessages.Where(m => !filteredSet.Contains(m)), ..value];
+            var visibleSelectedMessages = value.Where(filteredSet.Contains).ToList();
 
-            if (_selectedMessages.Count == 1)
-                _grid.ToggleHierarchyVisibilityAsync(_selectedMessages.First());
+            if (visibleSelectedMessages.Count == 1)
+                _grid.ToggleHierarchyVisibilityAsync(visibleSelectedMessages[0]);
+            else if (value.Count == 0 && _selectedMessages.Count == 1)
+            {
+                // Preserve detail-row expansion while the only selected message is temporarily hidden by filter.
+            }
             else
                 _grid.CollapseAllHierarchy();
         }
@@ -79,6 +97,24 @@ public partial class MessageGrid : IDisposable
         string.IsNullOrWhiteSpace(_searchTerm)
             ? _messages
             : _messages.Where(m => MatchesSearch(m, _searchTerm)).ToList();
+
+    private void SyncHierarchyWithVisibleSelection()
+    {
+        if (_grid is null)
+            return;
+
+        var filteredSet = FilteredMessages.ToHashSet();
+        var visibleSelectedMessages = _selectedMessages.Where(filteredSet.Contains).ToList();
+
+        if (visibleSelectedMessages.Count == 1)
+            _grid.ToggleHierarchyVisibilityAsync(visibleSelectedMessages[0]);
+        else if (_selectedMessages.Count == 1)
+        {
+            // Keep current expansion state while the only selected item is temporarily hidden by filter.
+        }
+        else
+            _grid.CollapseAllHierarchy();
+    }
 
     private string ConnectionName => ResourceTreeNode switch
     {
