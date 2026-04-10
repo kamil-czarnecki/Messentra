@@ -47,6 +47,7 @@ public partial class MessageGrid : IDisposable
     private HashSet<ServiceBusMessage> _selectedMessages = [];
     private FetchMessagesOptions? _fetchMessagesOptions;
     private string _searchTerm = string.Empty;
+    private int _searchFieldRenderKey;
 
     private bool IsReceiveAndDeleteMode =>
         _fetchMessagesOptions is { Mode: FetchMode.Receive, ReceiveMode: FetchReceiveMode.ReceiveAndDelete };
@@ -128,6 +129,7 @@ public partial class MessageGrid : IDisposable
         _selectedMessages = [];
         _lastSelected = null;
         _searchTerm = string.Empty;
+        _searchFieldRenderKey++;
         _fetchMessagesOptions = null;
         _isGridLoading = false;
         _isFetchOngoing = false;
@@ -370,6 +372,8 @@ public partial class MessageGrid : IDisposable
         {
             SetFetchState(true);
             _selectedMessages = [];
+            _searchTerm = string.Empty;
+            _searchFieldRenderKey++;
 
             var optionsWithSubQueue = optionsData with { SubQueue = SubQueue };
             var cancellationToken = _resourceOperationCts.Token;

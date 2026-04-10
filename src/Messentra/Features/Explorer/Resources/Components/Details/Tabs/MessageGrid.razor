@@ -64,7 +64,7 @@
                             </MudHidden>
                         }
                     </MudStack>
-                    <MudTextField Typo="Typo.body2" T="string" @bind-Value="_searchTerm" Placeholder="Search" Adornment="Adornment.Start"
+                    <MudTextField @key="_searchFieldRenderKey" Typo="Typo.body2" T="string" @bind-Value="_searchTerm" Placeholder="Search" Adornment="Adornment.Start"
                                   AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Class="search" Immediate="true" Clearable="true" DebounceInterval="200"/>
                 </MudStack>
                 @if (_selectedMessages.Any())

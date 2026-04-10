@@ -391,4 +391,37 @@ public sealed class MessageGridShould : ComponentTestBase
         // Assert
         await cut.WaitForAssertionAsync(() => HasSelectedCountLabel(cut).ShouldBeFalse());
     }
+
+    [Fact]
+    public async Task ClearSearchFilterAfterFetch()
+    {
+        // Arrange
+        var firstMessage = BuildServiceBusMessage(messageId: "visible-after-refetch", sequenceNumber: 1);
+        var secondMessage = BuildServiceBusMessage(messageId: "filter-target", sequenceNumber: 2);
+        var fetchCount = 0;
+
+        MockMediator
+            .Setup(x => x.Send(It.IsAny<FetchQueueMessagesQuery>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                fetchCount++;
+                return ValueTask.FromResult<IReadOnlyCollection<ServiceBusMessage>>([firstMessage, secondMessage]);
+            });
+
+        var cut = RenderMessageGrid(BuildQueueNode());
+
+        // Act
+        await FetchMessagesThroughUi(cut);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("visible-after-refetch"));
+        cut.Find("input[placeholder='Search']").Input("filter-target");
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldNotContain("visible-after-refetch"));
+
+        await FetchMessagesThroughUi(cut);
+
+        // Assert
+        fetchCount.ShouldBe(2);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("visible-after-refetch"));
+        await cut.WaitForAssertionAsync(() =>
+            (cut.Find("input[placeholder='Search']").GetAttribute("value") ?? string.Empty).ShouldBe(string.Empty));
+    }
 }
