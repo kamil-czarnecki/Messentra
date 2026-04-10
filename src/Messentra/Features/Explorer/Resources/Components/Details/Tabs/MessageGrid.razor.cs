@@ -69,8 +69,11 @@ public partial class MessageGrid : IDisposable
     {
         get
         {
-            var filtered = FilteredMessages;
-            return _selectedMessages.Count == 0 ? [] : [.._selectedMessages.Where(filtered.Contains)];
+            if (_selectedMessages.Count == 0)
+                return [];
+
+            var filteredSet = FilteredMessages.ToHashSet();
+            return [.._selectedMessages.Where(filteredSet.Contains)];
         }
         set
         {

@@ -197,9 +197,7 @@ public sealed class MessageGridShould : ComponentTestBase
         await cut.WaitForAssertionAsync(() =>
         {
             MockMediator.Verify(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()), Times.Once);
-            contextMock.Invocations
-                .Count(x => x.Method.Name == nameof(IServiceBusMessageContext.Complete))
-                .ShouldBeGreaterThan(0);
+            contextMock.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
         });
     }
 
@@ -386,7 +384,7 @@ public sealed class MessageGridShould : ComponentTestBase
         SelectFirstMessageInGrid(cut);
         await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("1 selected"));
 
-        cut.Find(".mud-table-body .mud-checkbox input[type='checkbox']").Change(false);
+        cut.Find("tbody .mud-checkbox input[type='checkbox']").Change(false);
 
         // Assert
         await cut.WaitForAssertionAsync(() => HasSelectedCountLabel(cut).ShouldBeFalse());
