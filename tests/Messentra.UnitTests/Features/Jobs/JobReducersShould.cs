@@ -159,6 +159,37 @@ public sealed class JobReducersShould
     }
 
     [Fact]
+    public void PrependNewJobToJobsList_WhenReducingJobCreatedAction()
+    {
+        // Arrange
+        var existingJob = new JobListItem(
+            Id: 1,
+            Type: nameof(ExportMessagesJob),
+            Label: "existing",
+            Status: JobStatus.Running,
+            StageProgress: new StageProgress("Fetch", 50),
+            RetryCount: 0,
+            MaxRetries: 3,
+            LastError: null,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            StartedAt: DateTime.UtcNow,
+            CompletedAt: null,
+            Output: null);
+
+        var newJob = existingJob with { Id = 2, Label = "new", Status = JobStatus.Queued };
+        var state = new JobState(false, true, [existingJob]);
+
+        // Act
+        var result = JobReducers.Reduce(state, new JobCreatedAction(newJob));
+
+        // Assert
+        result.Jobs.Count.ShouldBe(2);
+        result.Jobs.First().ShouldBe(newJob);
+        result.Jobs.Last().ShouldBe(existingJob);
+    }
+
+    [Fact]
     public void RemoveOnlyMatchingJob_WhenReducingDeleteJobSuccessAction()
     {
         // Arrange

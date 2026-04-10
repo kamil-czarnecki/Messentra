@@ -4,8 +4,14 @@ using Messentra.Domain;
 using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.DeleteJob;
+using Messentra.Features.Jobs.EnqueueJob;
 using Messentra.Features.Jobs.ExportMessages;
+using Messentra.Features.Jobs.ExportMessages.CreateExportMessagesJob;
+using Messentra.Features.Jobs.ExportSelectedMessages;
+using Messentra.Features.Jobs.ExportSelectedMessages.CreateExportSelectedMessagesJob;
 using Messentra.Features.Jobs.GetJobs;
+using Messentra.Features.Jobs.ImportMessages;
+using Messentra.Features.Jobs.ImportMessages.CreateImportMessagesJob;
 using Messentra.Features.Jobs.PauseJob;
 using Messentra.Features.Jobs.ResumeJob;
 using Microsoft.Extensions.Logging;
@@ -207,6 +213,184 @@ public sealed class JobEffectsShould
         // Assert
         dispatcher.Verify(x => x.Dispatch(new DeleteJobFailureAction(jobId)), Times.Once);
     }
+
+    [Fact]
+    public async Task DispatchJobCreatedActionAndEnqueueJob_WhenEnqueueExportMessagesSucceeds()
+    {
+        // Arrange
+        var mediator = new Mock<IMediator>();
+        var logger = new Mock<ILogger<JobEffects>>();
+        var dispatcher = new Mock<IDispatcher>();
+        var expectedJob = CreateJobListItem(1);
+        var request = new ExportMessagesJobRequest(
+            new ConnectionConfig(ConnectionType.ConnectionString,
+                new ConnectionStringConfig("Endpoint=sb://local/;SharedAccessKeyName=name;SharedAccessKey=key"), null),
+            new ResourceTarget.Queue("queue-1", SubQueue.Active),
+            10);
+
+        mediator
+            .Setup(x => x.Send(It.IsAny<CreateExportMessagesJobCommand>(), CancellationToken.None))
+            .ReturnsAsync(expectedJob);
+
+        var sut = new JobEffects(mediator.Object, logger.Object);
+
+        // Act
+        await sut.HandleEnqueueExportMessages(new EnqueueExportMessagesAction(request), dispatcher.Object);
+
+        // Assert
+        dispatcher.Verify(x => x.Dispatch(new JobCreatedAction(expectedJob)), Times.Once);
+        mediator.Verify(x => x.Send(It.Is<EnqueueJobCommand>(c => c.JobId == expectedJob.Id), CancellationToken.None), Times.Once);
+        dispatcher.Verify(x => x.Dispatch(It.IsAny<EnqueueExportMessagesFailureAction>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DispatchEnqueueExportMessagesFailureAction_WhenMediatorThrows()
+    {
+        // Arrange
+        var mediator = new Mock<IMediator>();
+        var logger = new Mock<ILogger<JobEffects>>();
+        var dispatcher = new Mock<IDispatcher>();
+        var request = new ExportMessagesJobRequest(
+            new ConnectionConfig(ConnectionType.ConnectionString,
+                new ConnectionStringConfig("Endpoint=sb://local/;SharedAccessKeyName=name;SharedAccessKey=key"), null),
+            new ResourceTarget.Queue("queue-1", SubQueue.Active),
+            10);
+
+        mediator
+            .Setup(x => x.Send(It.IsAny<CreateExportMessagesJobCommand>(), CancellationToken.None))
+            .ThrowsAsync(new InvalidOperationException("create-error"));
+
+        var sut = new JobEffects(mediator.Object, logger.Object);
+
+        // Act
+        await sut.HandleEnqueueExportMessages(new EnqueueExportMessagesAction(request), dispatcher.Object);
+
+        // Assert
+        dispatcher.Verify(x => x.Dispatch(It.IsAny<EnqueueExportMessagesFailureAction>()), Times.Once);
+        dispatcher.Verify(x => x.Dispatch(It.IsAny<JobCreatedAction>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DispatchJobCreatedActionAndEnqueueJob_WhenEnqueueImportMessagesSucceeds()
+    {
+        // Arrange
+        var mediator = new Mock<IMediator>();
+        var logger = new Mock<ILogger<JobEffects>>();
+        var dispatcher = new Mock<IDispatcher>();
+        var expectedJob = CreateJobListItem(2);
+        var request = new ImportMessagesJobRequest(
+            new ConnectionConfig(ConnectionType.ConnectionString,
+                new ConnectionStringConfig("Endpoint=sb://local/;SharedAccessKeyName=name;SharedAccessKey=key"), null),
+            new ResourceTarget.Queue("queue-1", SubQueue.Active),
+            "/tmp/import.json",
+            "hash");
+
+        mediator
+            .Setup(x => x.Send(It.IsAny<CreateImportMessagesJobCommand>(), CancellationToken.None))
+            .ReturnsAsync(expectedJob);
+
+        var sut = new JobEffects(mediator.Object, logger.Object);
+
+        // Act
+        await sut.HandleEnqueueImportMessages(new EnqueueImportMessagesAction(request), dispatcher.Object);
+
+        // Assert
+        dispatcher.Verify(x => x.Dispatch(new JobCreatedAction(expectedJob)), Times.Once);
+        mediator.Verify(x => x.Send(It.Is<EnqueueJobCommand>(c => c.JobId == expectedJob.Id), CancellationToken.None), Times.Once);
+        dispatcher.Verify(x => x.Dispatch(It.IsAny<EnqueueImportMessagesFailureAction>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DispatchEnqueueImportMessagesFailureAction_WhenMediatorThrows()
+    {
+        // Arrange
+        var mediator = new Mock<IMediator>();
+        var logger = new Mock<ILogger<JobEffects>>();
+        var dispatcher = new Mock<IDispatcher>();
+        var request = new ImportMessagesJobRequest(
+            new ConnectionConfig(ConnectionType.ConnectionString,
+                new ConnectionStringConfig("Endpoint=sb://local/;SharedAccessKeyName=name;SharedAccessKey=key"), null),
+            new ResourceTarget.Queue("queue-1", SubQueue.Active),
+            "/tmp/import.json",
+            "hash");
+
+        mediator
+            .Setup(x => x.Send(It.IsAny<CreateImportMessagesJobCommand>(), CancellationToken.None))
+            .ThrowsAsync(new InvalidOperationException("create-error"));
+
+        var sut = new JobEffects(mediator.Object, logger.Object);
+
+        // Act
+        await sut.HandleEnqueueImportMessages(new EnqueueImportMessagesAction(request), dispatcher.Object);
+
+        // Assert
+        dispatcher.Verify(x => x.Dispatch(It.IsAny<EnqueueImportMessagesFailureAction>()), Times.Once);
+        dispatcher.Verify(x => x.Dispatch(It.IsAny<JobCreatedAction>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DispatchJobCreatedActionAndEnqueueJob_WhenEnqueueExportSelectedMessagesSucceeds()
+    {
+        // Arrange
+        var mediator = new Mock<IMediator>();
+        var logger = new Mock<ILogger<JobEffects>>();
+        var dispatcher = new Mock<IDispatcher>();
+        var expectedJob = CreateJobListItem(3);
+        var request = new ExportSelectedMessagesJobRequest([], "queue-1");
+
+        mediator
+            .Setup(x => x.Send(It.IsAny<CreateExportSelectedMessagesJobCommand>(), CancellationToken.None))
+            .ReturnsAsync(expectedJob);
+
+        var sut = new JobEffects(mediator.Object, logger.Object);
+
+        // Act
+        await sut.HandleEnqueueExportSelectedMessages(new EnqueueExportSelectedMessagesAction(request), dispatcher.Object);
+
+        // Assert
+        dispatcher.Verify(x => x.Dispatch(new JobCreatedAction(expectedJob)), Times.Once);
+        mediator.Verify(x => x.Send(It.Is<EnqueueJobCommand>(c => c.JobId == expectedJob.Id), CancellationToken.None), Times.Once);
+        dispatcher.Verify(x => x.Dispatch(It.IsAny<EnqueueExportSelectedMessagesFailureAction>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DispatchEnqueueExportSelectedMessagesFailureAction_WhenMediatorThrows()
+    {
+        // Arrange
+        var mediator = new Mock<IMediator>();
+        var logger = new Mock<ILogger<JobEffects>>();
+        var dispatcher = new Mock<IDispatcher>();
+        var request = new ExportSelectedMessagesJobRequest([], "queue-1");
+
+        mediator
+            .Setup(x => x.Send(It.IsAny<CreateExportSelectedMessagesJobCommand>(), CancellationToken.None))
+            .ThrowsAsync(new InvalidOperationException("create-error"));
+
+        var sut = new JobEffects(mediator.Object, logger.Object);
+
+        // Act
+        await sut.HandleEnqueueExportSelectedMessages(new EnqueueExportSelectedMessagesAction(request), dispatcher.Object);
+
+        // Assert
+        dispatcher.Verify(x => x.Dispatch(It.IsAny<EnqueueExportSelectedMessagesFailureAction>()), Times.Once);
+        dispatcher.Verify(x => x.Dispatch(It.IsAny<JobCreatedAction>()), Times.Never);
+    }
+
+    private static JobListItem CreateJobListItem(long id) =>
+        new(
+            Id: id,
+            Type: nameof(ExportMessagesJob),
+            Label: "test-job",
+            Status: JobStatus.Queued,
+            StageProgress: new StageProgress(string.Empty, 0),
+            RetryCount: 0,
+            MaxRetries: 3,
+            LastError: null,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: DateTime.UtcNow,
+            StartedAt: null,
+            CompletedAt: null,
+            Output: null);
 
     private static ExportMessagesJob CreateExportJob(long id, string label)
     {
