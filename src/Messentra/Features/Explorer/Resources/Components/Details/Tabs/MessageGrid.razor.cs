@@ -44,6 +44,7 @@ public partial class MessageGrid : IDisposable
     private ResourceTreeNode? _previousResourceTreeNode;
     private CancellationTokenSource _resourceOperationCts = new();
     private List<ServiceBusMessage> _messages = [];
+    private HashSet<ServiceBusMessage> _selectedMessages = [];
     private FetchMessagesOptions? _fetchMessagesOptions;
     private string _searchTerm = string.Empty;
 
@@ -52,26 +53,26 @@ public partial class MessageGrid : IDisposable
 
     private HashSet<ServiceBusMessage> SelectedItems
     {
-        get;
+        get
+        {
+            var filtered = FilteredMessages;
+            return _selectedMessages.Count == 0 ? [] : [.._selectedMessages.Where(filtered.Contains)];
+        }
         set
         {
-            var addedItem = value.Except(field).FirstOrDefault();
-
+            var addedItem = value.Except(_selectedMessages).FirstOrDefault();
             if (addedItem != null)
                 _lastSelected = addedItem;
 
-            field = value;
+            var filteredSet = FilteredMessages.ToHashSet();
+            _selectedMessages = [.._selectedMessages.Where(m => !filteredSet.Contains(m)), ..value];
 
-            if (field.Count == 1)
-            {
-                _grid.ToggleHierarchyVisibilityAsync(field.First());
-            }
+            if (_selectedMessages.Count == 1)
+                _grid.ToggleHierarchyVisibilityAsync(_selectedMessages.First());
             else
-            {
                 _grid.CollapseAllHierarchy();
-            }
         }
-    } = [];
+    }
 
     private List<ServiceBusMessage> FilteredMessages =>
         string.IsNullOrWhiteSpace(_searchTerm)
@@ -124,6 +125,7 @@ public partial class MessageGrid : IDisposable
         previousCts.Dispose();
         
         _messages = [];
+        _selectedMessages = [];
         _lastSelected = null;
         _searchTerm = string.Empty;
         _fetchMessagesOptions = null;
@@ -226,7 +228,7 @@ public partial class MessageGrid : IDisposable
     {
         if (successful.IsEmpty) return;
         _messages = _messages.Except(successful).ToList();
-        SelectedItems = SelectedItems.Except(successful).ToHashSet();
+        _selectedMessages = [.._selectedMessages.Except(successful)];
     }
 
     private static DialogOptions CreateFetchDialogOptions() => new()
@@ -274,7 +276,7 @@ public partial class MessageGrid : IDisposable
     }
 
     private string GetRowClass(ServiceBusMessage msg) =>
-        SelectedItems.Contains(msg)
+        _selectedMessages.Contains(msg)
             ? $"mud-table-row-selected row-seq-{msg.Message.BrokerProperties.SequenceNumber}"
             : $"row-seq-{msg.Message.BrokerProperties.SequenceNumber}";
 
@@ -367,6 +369,7 @@ public partial class MessageGrid : IDisposable
         if (result is { Canceled: false, Data: FetchMessagesOptions optionsData })
         {
             SetFetchState(true);
+            _selectedMessages = [];
 
             var optionsWithSubQueue = optionsData with { SubQueue = SubQueue };
             var cancellationToken = _resourceOperationCts.Token;
@@ -406,7 +409,7 @@ public partial class MessageGrid : IDisposable
 
     private async Task OnExportSelectedClicked()
     {
-        var selectedList = SelectedItems
+        var selectedList = _selectedMessages
             .OrderBy(x => x.Message.BrokerProperties.SequenceNumber)
             .ToList();
 
@@ -448,7 +451,7 @@ public partial class MessageGrid : IDisposable
 
     private async Task OnResendClicked(bool autoComplete)
     {
-        var selectedList = SelectedItems
+        var selectedList = _selectedMessages
             .OrderBy(x => x.Message.BrokerProperties.SequenceNumber)
             .ToList();
 
@@ -572,7 +575,7 @@ public partial class MessageGrid : IDisposable
 
     private async Task OnCompleteClicked()
     {
-        var messages = SelectedItems.ToList();
+        var messages = _selectedMessages.ToList();
         var successful = new ConcurrentBag<ServiceBusMessage>();
 
         await ShowActionProgressDialog(
@@ -591,7 +594,7 @@ public partial class MessageGrid : IDisposable
 
     private async Task OnAbandonClicked()
     {
-        var messages = SelectedItems.ToList();
+        var messages = _selectedMessages.ToList();
         var successful = new ConcurrentBag<ServiceBusMessage>();
 
         await ShowActionProgressDialog(
@@ -610,7 +613,7 @@ public partial class MessageGrid : IDisposable
 
     private async Task OnDeadLetterClicked()
     {
-        var messages = SelectedItems.ToList();
+        var messages = _selectedMessages.ToList();
         var successful = new ConcurrentBag<ServiceBusMessage>();
 
         await ShowActionProgressDialog(

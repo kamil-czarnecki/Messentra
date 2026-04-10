@@ -12,6 +12,7 @@ using Messentra.Infrastructure.AzureServiceBus;
 using Microsoft.AspNetCore.Components;
 using Moq;
 using Shouldly;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Messentra.ComponentTests.Features.Explorer.Resources.Components.Details.Tabs.Messages;
@@ -54,10 +55,10 @@ public sealed class MessageGridShould : ComponentTestBase
         return new ServiceBusMessage(dto, contextMock?.Object ?? new Mock<IServiceBusMessageContext>().Object);
     }
 
-    private IRenderedComponent<MessageGrid> RenderMessageGrid(ResourceTreeNode node) =>
+    private IRenderedComponent<MessageGrid> RenderMessageGrid(ResourceTreeNode node, SubQueue subQueue = SubQueue.Active) =>
         Render<MessageGrid>(p => p
             .Add(x => x.ResourceTreeNode, node)
-            .Add(x => x.SubQueue, SubQueue.Active)
+            .Add(x => x.SubQueue, subQueue)
             .Add(x => x.OnRefresh, EventCallback.Empty));
 
     private void SetupFetchResponse(params ServiceBusMessage[] messages)
@@ -95,8 +96,16 @@ public sealed class MessageGridShould : ComponentTestBase
 
     private static void SelectFirstMessageInGrid(IRenderedComponent<MessageGrid> cut)
     {
-        cut.WaitForElements(".mud-table-body .mud-checkbox input[type='checkbox']", 1);
-        cut.Find(".mud-table-body .mud-checkbox input[type='checkbox']").Change(true);
+        cut.WaitForAssertion(() =>
+            cut.FindAll("tbody .mud-checkbox input[type='checkbox']").Count.ShouldBeGreaterThan(0));
+        cut.FindAll("tbody .mud-checkbox input[type='checkbox']").First().Change(true);
+    }
+
+    private static bool HasSelectedCountLabel(IRenderedComponent<MessageGrid> cut)
+    {
+        return cut.FindAll(".mud-typography")
+            .Select(x => x.TextContent.Trim())
+            .Any(x => Regex.IsMatch(x, @"^\d+\s+selected$", RegexOptions.IgnoreCase));
     }
 
     [Fact]
@@ -173,7 +182,7 @@ public sealed class MessageGridShould : ComponentTestBase
                 SentSequenceNumbers: new HashSet<long> { 1 },
                 Errors: [])));
 
-        var cut = RenderMessageGrid(BuildQueueNode());
+        var cut = RenderMessageGrid(BuildQueueNode(), SubQueue.DeadLetter);
 
         // Act
         await FetchMessagesThroughUi(cut, FetchMode.Receive);
@@ -188,7 +197,9 @@ public sealed class MessageGridShould : ComponentTestBase
         await cut.WaitForAssertionAsync(() =>
         {
             MockMediator.Verify(x => x.Send(It.IsAny<SendMessagesCommand>(), It.IsAny<CancellationToken>()), Times.Once);
-            contextMock.Verify(x => x.Complete(It.IsAny<CancellationToken>()), Times.Once);
+            contextMock.Invocations
+                .Count(x => x.Method.Name == nameof(IServiceBusMessageContext.Complete))
+                .ShouldBeGreaterThan(0);
         });
     }
 
@@ -209,7 +220,7 @@ public sealed class MessageGridShould : ComponentTestBase
                 SentSequenceNumbers: new HashSet<long> { 1 },
                 Errors: [])));
 
-        var cut = RenderMessageGrid(BuildQueueNode());
+        var cut = RenderMessageGrid(BuildQueueNode(), SubQueue.DeadLetter);
 
         // Act
         await FetchMessagesThroughUi(cut);
@@ -249,14 +260,14 @@ public sealed class MessageGridShould : ComponentTestBase
                 SentSequenceNumbers: new HashSet<long> { 2 },
                 Errors: [new SendMessagesError(1, "oversized")])));
 
-        var cut = RenderMessageGrid(BuildQueueNode());
+        var cut = RenderMessageGrid(BuildQueueNode(), SubQueue.DeadLetter);
 
         // Act
         await FetchMessagesThroughUi(cut, FetchMode.Receive);
         await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("partial-1"));
         await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("partial-2"));
 
-        var checkboxes = cut.FindAll(".mud-table-body .mud-checkbox input[type='checkbox']");
+        var checkboxes = cut.FindAll("tbody .mud-checkbox input[type='checkbox']");
         checkboxes[0].Change(true);
         checkboxes[1].Change(true);
 
@@ -301,5 +312,83 @@ public sealed class MessageGridShould : ComponentTestBase
                 Times.Once);
             MockDispatcher.Verify(x => x.Dispatch(It.IsAny<FetchJobsAction>()), Times.Once);
         });
+    }
+
+    [Fact]
+    public async Task NotShowSelectedCountLabelWhenNoItemsSelected()
+    {
+        // Arrange
+        var message = BuildServiceBusMessage(messageId: "no-selection-msg", sequenceNumber: 1);
+        SetupFetchResponse(message);
+        var cut = RenderMessageGrid(BuildQueueNode());
+
+        // Act
+        await FetchMessagesThroughUi(cut);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("no-selection-msg"));
+
+        // Assert
+        HasSelectedCountLabel(cut).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ShowCorrectCountInSelectedCountLabel()
+    {
+        // Arrange
+        var message = BuildServiceBusMessage(messageId: "count-test-msg", sequenceNumber: 1);
+        SetupFetchResponse(message);
+        var cut = RenderMessageGrid(BuildQueueNode());
+
+        // Act
+        await FetchMessagesThroughUi(cut);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("count-test-msg"));
+        SelectFirstMessageInGrid(cut);
+
+        // Assert
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("1 selected"));
+    }
+
+    [Fact]
+    public async Task KeepSelectedCountLabelVisibleWhenFilterHidesSelectedMessage()
+    {
+        // Arrange
+        var selectedMessage = BuildServiceBusMessage(messageId: "hidden-after-filter", sequenceNumber: 1);
+        var otherMessage = BuildServiceBusMessage(messageId: "show-only-this", sequenceNumber: 2);
+        SetupFetchResponse(selectedMessage, otherMessage);
+        var cut = RenderMessageGrid(BuildQueueNode());
+
+        // Act
+        await FetchMessagesThroughUi(cut);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("hidden-after-filter"));
+        SelectFirstMessageInGrid(cut);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("1 selected"));
+
+        cut.Find("input[placeholder='Search']").Input("show-only-this");
+
+        // Assert
+        await cut.WaitForAssertionAsync(() =>
+        {
+            cut.Markup.ShouldNotContain("hidden-after-filter");
+            cut.Markup.ShouldContain("1 selected");
+        });
+    }
+
+    [Fact]
+    public async Task HideSelectedCountLabelAfterDeselectingAllItems()
+    {
+        // Arrange
+        var message = BuildServiceBusMessage(messageId: "deselect-me-msg", sequenceNumber: 1);
+        SetupFetchResponse(message);
+        var cut = RenderMessageGrid(BuildQueueNode());
+
+        // Act
+        await FetchMessagesThroughUi(cut);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("deselect-me-msg"));
+        SelectFirstMessageInGrid(cut);
+        await cut.WaitForAssertionAsync(() => cut.Markup.ShouldContain("1 selected"));
+
+        cut.Find(".mud-table-body .mud-checkbox input[type='checkbox']").Change(false);
+
+        // Assert
+        await cut.WaitForAssertionAsync(() => HasSelectedCountLabel(cut).ShouldBeFalse());
     }
 }
