@@ -5,41 +5,38 @@ using Messentra.Infrastructure;
 using Messentra.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 
-namespace Messentra.Features.Jobs.ImportMessages.EnqueueImportMessages;
+namespace Messentra.Features.Jobs.ImportMessages.CreateImportMessagesJob;
 
-public sealed class EnqueueImportMessagesCommandHandler : ICommandHandler<EnqueueImportMessagesCommand>
+public sealed class CreateImportMessagesJobCommandHandler : ICommandHandler<CreateImportMessagesJobCommand, JobListItem>
 {
     private readonly IDbContextFactory<MessentraDbContext> _dbContextFactory;
-    private readonly IBackgroundJobQueue _backgroundJobQueue;
     private readonly IFileSystem _fileSystem;
-    private readonly ILogger<EnqueueImportMessagesCommandHandler> _logger;
+    private readonly ILogger<CreateImportMessagesJobCommandHandler> _logger;
 
-    public EnqueueImportMessagesCommandHandler(
+    public CreateImportMessagesJobCommandHandler(
         IDbContextFactory<MessentraDbContext> dbContextFactory,
-        IBackgroundJobQueue backgroundJobQueue,
         IFileSystem fileSystem,
-        ILogger<EnqueueImportMessagesCommandHandler> logger)
+        ILogger<CreateImportMessagesJobCommandHandler> logger)
     {
         _dbContextFactory = dbContextFactory;
-        _backgroundJobQueue = backgroundJobQueue;
         _fileSystem = fileSystem;
         _logger = logger;
     }
 
-    public async ValueTask<Unit> Handle(EnqueueImportMessagesCommand command, CancellationToken cancellationToken)
+    public async ValueTask<JobListItem> Handle(CreateImportMessagesJobCommand command, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(command.Request.SourceFilePath))
         {
-            _logger.LogWarning("Skipping import job enqueue due to missing source file path.");
-            return Unit.Value;
+            _logger.LogWarning("Cannot create import job: missing source file path.");
+            throw new InvalidOperationException("Cannot create import job: missing source file path.");
         }
 
         if (!_fileSystem.FileExists(command.Request.SourceFilePath))
         {
             _logger.LogWarning(
-                "Skipping import job enqueue because source file does not exist. SourceFilePath: {SourceFilePath}",
+                "Cannot create import job: source file does not exist. SourceFilePath: {SourceFilePath}",
                 command.Request.SourceFilePath);
-            return Unit.Value;
+            throw new InvalidOperationException($"Cannot create import job: source file does not exist at '{command.Request.SourceFilePath}'.");
         }
 
         var sourceFileHash = await CalculateSha256(command.Request.SourceFilePath, cancellationToken);
@@ -47,21 +44,18 @@ public sealed class EnqueueImportMessagesCommandHandler : ICommandHandler<Enqueu
 
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        var now = DateTime.UtcNow;
         var importJob = new ImportMessagesJob
         {
             Label = GetLabel(command),
             Input = request,
-            CreatedAt = now,
+            CreatedAt = DateTime.UtcNow,
             MaxRetries = 3
         };
 
         await dbContext.Set<Job>().AddAsync(importJob, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        await _backgroundJobQueue.Enqueue(importJob.Id, cancellationToken);
-
-        return Unit.Value;
+        return JobListItem.FromJob(importJob);
     }
 
     private async Task<string> CalculateSha256(string path, CancellationToken cancellationToken)
@@ -71,7 +65,7 @@ public sealed class EnqueueImportMessagesCommandHandler : ICommandHandler<Enqueu
         return Convert.ToHexString(hashBytes);
     }
 
-    private static string GetLabel(EnqueueImportMessagesCommand command)
+    private static string GetLabel(CreateImportMessagesJobCommand command)
     {
         var targetResource = command.Request.Target switch
         {
@@ -84,4 +78,3 @@ public sealed class EnqueueImportMessagesCommandHandler : ICommandHandler<Enqueu
         return $"ImportMessagesJob-{targetResource}";
     }
 }
-

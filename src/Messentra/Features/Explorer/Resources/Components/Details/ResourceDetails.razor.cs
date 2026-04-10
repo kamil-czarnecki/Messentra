@@ -4,9 +4,7 @@ using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Messages.SendMessage;
 using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.ExportMessages;
-using Messentra.Features.Jobs.ExportMessages.EnqueueExportMessages;
 using Messentra.Features.Jobs.ImportMessages;
-using Messentra.Features.Jobs.ImportMessages.EnqueueImportMessages;
 using Messentra.Features.Layout.State;
 using Messentra.Infrastructure;
 using Microsoft.AspNetCore.Components;
@@ -187,12 +185,11 @@ public partial class ResourceDetails
 
         var totalMessages = GetTotalMessagesInSelectedSubQueue();
 
-        await _mediator.Send(new EnqueueExportMessagesCommand(new ExportMessagesJobRequest(
+        _dispatcher.Dispatch(new EnqueueExportMessagesAction(new ExportMessagesJobRequest(
             SelectedResource.ConnectionConfig,
             target,
             totalMessages)));
-        
-        _dispatcher.Dispatch(new FetchJobsAction());
+
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
             ConnectionName,
             "Info",
@@ -228,14 +225,13 @@ public partial class ResourceDetails
 
         var sourceFilePath = await SaveImportFile(importDialogResult.File);
 
-        await _mediator.Send(new EnqueueImportMessagesCommand(new ImportMessagesJobRequest(
+        _dispatcher.Dispatch(new EnqueueImportMessagesAction(new ImportMessagesJobRequest(
             SelectedResource.ConnectionConfig,
             target,
             sourceFilePath,
             string.Empty,
             importDialogResult.GenerateNewMessageId)));
 
-        _dispatcher.Dispatch(new FetchJobsAction());
         _dispatcher.Dispatch(new LogActivityAction(new ActivityLogEntry(
             ConnectionName,
             "Info",

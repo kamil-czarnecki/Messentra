@@ -7,7 +7,7 @@ using Messentra.Features.Explorer.Messages.SendMessage;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components.Details.Tabs;
 using Messentra.Features.Jobs;
-using Messentra.Features.Jobs.ExportSelectedMessages.EnqueueExportSelectedMessages;
+using Messentra.Features.Jobs.ExportSelectedMessages;
 using Messentra.Infrastructure.AzureServiceBus;
 using Microsoft.AspNetCore.Components;
 using Moq;
@@ -292,9 +292,6 @@ public sealed class MessageGridShould : ComponentTestBase
         // Arrange
         var message = BuildServiceBusMessage(messageId: "export-msg-1", sequenceNumber: 1);
         SetupFetchResponse(message);
-        MockMediator
-            .Setup(x => x.Send(It.IsAny<EnqueueExportSelectedMessagesCommand>(), It.IsAny<CancellationToken>()))
-            .Returns(ValueTask.FromResult(Unit.Value));
 
         var cut = RenderMessageGrid(BuildQueueNode());
 
@@ -310,10 +307,11 @@ public sealed class MessageGridShould : ComponentTestBase
         // Assert
         await cut.WaitForAssertionAsync(() =>
         {
-            MockMediator.Verify(
-                x => x.Send(It.IsAny<EnqueueExportSelectedMessagesCommand>(), It.IsAny<CancellationToken>()),
+            MockDispatcher.Verify(
+                x => x.Dispatch(It.Is<EnqueueExportSelectedMessagesAction>(a =>
+                    a.Request.ResourceLabel == "my-queue-Active" &&
+                    a.Request.Messages.Count == 1)),
                 Times.Once);
-            MockDispatcher.Verify(x => x.Dispatch(It.IsAny<FetchJobsAction>()), Times.Once);
         });
     }
 

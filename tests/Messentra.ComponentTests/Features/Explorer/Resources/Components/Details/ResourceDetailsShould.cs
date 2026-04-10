@@ -5,7 +5,7 @@ using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components.Details;
 using Messentra.Features.Jobs;
-using Messentra.Features.Jobs.ExportMessages.EnqueueExportMessages;
+using Messentra.Features.Jobs.ExportMessages;
 using Messentra.Features.Layout.State;
 using Messentra.Infrastructure.AzureServiceBus;
 using Moq;
@@ -241,13 +241,10 @@ public sealed class ResourceDetailsShould : ComponentTestBase
     }
 
     [Fact]
-    public async Task EnqueueDlqExportAndRefreshJobs_WhenExportConfirmedFromDeadLetterTab()
+    public async Task EnqueueDlqExportAndLogActivity_WhenExportConfirmedFromDeadLetterTab()
     {
         // Arrange
         var node = BuildQueueNode();
-        MockMediator
-            .Setup(x => x.Send(It.IsAny<EnqueueExportMessagesCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Unit.Value);
 
         var cut = Render<ResourceDetails>(p => p.Add(x => x.SelectedResource, node));
         await cut.Find(".mud-tab:contains('Dead-letter')").ClickAsync();
@@ -257,12 +254,9 @@ public sealed class ResourceDetailsShould : ComponentTestBase
         await MudDialog.Find("button:contains('Export')").ClickAsync();
 
         // Assert
-        MockMediator.Verify(
-            x => x.Send(
-                It.Is<EnqueueExportMessagesCommand>(command => IsDeadLetterQueueExport(command)),
-                It.IsAny<CancellationToken>()),
+        MockDispatcher.Verify(
+            x => x.Dispatch(It.Is<EnqueueExportMessagesAction>(a => IsDeadLetterQueueExport(a))),
             Times.Once);
-        MockDispatcher.Verify(x => x.Dispatch(It.IsAny<FetchJobsAction>()), Times.Once);
         MockDispatcher.Verify(
             x => x.Dispatch(It.Is<LogActivityAction>(a =>
                 a.Log.Connection == "TestNS" &&
@@ -272,13 +266,13 @@ public sealed class ResourceDetailsShould : ComponentTestBase
 
     }
 
-    private static bool IsDeadLetterQueueExport(EnqueueExportMessagesCommand command)
+    private static bool IsDeadLetterQueueExport(EnqueueExportMessagesAction action)
     {
-        if (command.Request.Target is not ResourceTarget.Queue queueTarget)
+        if (action.Request.Target is not ResourceTarget.Queue queueTarget)
             return false;
 
         return queueTarget.QueueName == "my-queue" &&
                queueTarget.SubQueue == SubQueue.DeadLetter &&
-               command.Request.TotalNumberOfMessagesToFetch == 2;
+               action.Request.TotalNumberOfMessagesToFetch == 2;
     }
 }

@@ -1,4 +1,7 @@
 using Messentra.Domain;
+using Messentra.Features.Jobs.ExportMessages;
+using Messentra.Features.Jobs.ExportSelectedMessages;
+using Messentra.Features.Jobs.ImportMessages;
 
 namespace Messentra.Features.Jobs;
 
@@ -18,4 +21,15 @@ public sealed record ResumeJobFailureAction(long JobId);
 public sealed record DeleteJobAction(long JobId);
 public sealed record DeleteJobSuccessAction(long JobId);
 public sealed record DeleteJobFailureAction(long JobId);
+
+public sealed record JobCreatedAction(JobListItem Job);
+
+public sealed record EnqueueExportMessagesAction(ExportMessagesJobRequest Request);
+public sealed record EnqueueExportMessagesFailureAction;
+
+public sealed record EnqueueImportMessagesAction(ImportMessagesJobRequest Request);
+public sealed record EnqueueImportMessagesFailureAction;
+
+public sealed record EnqueueExportSelectedMessagesAction(ExportSelectedMessagesJobRequest Request);
+public sealed record EnqueueExportSelectedMessagesFailureAction;
 
