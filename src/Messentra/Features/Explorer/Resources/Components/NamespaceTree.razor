@@ -74,10 +74,10 @@
                          AdornmentIcon="@Icons.Material.Filled.Search">
             <ItemTemplate Context="option">
                 @{
-                    var token = option.Trim().Split(' ').LastOrDefault() ?? option;
+                    var token = SearchSuggestionProvider.GetLastToken(option);
                 }
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                    <MudIcon Icon="@GetSuggestionIcon(token)" Size="Size.Small" Color="Color.Primary"/>
+                    <MudIcon Icon="@SearchSuggestionProvider.GetIcon(option)" Size="Size.Small" Color="Color.Primary"/>
                     <MudText Typo="Typo.body2">@token</MudText>
                 </MudStack>
             </ItemTemplate>

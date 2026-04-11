@@ -475,66 +475,14 @@ public partial class NamespaceTree
 
     private void OnSuggestionSelected(string? value) => OnTextChanged(value);
 
-    private Task<IEnumerable<string>> SuggestSearchPhrases(string? value, CancellationToken ct)
-    {
-        var endsWithSpace = value?.EndsWith(' ') == true;
-        var parts = (value ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    private Task<IEnumerable<string>> SuggestSearchPhrases(string? value, CancellationToken ct) =>
+        Task.FromResult(SearchSuggestionProvider.Suggest(value, BuildSuggestionContext()));
 
-        var lastToken = !endsWithSpace && parts.Length > 0 ? parts[^1] : "";
-        var completedParts = !endsWithSpace && parts.Length > 0 ? parts[..^1] : parts;
-        var prefix = completedParts.Length > 0 ? string.Join(" ", completedParts) + " " : "";
-
-        IEnumerable<string> suggestions;
-
-        if (lastToken.StartsWith("namespace:", StringComparison.OrdinalIgnoreCase))
-        {
-            var partial = lastToken["namespace:".Length..].TrimStart('"');
-            suggestions = Resources
-                .Where(r => !string.IsNullOrEmpty(r.Text) &&
-                            r.Text.Contains(partial, StringComparison.OrdinalIgnoreCase))
-                .Select(r =>
-                {
-                    var token = r.Text!.Contains(' ') ? $"namespace:\"{r.Text}\"" : "namespace:" + r.Text;
-                    return prefix + token;
-                })
-                .Where(s => !string.Equals(s.Trim(), lastToken, StringComparison.OrdinalIgnoreCase));
-        }
-        else if (lastToken.StartsWith("folders:", StringComparison.OrdinalIgnoreCase))
-        {
-            var partial = lastToken["folders:".Length..].TrimStart('"');
-            var folderSuggestions = _foldersByConnection.Values
-                .SelectMany(f => f)
-                .Select(f => f.Name)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Where(name => name.Contains(partial, StringComparison.OrdinalIgnoreCase))
-                .Select(name => name.Contains(' ') ? $"folders:\"{name}\"" : "folders:" + name)
-                .ToList();
-
-            if ("all".StartsWith(partial, StringComparison.OrdinalIgnoreCase))
-                folderSuggestions.Insert(0, "folders:all");
-
-            suggestions = folderSuggestions
-                .Where(s => !string.Equals(prefix + s, prefix + lastToken, StringComparison.OrdinalIgnoreCase))
-                .Select(s => prefix + s);
-        }
-        else
-        {
-            suggestions = SourceArray.Where(p => p.StartsWith(lastToken, StringComparison.OrdinalIgnoreCase) &&
-                            !string.Equals(p, lastToken, StringComparison.OrdinalIgnoreCase))
-                .Select(p => prefix + p);
-        }
-
-        return Task.FromResult(suggestions.Distinct().Take(10));
-    }
-
-    private static string GetSuggestionIcon(string token)
-    {
-        if (token.StartsWith("namespace:", StringComparison.OrdinalIgnoreCase))
-            return Icons.Material.Filled.Cloud;
-        if (token.StartsWith("folders:", StringComparison.OrdinalIgnoreCase))
-            return Icons.Material.Filled.Folder;
-        return Icons.Material.Filled.AllInbox;
-    }
+    private SuggestionContext BuildSuggestionContext() =>
+        new(
+            NamespaceNames: Resources.Select(r => r.Text).OfType<string>().ToList(),
+            FolderNames: _foldersByConnection.Values.SelectMany(f => f).Select(f => f.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList());
 
     private List<ResourceTreeItemData> FilteredResources
     {
@@ -551,8 +499,6 @@ public partial class NamespaceTree
             return _filteredCache;
         }
     }
-
-    private static readonly string[] SourceArray = ["namespace:", "has:dlq", "folders:"];
 
     private IReadOnlyList<string> GetFolderNamesForConnection(long connectionId) =>
         FlattenNodes(Resources)

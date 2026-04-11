@@ -18,10 +18,10 @@ public static class ResourceTreeFilter
     private static ResourceTreeItemData? FilterNamespace(ResourceTreeItemData ns, SearchQuery query)
     {
         if (query.NamespaceFilter != null &&
-            ns.Text?.Contains(query.NamespaceFilter, StringComparison.OrdinalIgnoreCase) != true)
+            (ns.Text is null || !GlobMatcher.Matches(ns.Text, query.NamespaceFilter)))
             return null;
 
-        if (query.NamePhrase == null && !query.HasDlq && query.FolderFilter == null)
+        if (query.NamePhrase == null && query is { HasDlq: false, FolderFilter: null })
             return CloneExpanded(ns, ns.Children);
 
         if (ns.Children is null)
@@ -52,7 +52,8 @@ public static class ResourceTreeFilter
 
     private static ResourceTreeItemData? FilterItem(ResourceTreeItemData item, SearchQuery query)
     {
-        if (query.FolderFilter != null && item.Value is FolderTreeNode fn && !FolderMatchesFilter(fn.Name, query.FolderFilter))
+        if (query.FolderFilter != null && item.Value is FolderTreeNode fn &&
+            !GlobMatcher.Matches(fn.Name, query.FolderFilter))
             return null;
 
         var nameMatches = query.NamePhrase == null ||
@@ -69,8 +70,6 @@ public static class ResourceTreeFilter
             return item;
         }
 
-        // When children themselves have children (e.g. folder containing derived topic headers),
-        // recurse rather than treating those children as leaf subscriptions.
         var childrenAreNested = children.OfType<ResourceTreeItemData>().Any(c => c.Children is { Count: > 0 });
         if (childrenAreNested)
         {
@@ -123,13 +122,9 @@ public static class ResourceTreeFilter
         var nameMatches = query.NamePhrase == null ||
                           sub.Text?.Contains(query.NamePhrase, StringComparison.OrdinalIgnoreCase) == true;
         var dlqMatches = !query.HasDlq || HasDlqMessages(sub.Value);
-        
+
         return nameMatches && dlqMatches;
     }
-
-    private static bool FolderMatchesFilter(string folderName, string filter) =>
-        filter.Equals("all", StringComparison.OrdinalIgnoreCase) ||
-        folderName.Contains(filter, StringComparison.OrdinalIgnoreCase);
 
     public static bool HasDlqMessages(ResourceTreeNode? node) => node switch
     {

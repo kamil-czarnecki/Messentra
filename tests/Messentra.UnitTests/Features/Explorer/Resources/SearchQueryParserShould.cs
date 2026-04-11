@@ -104,7 +104,7 @@ public sealed class SearchQueryParserShould
         SearchQueryParser.Parse("queue1").IsEmpty.ShouldBeFalse();
         SearchQueryParser.Parse("namespace:prod").IsEmpty.ShouldBeFalse();
         SearchQueryParser.Parse("has:dlq").IsEmpty.ShouldBeFalse();
-        SearchQueryParser.Parse("folders:all").IsEmpty.ShouldBeFalse();
+        SearchQueryParser.Parse("folders:*").IsEmpty.ShouldBeFalse();
     }
 
     // --- namespace: quoted values ---
@@ -130,16 +130,6 @@ public sealed class SearchQueryParserShould
     // --- folders: ---
 
     [Fact]
-    public void ParseFoldersAllToken()
-    {
-        var query = SearchQueryParser.Parse("folders:all");
-        query.FolderFilter.ShouldBe("all");
-        query.NamePhrase.ShouldBeNull();
-        query.NamespaceFilter.ShouldBeNull();
-        query.HasDlq.ShouldBeFalse();
-    }
-
-    [Fact]
     public void ParseFoldersSpecificName()
     {
         var query = SearchQueryParser.Parse("folders:test");
@@ -151,6 +141,22 @@ public sealed class SearchQueryParserShould
     {
         var query = SearchQueryParser.Parse("folders:\"test folder\"");
         query.FolderFilter.ShouldBe("test folder");
+        query.NamePhrase.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ParseFoldersGlobPattern()
+    {
+        var query = SearchQueryParser.Parse("folders:*");
+        query.FolderFilter.ShouldBe("*");
+        query.NamePhrase.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ParseFoldersQuotedGlobPattern()
+    {
+        var query = SearchQueryParser.Parse("folders:\"team*\"");
+        query.FolderFilter.ShouldBe("team*");
         query.NamePhrase.ShouldBeNull();
     }
 
