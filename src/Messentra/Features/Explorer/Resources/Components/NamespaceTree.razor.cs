@@ -14,6 +14,8 @@ namespace Messentra.Features.Explorer.Resources.Components;
 public partial class NamespaceTree
 {
     private bool _isFocused;
+    private bool _reopenAutocomplete;
+    private MudAutocomplete<string>? _autocomplete;
 
     [Parameter, EditorRequired]
     public List<ResourceTreeItemData> Resources { get; init; } = [];
@@ -142,7 +144,7 @@ public partial class NamespaceTree
         var result = await dialog.Result;
         if (result is not { Canceled: false, Data: IBrowserFile file }) return;
 
-        using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
         using var reader = new StreamReader(stream);
         var jsonContent = await reader.ReadToEndAsync();
 
@@ -473,7 +475,22 @@ public partial class NamespaceTree
         StateHasChanged();
     }
 
-    private void OnSuggestionSelected(string? value) => OnTextChanged(value);
+    private void OnSuggestionSelected(string? value)
+    {
+        OnTextChanged(value);
+
+        if (value is not null && value.TrimEnd().EndsWith(':'))
+            _reopenAutocomplete = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_reopenAutocomplete && _autocomplete is not null)
+        {
+            _reopenAutocomplete = false;
+            await _autocomplete.OpenMenuAsync();
+        }
+    }
 
     private Task<IEnumerable<string>> SuggestSearchPhrases(string? value, CancellationToken ct) =>
         Task.FromResult(SearchSuggestionProvider.Suggest(value, BuildSuggestionContext()));

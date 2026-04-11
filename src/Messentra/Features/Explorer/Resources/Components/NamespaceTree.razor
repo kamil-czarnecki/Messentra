@@ -55,6 +55,7 @@
     {
         <MudHotkey Key="JsKey.F5" OnHotkeyPressed="@(RefreshHotkeyClicked)"/>
         <MudAutocomplete T="string"
+                         @ref="_autocomplete"
                          Class="mx-2"
                          Dense="true"
                          Value="@_localSearchPhrase"

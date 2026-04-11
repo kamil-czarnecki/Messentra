@@ -228,6 +228,24 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             a.NodeKey == "topic:TestNamespace:https://test/shared-topic|folder:TestNamespace:10" && a.Expanded)), Times.Once);
     }
 
+    [Fact]
+    public async Task SelectingKeywordSuggestion_ReopensAutocompleteDropdown()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
+
+        var autocomplete = cut.FindComponent<MudAutocomplete<string>>();
+
+        // Act – simulate selecting a keyword suggestion (ValueChanged fires with "folders:")
+        await cut.InvokeAsync(() => autocomplete.Instance.ValueChanged.InvokeAsync("folders:"));
+
+        // Assert – autocomplete menu is open after the next render cycle
+        cut.WaitForAssertion(() => autocomplete.Instance.Open.ShouldBeTrue());
+    }
+
     private static ResourceTreeItemData QueueItem(string name) => new() { Text = name };
 
     private static ResourceTreeItemData QueueItemWithDlq(string name, long dlq)
