@@ -376,5 +376,143 @@ public sealed class ResourceTreeFilterShould
     {
         ResourceTreeFilter.HasDlqMessages(null).ShouldBeFalse();
     }
+
+    // --- folders: filter ---
+
+    private static ResourceTreeItemData FolderItemWithChildren(string name, long folderId, params ResourceTreeItemData[] children) =>
+        new()
+        {
+            Text = name,
+            Value = new FolderTreeNode(folderId, 1L, name, "ns", Config),
+            Expandable = true,
+            Expanded = true,
+            Children = children.ToList<TreeItemData<ResourceTreeNode>>()
+        };
+
+    private static ResourceTreeItemData FoldersGroup(params ResourceTreeItemData[] folders) =>
+        new()
+        {
+            Text = "Folders",
+            IsReadonly = true,
+            Value = new FoldersTreeNode(1L, "ns", Config),
+            Expandable = true,
+            Expanded = true,
+            Children = folders.ToList<TreeItemData<ResourceTreeNode>>()
+        };
+
+    [Fact]
+    public void FolderFilter_all_HidesQueuesAndTopicsGroupsShowsFoldersGroup()
+    {
+        var resources = Ns("ns1",
+            QueuesGroup(QueueItem("q1")),
+            FoldersGroup(FolderItemWithChildren("prod", 1L, QueueItem("q2"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:all"));
+
+        result.ShouldHaveSingleItem();
+        var groups = result[0].Children!.OfType<ResourceTreeItemData>().ToList();
+        groups.ShouldHaveSingleItem();
+        groups[0].Value.ShouldBeOfType<FoldersTreeNode>();
+    }
+
+    [Fact]
+    public void FolderFilter_all_ShowsAllFolderContentsWithNoOtherFilter()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(FolderItemWithChildren("prod", 1L, QueueItem("orders"), QueueItem("invoices"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:all"));
+
+        var folder = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().Single();
+        folder.Children!.OfType<ResourceTreeItemData>().Count().ShouldBe(2);
+    }
+
+    [Fact]
+    public void FolderFilter_specificName_ShowsOnlyMatchingFolder()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(
+                FolderItemWithChildren("dev", 1L, QueueItem("q1")),
+                FolderItemWithChildren("prod", 2L, QueueItem("q2"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:prod"));
+
+        var folders = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().ToList();
+        folders.ShouldHaveSingleItem();
+        folders[0].Text.ShouldBe("prod");
+    }
+
+    [Fact]
+    public void FolderFilter_specificName_HidesNonMatchingFolder()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(FolderItemWithChildren("dev", 1L, QueueItem("q1"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:staging"));
+
+        result.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void FolderFilter_specificName_CombinedWithNamePhrase()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(FolderItemWithChildren("prod", 1L, QueueItem("orders"), QueueItem("invoices"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:prod orders"));
+
+        var queues = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().ToList();
+        queues.ShouldHaveSingleItem();
+        queues[0].Text.ShouldBe("orders");
+    }
+
+    [Fact]
+    public void FolderFilter_specificName_CombinedWithHasDlq()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(FolderItemWithChildren("prod", 1L,
+                QueueItem("with-dlq", dlq: 3),
+                QueueItem("clean", dlq: 0))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:prod has:dlq"));
+
+        var queues = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().ToList();
+        queues.ShouldHaveSingleItem();
+        queues[0].Text.ShouldBe("with-dlq");
+    }
+
+    [Fact]
+    public void FolderFilter_all_CombinedWithHasDlq()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(
+                FolderItemWithChildren("dev", 1L, QueueItem("dev-q", dlq: 2)),
+                FolderItemWithChildren("prod", 2L, QueueItem("prod-q", dlq: 1))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("has:dlq folders:all"));
+
+        var folders = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().ToList();
+        folders.Count.ShouldBe(2);
+        foreach (var folder in folders)
+            folder.Children!.OfType<ResourceTreeItemData>().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void FolderFilter_specificName_HidesFolderWhenNoResourcesMatchPhrase()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(FolderItemWithChildren("prod", 1L, QueueItem("orders"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:prod invoices"));
+
+        result.ShouldBeEmpty();
+    }
 }
 

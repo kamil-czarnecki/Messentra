@@ -104,6 +104,86 @@ public sealed class SearchQueryParserShould
         SearchQueryParser.Parse("queue1").IsEmpty.ShouldBeFalse();
         SearchQueryParser.Parse("namespace:prod").IsEmpty.ShouldBeFalse();
         SearchQueryParser.Parse("has:dlq").IsEmpty.ShouldBeFalse();
+        SearchQueryParser.Parse("folders:all").IsEmpty.ShouldBeFalse();
+    }
+
+    // --- namespace: quoted values ---
+
+    [Fact]
+    public void ParseNamespaceQuotedMultiwordValue()
+    {
+        var query = SearchQueryParser.Parse("namespace:\"long namespace\"");
+        query.NamespaceFilter.ShouldBe("long namespace");
+        query.NamePhrase.ShouldBeNull();
+        query.HasDlq.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ParseNamespaceCombinedQuotedWithHasDlq()
+    {
+        var query = SearchQueryParser.Parse("namespace:\"my ns\" has:dlq");
+        query.NamespaceFilter.ShouldBe("my ns");
+        query.HasDlq.ShouldBeTrue();
+        query.NamePhrase.ShouldBeNull();
+    }
+
+    // --- folders: ---
+
+    [Fact]
+    public void ParseFoldersAllToken()
+    {
+        var query = SearchQueryParser.Parse("folders:all");
+        query.FolderFilter.ShouldBe("all");
+        query.NamePhrase.ShouldBeNull();
+        query.NamespaceFilter.ShouldBeNull();
+        query.HasDlq.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ParseFoldersSpecificName()
+    {
+        var query = SearchQueryParser.Parse("folders:test");
+        query.FolderFilter.ShouldBe("test");
+    }
+
+    [Fact]
+    public void ParseFoldersQuotedMultiwordName()
+    {
+        var query = SearchQueryParser.Parse("folders:\"test folder\"");
+        query.FolderFilter.ShouldBe("test folder");
+        query.NamePhrase.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ParseFoldersCaseInsensitive()
+    {
+        SearchQueryParser.Parse("FOLDERS:prod").FolderFilter.ShouldBe("prod");
+        SearchQueryParser.Parse("Folders:prod").FolderFilter.ShouldBe("prod");
+    }
+
+    [Fact]
+    public void IgnoreEmptyFoldersValue()
+    {
+        var query = SearchQueryParser.Parse("folders:");
+        query.FolderFilter.ShouldBeNull();
+        query.IsEmpty.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void ParseFoldersCombinedWithHasDlq()
+    {
+        var query = SearchQueryParser.Parse("has:dlq folders:test");
+        query.FolderFilter.ShouldBe("test");
+        query.HasDlq.ShouldBeTrue();
+        query.NamePhrase.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ParseFoldersCombinedWithNamePhraseAndQuotedFolder()
+    {
+        var query = SearchQueryParser.Parse("folders:\"my team\" resource1");
+        query.FolderFilter.ShouldBe("my team");
+        query.NamePhrase.ShouldBe("resource1");
     }
 }
 

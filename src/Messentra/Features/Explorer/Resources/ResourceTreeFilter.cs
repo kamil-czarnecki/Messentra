@@ -21,7 +21,7 @@ public static class ResourceTreeFilter
             ns.Text?.Contains(query.NamespaceFilter, StringComparison.OrdinalIgnoreCase) != true)
             return null;
 
-        if (query.NamePhrase == null && !query.HasDlq)
+        if (query.NamePhrase == null && !query.HasDlq && query.FolderFilter == null)
             return CloneExpanded(ns, ns.Children);
 
         if (ns.Children is null)
@@ -38,6 +38,9 @@ public static class ResourceTreeFilter
 
     private static ResourceTreeItemData? FilterGroup(ResourceTreeItemData group, SearchQuery query)
     {
+        if (query.FolderFilter != null && group.Value is not FoldersTreeNode)
+            return null;
+
         var filteredItems = group.Children?
             .OfType<ResourceTreeItemData>()
             .Select(item => FilterItem(item, query))
@@ -49,6 +52,9 @@ public static class ResourceTreeFilter
 
     private static ResourceTreeItemData? FilterItem(ResourceTreeItemData item, SearchQuery query)
     {
+        if (query.FolderFilter != null && item.Value is FolderTreeNode fn && !FolderMatchesFilter(fn.Name, query.FolderFilter))
+            return null;
+
         var nameMatches = query.NamePhrase == null ||
                           item.Text?.Contains(query.NamePhrase, StringComparison.OrdinalIgnoreCase) == true;
 
@@ -120,6 +126,10 @@ public static class ResourceTreeFilter
         
         return nameMatches && dlqMatches;
     }
+
+    private static bool FolderMatchesFilter(string folderName, string filter) =>
+        filter.Equals("all", StringComparison.OrdinalIgnoreCase) ||
+        folderName.Contains(filter, StringComparison.OrdinalIgnoreCase);
 
     public static bool HasDlqMessages(ResourceTreeNode? node) => node switch
     {
