@@ -14,6 +14,8 @@ namespace Messentra.Features.Explorer.Resources.Components;
 public partial class NamespaceTree
 {
     private bool _isFocused;
+    private bool _reopenAutocomplete;
+    private MudAutocomplete<string>? _autocomplete;
 
     [Parameter, EditorRequired]
     public List<ResourceTreeItemData> Resources { get; init; } = [];
@@ -142,7 +144,7 @@ public partial class NamespaceTree
         var result = await dialog.Result;
         if (result is not { Canceled: false, Data: IBrowserFile file }) return;
 
-        using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
         using var reader = new StreamReader(stream);
         var jsonContent = await reader.ReadToEndAsync();
 
@@ -473,42 +475,31 @@ public partial class NamespaceTree
         StateHasChanged();
     }
 
-    private void OnSuggestionSelected(string? value) => OnTextChanged(value);
-
-    private Task<IEnumerable<string>> SuggestSearchPhrases(string? value, CancellationToken ct)
+    private void OnSuggestionSelected(string? value)
     {
-        var endsWithSpace = value?.EndsWith(' ') == true;
-        var parts = (value ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        OnTextChanged(value);
 
-        var lastToken = !endsWithSpace && parts.Length > 0 ? parts[^1] : "";
-        var completedParts = !endsWithSpace && parts.Length > 0 ? parts[..^1] : parts;
-        var prefix = completedParts.Length > 0 ? string.Join(" ", completedParts) + " " : "";
-
-        IEnumerable<string> suggestions;
-
-        if (lastToken.StartsWith("namespace:", StringComparison.OrdinalIgnoreCase))
-        {
-            var partial = lastToken["namespace:".Length..];
-            suggestions = Resources
-                .Where(r => !string.IsNullOrEmpty(r.Text) &&
-                            r.Text.Contains(partial, StringComparison.OrdinalIgnoreCase) &&
-                            !string.Equals("namespace:" + r.Text, lastToken, StringComparison.OrdinalIgnoreCase))
-                .Select(r => prefix + "namespace:" + r.Text);
-        }
-        else
-        {
-            suggestions = SourceArray.Where(p => p.StartsWith(lastToken, StringComparison.OrdinalIgnoreCase) &&
-                            !string.Equals(p, lastToken, StringComparison.OrdinalIgnoreCase))
-                .Select(p => prefix + p);
-        }
-
-        return Task.FromResult(suggestions.Distinct().Take(10));
+        if (value is not null && value.TrimEnd().EndsWith(':'))
+            _reopenAutocomplete = true;
     }
 
-    private static string GetSuggestionIcon(string token) =>
-        token.StartsWith("namespace:", StringComparison.OrdinalIgnoreCase)
-            ? Icons.Material.Filled.Cloud
-            : Icons.Material.Filled.AllInbox;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_reopenAutocomplete && _autocomplete is not null)
+        {
+            _reopenAutocomplete = false;
+            await _autocomplete.OpenMenuAsync();
+        }
+    }
+
+    private Task<IEnumerable<string>> SuggestSearchPhrases(string? value, CancellationToken ct) =>
+        Task.FromResult(SearchSuggestionProvider.Suggest(value, BuildSuggestionContext()));
+
+    private SuggestionContext BuildSuggestionContext() =>
+        new(
+            NamespaceNames: Resources.Select(r => r.Text).OfType<string>().ToList(),
+            FolderNames: _foldersByConnection.Values.SelectMany(f => f).Select(f => f.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList());
 
     private List<ResourceTreeItemData> FilteredResources
     {
@@ -525,8 +516,6 @@ public partial class NamespaceTree
             return _filteredCache;
         }
     }
-
-    private static readonly string[] SourceArray = ["namespace:", "has:dlq"];
 
     private IReadOnlyList<string> GetFolderNamesForConnection(long connectionId) =>
         FlattenNodes(Resources)

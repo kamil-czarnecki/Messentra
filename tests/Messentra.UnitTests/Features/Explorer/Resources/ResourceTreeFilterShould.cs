@@ -80,7 +80,7 @@ public sealed class ResourceTreeFilterShould
     {
         var prod = Ns("prod-ns", QueuesGroup(QueueItem("q1")))[0];
         var dev  = Ns("dev-ns",  QueuesGroup(QueueItem("q2")))[0];
-        var result = ResourceTreeFilter.Filter([prod, dev], SearchQueryParser.Parse("namespace:prod"));
+        var result = ResourceTreeFilter.Filter([prod, dev], SearchQueryParser.Parse("namespace:prod-ns"));
         result.Count.ShouldBe(1);
         result[0].Text.ShouldBe("prod-ns");
     }
@@ -96,7 +96,7 @@ public sealed class ResourceTreeFilterShould
     public void NamespaceFilter_ShowsAllChildrenWithNoOtherConditions()
     {
         var resources = Ns("prod-ns", QueuesGroup(QueueItem("q1"), QueueItem("q2")));
-        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("namespace:prod"));
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("namespace:prod-ns"));
         var queues = result[0].Children!.OfType<ResourceTreeItemData>().First().Children!
             .OfType<ResourceTreeItemData>().ToList();
         queues.Count.ShouldBe(2);
@@ -107,7 +107,7 @@ public sealed class ResourceTreeFilterShould
     {
         var prod = Ns("prod-ns", QueuesGroup(QueueItem("alpha"), QueueItem("beta")))[0];
         var dev  = Ns("dev-ns",  QueuesGroup(QueueItem("alpha")))[0];
-        var result = ResourceTreeFilter.Filter([prod, dev], SearchQueryParser.Parse("namespace:prod alpha"));
+        var result = ResourceTreeFilter.Filter([prod, dev], SearchQueryParser.Parse("namespace:prod-ns alpha"));
         result.Count.ShouldBe(1);
         var queues = result[0].Children!.OfType<ResourceTreeItemData>().First().Children!
             .OfType<ResourceTreeItemData>().ToList();
@@ -375,6 +375,176 @@ public sealed class ResourceTreeFilterShould
     public void HasDlqMessages_ReturnsFalseForNull()
     {
         ResourceTreeFilter.HasDlqMessages(null).ShouldBeFalse();
+    }
+
+    // --- folders: filter ---
+
+    private static ResourceTreeItemData FolderItemWithChildren(string name, long folderId, params ResourceTreeItemData[] children) =>
+        new()
+        {
+            Text = name,
+            Value = new FolderTreeNode(folderId, 1L, name, "ns", Config),
+            Expandable = true,
+            Expanded = true,
+            Children = children.ToList<TreeItemData<ResourceTreeNode>>()
+        };
+
+    private static ResourceTreeItemData FoldersGroup(params ResourceTreeItemData[] folders) =>
+        new()
+        {
+            Text = "Folders",
+            IsReadonly = true,
+            Value = new FoldersTreeNode(1L, "ns", Config),
+            Expandable = true,
+            Expanded = true,
+            Children = folders.ToList<TreeItemData<ResourceTreeNode>>()
+        };
+
+    [Fact]
+    public void FolderFilter_star_HidesQueuesAndTopicsGroupsShowsFoldersGroup()
+    {
+        var resources = Ns("ns1",
+            QueuesGroup(QueueItem("q1")),
+            FoldersGroup(FolderItemWithChildren("prod", 1L, QueueItem("q2"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:*"));
+
+        result.ShouldHaveSingleItem();
+        var groups = result[0].Children!.OfType<ResourceTreeItemData>().ToList();
+        groups.ShouldHaveSingleItem();
+        groups[0].Value.ShouldBeOfType<FoldersTreeNode>();
+    }
+
+    [Fact]
+    public void FolderFilter_star_ShowsAllFolderContentsWithNoOtherFilter()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(FolderItemWithChildren("prod", 1L, QueueItem("orders"), QueueItem("invoices"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:*"));
+
+        var folder = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().Single();
+        folder.Children!.OfType<ResourceTreeItemData>().Count().ShouldBe(2);
+    }
+
+    [Fact]
+    public void FolderFilter_specificName_ShowsOnlyMatchingFolder()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(
+                FolderItemWithChildren("dev", 1L, QueueItem("q1")),
+                FolderItemWithChildren("prod", 2L, QueueItem("q2"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:prod"));
+
+        var folders = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().ToList();
+        folders.ShouldHaveSingleItem();
+        folders[0].Text.ShouldBe("prod");
+    }
+
+    [Fact]
+    public void FolderFilter_specificName_HidesNonMatchingFolder()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(FolderItemWithChildren("dev", 1L, QueueItem("q1"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:staging"));
+
+        result.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void FolderFilter_specificName_CombinedWithNamePhrase()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(FolderItemWithChildren("prod", 1L, QueueItem("orders"), QueueItem("invoices"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:prod orders"));
+
+        var queues = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().ToList();
+        queues.ShouldHaveSingleItem();
+        queues[0].Text.ShouldBe("orders");
+    }
+
+    [Fact]
+    public void FolderFilter_specificName_CombinedWithHasDlq()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(FolderItemWithChildren("prod", 1L,
+                QueueItem("with-dlq", dlq: 3),
+                QueueItem("clean", dlq: 0))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:prod has:dlq"));
+
+        var queues = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().ToList();
+        queues.ShouldHaveSingleItem();
+        queues[0].Text.ShouldBe("with-dlq");
+    }
+
+    [Fact]
+    public void FolderFilter_star_CombinedWithHasDlq()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(
+                FolderItemWithChildren("dev", 1L, QueueItem("dev-q", dlq: 2)),
+                FolderItemWithChildren("prod", 2L, QueueItem("prod-q", dlq: 1))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("has:dlq folders:*"));
+
+        var folders = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().ToList();
+        folders.Count.ShouldBe(2);
+        foreach (var folder in folders)
+            folder.Children!.OfType<ResourceTreeItemData>().ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public void FolderFilter_specificName_HidesFolderWhenNoResourcesMatchPhrase()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(FolderItemWithChildren("prod", 1L, QueueItem("orders"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:prod invoices"));
+
+        result.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void FolderFilter_GlobPattern_ShowsMatchingFolders()
+    {
+        var resources = Ns("ns1",
+            FoldersGroup(
+                FolderItemWithChildren("dev-team", 1L, QueueItem("q1")),
+                FolderItemWithChildren("prod-team", 2L, QueueItem("q2")),
+                FolderItemWithChildren("staging", 3L, QueueItem("q3"))));
+
+        var result = ResourceTreeFilter.Filter(resources, SearchQueryParser.Parse("folders:*team"));
+
+        var folders = result[0].Children!.OfType<ResourceTreeItemData>().Single()
+            .Children!.OfType<ResourceTreeItemData>().ToList();
+        folders.Count.ShouldBe(2);
+        folders.ShouldContain(f => f.Text == "dev-team");
+        folders.ShouldContain(f => f.Text == "prod-team");
+    }
+
+    [Fact]
+    public void NamespaceFilter_GlobPattern_ShowsMatchingNamespaces()
+    {
+        var prod1 = Ns("prod-1", QueuesGroup(QueueItem("q1")))[0];
+        var prod2 = Ns("prod-2", QueuesGroup(QueueItem("q2")))[0];
+        var dev   = Ns("dev-1",  QueuesGroup(QueueItem("q3")))[0];
+
+        var result = ResourceTreeFilter.Filter([prod1, prod2, dev], SearchQueryParser.Parse("namespace:prod*"));
+
+        result.Count.ShouldBe(2);
+        result.ShouldContain(r => r.Text == "prod-1");
+        result.ShouldContain(r => r.Text == "prod-2");
     }
 }
 
