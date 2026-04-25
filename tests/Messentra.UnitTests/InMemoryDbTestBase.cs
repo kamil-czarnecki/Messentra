@@ -1,5 +1,7 @@
 using Messentra.Domain;
 using Messentra.Infrastructure.Database;
+using Messentra.Infrastructure.Security;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
 
@@ -13,6 +15,8 @@ public abstract class InMemoryDbTestBase : IDisposable
 
     protected InMemoryDbTestBase()
     {
+        ConnectionStringProtection.Initialize(new EphemeralDataProtectionProvider());
+
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
 

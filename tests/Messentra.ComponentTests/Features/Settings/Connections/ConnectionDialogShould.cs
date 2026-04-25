@@ -188,7 +188,7 @@ public sealed class ConnectionDialogShould : ComponentTestBase
         // Arrange
         var cut = RenderDialog<ConnectionDialog>();
         var nameField = cut.Find("input[id='ConnectionName']");
-        var connectionStringField = cut.Find("textarea[id='ConnectionString']");
+        var connectionStringField = cut.Find("input[id='ConnectionString']");
 
         // Act
         nameField.Input("Valid Name");
@@ -210,7 +210,7 @@ public sealed class ConnectionDialogShould : ComponentTestBase
         // Arrange
         var cut = RenderDialog<ConnectionDialog>();
         var nameField = cut.Find("input[id='ConnectionName']");
-        var connectionStringField = cut.Find("textarea[id='ConnectionString']");
+        var connectionStringField = cut.Find("input[id='ConnectionString']");
 
         // Act
         nameField.Input("Test Connection");
@@ -242,7 +242,7 @@ public sealed class ConnectionDialogShould : ComponentTestBase
     {
         // Arrange
         var cut = RenderDialog<ConnectionDialog>();
-        var connectionStringField = cut.Find("textarea[id='ConnectionString']");
+        var connectionStringField = cut.Find("input[id='ConnectionString']");
 
         // Act
         connectionStringField.Input(string.Empty);
@@ -395,7 +395,7 @@ public sealed class ConnectionDialogShould : ComponentTestBase
         const string validConnectionString = "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=testkey";
         var cut = RenderDialog<ConnectionDialog>(out var dialogReference);
         var nameField = cut.Find("input[id='ConnectionName']");
-        var connectionStringField = cut.Find("textarea[id='ConnectionString']");
+        var connectionStringField = cut.Find("input[id='ConnectionString']");
         await nameField.InputAsync("My Connection");
         await connectionStringField.InputAsync(validConnectionString);
         var addButton = cut.Find("button:contains('Add')");

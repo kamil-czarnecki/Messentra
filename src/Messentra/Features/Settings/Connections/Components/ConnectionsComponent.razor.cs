@@ -105,7 +105,7 @@ public partial class ConnectionsComponent
     {
         return connection.ConnectionConfig.ConnectionType switch
         {
-            ConnectionType.ConnectionString => connection.ConnectionConfig.ConnectionString ?? "",
+            ConnectionType.ConnectionString => $"{connection.ConnectionConfig.GetNamespace()} ***",
             ConnectionType.EntraId => connection.ConnectionConfig.Namespace ?? "",
             _ => ""
         };

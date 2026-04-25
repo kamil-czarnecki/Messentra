@@ -1,5 +1,7 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using Messentra.Domain;
+using Messentra.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -18,11 +20,26 @@ public class ConnectionConfiguration : IEntityTypeConfiguration<Connection>
         builder.Property(x => x.ConnectionConfig)
             .IsRequired()
             .HasConversion(
-                v => JsonSerializer.Serialize(v, System.Text.Json.JsonSerializerOptions.Default),
-                v => JsonSerializer.Deserialize<ConnectionConfig>(v, System.Text.Json.JsonSerializerOptions.Default)!);
+                v => ConnectionStringProtection.Protect(
+                    JsonSerializer.Serialize(v, JsonSerializerOptions.Default)),
+                v => Deserialize(v));
 
         builder
             .HasIndex(x => x.Name)
             .IsUnique();
+    }
+
+    private static ConnectionConfig Deserialize(string v)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ConnectionConfig>(
+                ConnectionStringProtection.Unprotect(v), JsonSerializerOptions.Default)!;
+        }
+        catch (CryptographicException)
+        {
+            // Plain-text fallback for rows not yet migrated
+            return JsonSerializer.Deserialize<ConnectionConfig>(v, JsonSerializerOptions.Default)!;
+        }
     }
 }

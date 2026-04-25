@@ -10,6 +10,8 @@ using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Settings.Cache;
 using Messentra.Infrastructure;
 using Messentra.Infrastructure.Database;
+using Messentra.Infrastructure.Security;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using Serilog;
@@ -50,14 +52,18 @@ builder.Services.AddMediator(opts =>
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Database
+var dbDirectory = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "Messentra");
+Directory.CreateDirectory(dbDirectory);
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dbDirectory, "keys")))
+    .SetApplicationName("Messentra");
+
 builder.Services.AddDbContextFactory<MessentraDbContext>((serviceProvider, options) =>
 {
     var environment = serviceProvider.GetRequiredService<IHostEnvironment>();
-    var dbDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Messentra");
-
-    Directory.CreateDirectory(dbDirectory);
 
     var dbName = environment.IsDevelopment() ? "Messentra_test.db" : "Messentra.db";
     var dbPath = Path.Combine(dbDirectory, dbName);
@@ -141,6 +147,8 @@ builder.UseElectron(args, async () =>
 
 var app = builder.Build();
 webApplication = app;
+
+ConnectionStringProtection.Initialize(app.Services.GetRequiredService<IDataProtectionProvider>());
 
 using (var scope = app.Services.CreateScope())
 {
