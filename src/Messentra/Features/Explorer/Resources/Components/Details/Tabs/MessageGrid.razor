@@ -8,7 +8,7 @@
      @ref="_gridContainer">
     <MudHotkey Key="JsKey.ArrowUp" OnHotkeyPressed="OnKeyUpPressed"/>
     <MudHotkey Key="JsKey.ArrowDown" OnHotkeyPressed="OnKeyDownPressed"/>
-    <MudDataGrid Loading="@_isGridLoading" @ref="_grid" T="ServiceBusMessage" Dense="true" Elevation="0" Virtualize="true"
+    <MudDataGrid @key="@ActiveViewId" Loading="@_isGridLoading" @ref="_grid" T="ServiceBusMessage" Dense="true" Elevation="0" Virtualize="true"
                  Square="true" Items="@FilteredMessages" @bind-SelectedItems="@SelectedItems" FixedHeader="true" Height="100%"
                  Class="message-grid" MultiSelection="true" ColumnResizeMode="ResizeMode.Container" SortMode="SortMode.Single"
                  SelectOnRowClick="false" RowClassFunc="@((x, _) => GetRowClass(x))" ExpandSingleRow="true"

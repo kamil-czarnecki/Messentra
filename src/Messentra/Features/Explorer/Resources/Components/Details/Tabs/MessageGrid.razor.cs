@@ -806,7 +806,26 @@ public partial class MessageGrid : IDisposable
     private void OnSwitchViewClicked(string viewId)
         => _dispatcher.Dispatch(new SwitchMessageGridViewAction(viewId));
 
-    private IReadOnlyList<ColumnConfig> GetColumnsInGridOrder() => Columns;
+    private IReadOnlyList<ColumnConfig> GetColumnsInGridOrder()
+    {
+        var columnById = Columns.ToDictionary(c => c.Id);
+
+        var orderedIds = _grid.RenderedColumns
+            .Select(c => c.HeaderClass)
+            .Where(h => h is not null && h.StartsWith("col-"))
+            .Select(h => h["col-".Length..])
+            .ToList();
+
+        if (orderedIds.Count == 0)
+            return Columns;
+
+        var ordered = orderedIds
+            .Where(columnById.ContainsKey)
+            .Select((id, i) => columnById[id] with { Order = i })
+            .ToList();
+
+        return ordered.Count > 0 ? ordered : Columns;
+    }
 
     private void OnSaveCurrentViewClicked()
     {
