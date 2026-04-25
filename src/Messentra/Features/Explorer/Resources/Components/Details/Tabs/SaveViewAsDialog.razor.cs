@@ -19,21 +19,13 @@ public partial class SaveViewAsDialog
     protected override void OnParametersSet()
         => _name = InitialName;
 
-    private bool CanSave => !string.IsNullOrWhiteSpace(_name);
+    private bool IsDuplicate => ExistingNames.Contains(_name.Trim(), StringComparer.OrdinalIgnoreCase);
+    private bool CanSave => !string.IsNullOrWhiteSpace(_name) && !IsDuplicate;
 
     private void Save()
     {
-        var finalName = _name.Trim();
-        
-        if (ExistingNames.Contains(finalName, StringComparer.OrdinalIgnoreCase))
-        {
-            var suffix = 2;
-            while (ExistingNames.Contains($"{finalName} ({suffix})", StringComparer.OrdinalIgnoreCase))
-                suffix++;
-            finalName = $"{finalName} ({suffix})";
-        }
-        
-        MudDialog.Close(DialogResult.Ok(finalName));
+        if (!CanSave) return;
+        MudDialog.Close(DialogResult.Ok(_name.Trim()));
     }
 
     private void Cancel() => MudDialog.Cancel();

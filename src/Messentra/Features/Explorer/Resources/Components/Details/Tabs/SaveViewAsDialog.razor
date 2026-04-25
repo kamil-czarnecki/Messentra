@@ -1,17 +1,17 @@
-<div>
-    <MudDialog>
-        <TitleContent>
-            <MudText Typo="Typo.h6">Save View As</MudText>
-        </TitleContent>
-        <DialogContent>
-            <MudTextField T="string" Label="View name" @bind-Value="_name"
-                          Variant="Variant.Outlined" AutoFocus="true"
-                          OnKeyDown="@(e => { if (e.Key == "Enter" && CanSave) Save(); })"/>
-        </DialogContent>
-        <DialogActions>
-            <MudButton OnClick="@Cancel" Variant="Variant.Text">Cancel</MudButton>
-            <MudButton OnClick="@Save" Variant="Variant.Filled" Color="Color.Primary"
-                       Disabled="@(!CanSave)">Save</MudButton>
-        </DialogActions>
-    </MudDialog>
-</div>
+<MudDialog DefaultFocus="DefaultFocus.FirstChild">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Save View As</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField T="string" Label="View name" @bind-Value="_name"
+                      Variant="Variant.Outlined"
+                      Error="@IsDuplicate"
+                      Immediate="true"
+                      ErrorText="A view with this name already exists"/>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton OnClick="@Save" Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(!CanSave)">Save</MudButton>
+    </DialogActions>
+</MudDialog>

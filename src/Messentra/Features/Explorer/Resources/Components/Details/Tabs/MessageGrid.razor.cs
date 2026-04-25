@@ -821,9 +821,10 @@ public partial class MessageGrid : IDisposable
     private async Task OnSaveViewAsClicked()
     {
         var existingNames = Views.Select(v => v.Name).ToList();
-        var activeViewName = Views.FirstOrDefault(v => v.Id == ActiveViewId)?.Name ?? string.Empty;
+        var activeView = Views.FirstOrDefault(v => v.Id == ActiveViewId);
+        var activeViewName = activeView is { IsBuiltIn: false } ? activeView.Name : string.Empty;
 
-        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true, DefaultFocus = DefaultFocus.FirstChild };
         var parameters = new DialogParameters
         {
             [nameof(SaveViewAsDialog.InitialName)] = activeViewName,
