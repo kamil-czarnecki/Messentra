@@ -34,7 +34,23 @@ The message list shows Sequence #, Message ID, Label, Enqueued Time, and Deliver
 
 The inline message viewer has a **Body** tab with syntax highlighting and a **Properties** tab covering all broker properties (`ContentType`, `CorrelationId`, `TimeToLive`, etc.) plus custom application properties.
 
-### 🛠️ Message Operations
+### �️ Message Grid Views
+Customize which columns appear in the message grid via a **right-click context menu** on any column header. Changes apply globally to all queues and subscriptions.
+
+**Column management:**
+- **Add column** — pick any broker property (e.g. `CorrelationId`, `SessionId`, `TimeToLive`) or enter a free-form application property key; optionally override the column title
+- **Remove column** — removes the column from the current view (SEQ # is permanently locked)
+- **Reorder columns** — drag-and-drop any column header to rearrange
+
+**Named views:**
+- **Switch view** — select a saved view from the context menu; a checkmark shows the active view
+- **Save current view** — overwrite the active view with the current column layout (disabled for the built-in Default view)
+- **Save view as…** — create a new named view from the current layout; the new view becomes active
+- **Delete view** — delete the active user-defined view; falls back to Default (disabled for the built-in Default view)
+
+The built-in **Default** view shows: SEQ #, MESSAGE ID, LABEL, ENQUEUED TIME, DELIVERY COUNT. Dead-letter views automatically append **REASON** and **ERROR DESCRIPTION** columns regardless of the active view. All user-defined views are persisted locally across sessions.
+
+### �🛠️ Message Operations
 Available actions depend on the fetch mode:
 
 - **Resend** - re-sends selected message(s) to the queue or topic. In PeekLock mode, a successful resend completes the original. In Peek and ReceiveAndDelete modes this can create duplicates intentionally.
