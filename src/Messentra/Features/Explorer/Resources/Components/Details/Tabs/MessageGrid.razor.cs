@@ -40,10 +40,22 @@ public partial class MessageGrid : IDisposable
     private string ActiveViewId => _messageGridState.Value.ActiveViewId;
     private IReadOnlyList<ColumnConfig> Columns => _messageGridState.Value.Columns;
 
+    private static readonly HashSet<string> DlqColumnIds =
+        DefaultColumns.DlqColumns.Select(c => c.Id).ToHashSet();
+
     private IReadOnlyList<ColumnConfig> EffectiveColumns =>
         SubQueue == SubQueue.DeadLetter
-            ? [..Columns, ..DefaultColumns.DlqColumns]
-            : Columns;
+            ? MergeDlqColumns(Columns)
+            : Columns.Where(c => !DlqColumnIds.Contains(c.Id)).ToList();
+
+    private static IReadOnlyList<ColumnConfig> MergeDlqColumns(IReadOnlyList<ColumnConfig> columns)
+    {
+        var nonDlq = columns.Where(c => !DlqColumnIds.Contains(c.Id)).ToList();
+        var storedDlq = columns.Where(c => DlqColumnIds.Contains(c.Id)).ToList();
+        var storedDlqIds = storedDlq.Select(c => c.Id).ToHashSet();
+        var missingDlq = DefaultColumns.DlqColumns.Where(d => !storedDlqIds.Contains(d.Id));
+        return nonDlq.Concat(storedDlq).Concat(missingDlq).OrderBy(c => c.Order).ToList();
+    }
 
     private readonly IDialogService _dialogService;
     private readonly IMediator _mediator;
@@ -808,7 +820,8 @@ public partial class MessageGrid : IDisposable
 
     private IReadOnlyList<ColumnConfig> GetColumnsInGridOrder()
     {
-        var columnById = Columns.ToDictionary(c => c.Id);
+        var effectiveColumns = EffectiveColumns;
+        var columnById = effectiveColumns.ToDictionary(c => c.Id);
 
         var orderedIds = _grid.RenderedColumns
             .Select(c => c.HeaderClass)
@@ -817,14 +830,14 @@ public partial class MessageGrid : IDisposable
             .ToList();
 
         if (orderedIds.Count == 0)
-            return Columns;
+            return effectiveColumns;
 
         var ordered = orderedIds
             .Where(columnById.ContainsKey)
             .Select((id, i) => columnById[id] with { Order = i })
             .ToList();
 
-        return ordered.Count > 0 ? ordered : Columns;
+        return ordered.Count > 0 ? ordered : effectiveColumns;
     }
 
     private void OnSaveCurrentViewClicked()
