@@ -1,5 +1,7 @@
 using Fluxor;
 using Mediator;
+using Messentra.Features.Explorer.MessageGrid;
+using Messentra.Features.Explorer.MessageGrid.State;
 using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Messages.ActionProgress;
 using Messentra.Features.Explorer.Messages.FetchQueueMessages;
@@ -10,6 +12,7 @@ using Messentra.Features.Jobs.ExportSelectedMessages;
 using Messentra.Features.Jobs.Stages;
 using Messentra.Features.Layout.State;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
 using System.Collections.Concurrent;
@@ -26,6 +29,20 @@ public partial class MessageGrid : IDisposable
 
     [Parameter, EditorRequired]
     public EventCallback OnRefresh { get; set; }
+
+    [Inject] private IState<MessageGridState> _messageGridState { get; set; } = null!;
+
+    private MudMenu _columnMenu = null!;
+    private ColumnConfig? _contextMenuColumn;
+
+    private IReadOnlyList<ColumnView> Views => _messageGridState.Value.Views;
+    private string ActiveViewId => _messageGridState.Value.ActiveViewId;
+    private IReadOnlyList<ColumnConfig> Columns => _messageGridState.Value.Columns;
+
+    private IReadOnlyList<ColumnConfig> EffectiveColumns =>
+        SubQueue == SubQueue.DeadLetter
+            ? [..Columns, ..DefaultColumns.DlqColumns]
+            : Columns;
 
     private readonly IDialogService _dialogService;
     private readonly IMediator _mediator;
@@ -147,6 +164,15 @@ public partial class MessageGrid : IDisposable
             $"subscription:{s.ConnectionName}:{s.Resource.TopicName}:{s.Resource.Name}:{SubQueue}",
         _ => null
     };
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _messageGridState.StateChanged += OnMessageGridStateChanged;
+    }
+
+    private void OnMessageGridStateChanged(object? sender, EventArgs e)
+        => InvokeAsync(StateHasChanged);
 
     protected override void OnParametersSet()
     {
@@ -311,6 +337,7 @@ public partial class MessageGrid : IDisposable
 
     public void Dispose()
     {
+        _messageGridState.StateChanged -= OnMessageGridStateChanged;
         _resourceOperationCts.Cancel();
         _resourceOperationCts.Dispose();
     }
@@ -669,5 +696,124 @@ public partial class MessageGrid : IDisposable
         RemoveSuccessful(successful);
         LogActivity("Info", $"Dead-lettered {successful.Count}/{messages.Count} message(s) from '{ResourceName}'.");
         await OnRefresh.InvokeAsync();
+    }
+
+    internal static string GetCellValue(ServiceBusMessage msg, ColumnConfig col)
+    {
+        if (col.Source == ColumnSource.AppProperty)
+        {
+            msg.Message.ApplicationProperties.TryGetValue(col.PropertyKey, out var appVal);
+            return appVal?.ToString() ?? string.Empty;
+        }
+
+        var b = msg.Message.BrokerProperties;
+        return col.PropertyKey switch
+        {
+            "SequenceNumber"             => b.SequenceNumber.ToString(),
+            "MessageId"                  => b.MessageId ?? string.Empty,
+            "Label"                      => b.Label ?? string.Empty,
+            "EnqueuedTimeUtc"            => b.EnqueuedTimeUtc.ToString(),
+            "DeliveryCount"              => b.DeliveryCount.ToString(),
+            "CorrelationId"              => b.CorrelationId ?? string.Empty,
+            "SessionId"                  => b.SessionId ?? string.Empty,
+            "ReplyToSessionId"           => b.ReplyToSessionId ?? string.Empty,
+            "ScheduledEnqueueTimeUtc"    => b.ScheduledEnqueueTimeUtc.ToString(),
+            "TimeToLive"                 => b.TimeToLive.ToString(),
+            "LockedUntilUtc"             => b.LockedUntilUtc.ToString(),
+            "ExpiresAtUtc"               => b.ExpiresAtUtc.ToString(),
+            "To"                         => b.To ?? string.Empty,
+            "ReplyTo"                    => b.ReplyTo ?? string.Empty,
+            "PartitionKey"               => b.PartitionKey ?? string.Empty,
+            "ContentType"                => b.ContentType ?? string.Empty,
+            "DeadLetterReason"           => b.DeadLetterReason ?? string.Empty,
+            "DeadLetterErrorDescription" => b.DeadLetterErrorDescription ?? string.Empty,
+            _                            => string.Empty
+        };
+    }
+
+    internal static object GetSortValue(ServiceBusMessage msg, ColumnConfig col)
+    {
+        if (col.Source == ColumnSource.AppProperty)
+            return GetCellValue(msg, col);
+
+        var b = msg.Message.BrokerProperties;
+        return col.PropertyKey switch
+        {
+            "SequenceNumber"          => (object)b.SequenceNumber,
+            "DeliveryCount"           => (object)b.DeliveryCount,
+            "EnqueuedTimeUtc"         => (object)b.EnqueuedTimeUtc,
+            "ScheduledEnqueueTimeUtc" => (object)b.ScheduledEnqueueTimeUtc,
+            "LockedUntilUtc"          => (object)b.LockedUntilUtc,
+            "ExpiresAtUtc"            => (object)b.ExpiresAtUtc,
+            "TimeToLive"              => (object)b.TimeToLive,
+            _                         => GetCellValue(msg, col)
+        };
+    }
+
+    private async Task OnColumnHeaderRightClick(MouseEventArgs e, ColumnConfig col)
+    {
+        _contextMenuColumn = col;
+        await _columnMenu.OpenMenuAsync(e);
+    }
+
+    private async Task OnAddColumnMenuItemClicked()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters
+        {
+            [nameof(AddColumnDialog.ExistingColumns)] = (IReadOnlyList<ColumnConfig>)EffectiveColumns
+        };
+        var dialog = await _dialogService.ShowAsync<AddColumnDialog>("Add Column", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: ColumnConfig newCol })
+            _dispatcher.Dispatch(new AddMessageGridColumnAction(newCol));
+    }
+
+    private void OnRemoveColumnMenuItemClicked()
+    {
+        if (_contextMenuColumn is { IsRemovable: true })
+            _dispatcher.Dispatch(new RemoveMessageGridColumnAction(_contextMenuColumn.Id));
+    }
+
+    private void OnSwitchViewClicked(string viewId)
+        => _dispatcher.Dispatch(new SwitchMessageGridViewAction(viewId));
+
+    private IReadOnlyList<ColumnConfig> GetColumnsInGridOrder() => Columns;
+
+    private void OnSaveCurrentViewClicked()
+    {
+        var currentOrder = GetColumnsInGridOrder();
+        if (currentOrder.Count > 0)
+            _dispatcher.Dispatch(new ReorderMessageGridColumnsAction(currentOrder));
+        _dispatcher.Dispatch(new SaveCurrentMessageGridViewAction());
+    }
+
+    private async Task OnSaveViewAsClicked()
+    {
+        var existingNames = Views.Select(v => v.Name).ToList();
+        var activeViewName = Views.FirstOrDefault(v => v.Id == ActiveViewId)?.Name ?? string.Empty;
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters
+        {
+            [nameof(SaveViewAsDialog.InitialName)] = activeViewName,
+            [nameof(SaveViewAsDialog.ExistingNames)] = (IReadOnlyList<string>)existingNames
+        };
+        var dialog = await _dialogService.ShowAsync<SaveViewAsDialog>("Save View As", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: string name })
+            _dispatcher.Dispatch(new SaveMessageGridViewAsAction(name));
+    }
+
+    private async Task OnDeleteViewClicked()
+    {
+        var viewName = Views.FirstOrDefault(v => v.Id == ActiveViewId)?.Name ?? ActiveViewId;
+        var confirm = await _dialogService.ShowMessageBoxAsync(
+            "Delete View",
+            $"Delete view \"{viewName}\"? This cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+        if (confirm == true)
+            _dispatcher.Dispatch(new DeleteMessageGridViewAction(ActiveViewId));
     }
 }

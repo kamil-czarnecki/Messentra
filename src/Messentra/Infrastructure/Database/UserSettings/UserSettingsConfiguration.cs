@@ -11,5 +11,7 @@ public class UserSettingsConfiguration : IEntityTypeConfiguration<Domain.UserSet
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).ValueGeneratedNever();
         builder.Property(x => x.IsDarkMode).IsRequired();
+        builder.Property(x => x.MessageGridViewsJson).HasColumnType("TEXT");
+        builder.Property(x => x.ActiveMessageGridViewId).HasColumnType("TEXT");
     }
 }

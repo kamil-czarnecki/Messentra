@@ -76,15 +76,25 @@
         <Columns>
             <HierarchyColumn T="ServiceBusMessage" Hidden="true"/>
             <SelectColumn T="ServiceBusMessage" Resizable="false"/>
-            <PropertyColumn Property="x => x.Message.BrokerProperties.SequenceNumber" Title="SEQ #" Sortable="true"/>
-            <PropertyColumn Property="x => x.Message.BrokerProperties.MessageId" Title="MESSAGE ID" Sortable="true"/>
-            <PropertyColumn Property="x => x.Message.BrokerProperties.Label" Title="LABEL" Sortable="true"/>
-            <PropertyColumn Property="x => x.Message.BrokerProperties.EnqueuedTimeUtc" Title="ENQUEUED TIME" Sortable="true"/>
-            <PropertyColumn Property="x => x.Message.BrokerProperties.DeliveryCount" Title="DELIVERY COUNT" Sortable="true"/>
-            @if (SubQueue == SubQueue.DeadLetter)
+            @foreach (var col in EffectiveColumns)
             {
-                <PropertyColumn Property="x => x.Message.BrokerProperties.DeadLetterReason" Title="REASON" Sortable="true"/>
-                <PropertyColumn Property="x => x.Message.BrokerProperties.DeadLetterErrorDescription" Title="ERROR DESCRIPTION" Sortable="true"/>
+                <TemplateColumn @key="@col.Id"
+                                T="ServiceBusMessage"
+                                Title="@col.Title"
+                                Sortable="true"
+                                SortBy="@(x => GetSortValue(x, col))"
+                                Resizable="true">
+                    <HeaderTemplate>
+                        <div @oncontextmenu="@(e => OnColumnHeaderRightClick(e, col))"
+                             @oncontextmenu:preventDefault="true"
+                             style="width:100%;height:100%;display:flex;align-items:center;cursor:default">
+                            @col.Title
+                        </div>
+                    </HeaderTemplate>
+                    <CellTemplate>
+                        <span>@GetCellValue(context.Item, col)</span>
+                    </CellTemplate>
+                </TemplateColumn>
             }
         </Columns>
         <ChildRowContent>
@@ -101,4 +111,60 @@
             </MudTabs>
         </ChildRowContent>
     </MudDataGrid>
+    <MudMenu @ref="_columnMenu" PositionAtCursor="true">
+        <ChildContent>
+            <MudText Typo="Typo.caption" Class="px-3 pt-2 mud-text-secondary" Style="text-transform:uppercase;font-size:9px;font-weight:800;letter-spacing:.1em">View</MudText>
+            @foreach (var view in Views)
+            {
+                <MudMenuItem OnClick="@(() => OnSwitchViewClicked(view.Id))">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        @if (view.Id == ActiveViewId)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary"/>
+                        }
+                        else
+                        {
+                            <span style="width:20px;display:inline-block"/>
+                        }
+                        <MudText Typo="Typo.body2">@view.Name</MudText>
+                    </MudStack>
+                </MudMenuItem>
+            }
+            <MudDivider Class="my-1"/>
+            <MudMenuItem OnClick="@OnSaveCurrentViewClicked"
+                         Disabled="@(Views.FirstOrDefault(v => v.Id == ActiveViewId)?.IsBuiltIn == true)">
+                Save current view
+            </MudMenuItem>
+            <MudMenuItem OnClick="@(async () => await OnSaveViewAsClicked())">
+                Save view as…
+            </MudMenuItem>
+            <MudMenuItem OnClick="@(async () => await OnDeleteViewClicked())"
+                         Disabled="@(Views.FirstOrDefault(v => v.Id == ActiveViewId)?.IsBuiltIn == true)"
+                         Style="color:var(--mud-palette-error)">
+                Delete "@(Views.FirstOrDefault(v => v.Id == ActiveViewId)?.Name)"
+            </MudMenuItem>
+            <MudDivider Class="my-1"/>
+            <MudText Typo="Typo.caption" Class="px-3 pt-1 mud-text-secondary" Style="text-transform:uppercase;font-size:9px;font-weight:800;letter-spacing:.1em">Column</MudText>
+            <MudMenuItem OnClick="@(async () => await OnAddColumnMenuItemClicked())">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Small"/>
+                    <MudText Typo="Typo.body2">Add column…</MudText>
+                </MudStack>
+            </MudMenuItem>
+            @if (_contextMenuColumn is not null)
+            {
+                <MudMenuItem OnClick="OnRemoveColumnMenuItemClicked"
+                             Disabled="@(!_contextMenuColumn.IsRemovable)"
+                             Style="@(_contextMenuColumn.IsRemovable ? "color:var(--mud-palette-error)" : string.Empty)">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small"/>
+                        <MudText Typo="Typo.body2">
+                            Remove "@_contextMenuColumn.Title"
+                            @if (!_contextMenuColumn.IsRemovable) { <span> (locked)</span> }
+                        </MudText>
+                    </MudStack>
+                </MudMenuItem>
+            }
+        </ChildContent>
+    </MudMenu>
 </div>
