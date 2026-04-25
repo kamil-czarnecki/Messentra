@@ -1,0 +1,47 @@
+@using Messentra.Features.Explorer.MessageGrid
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Add Column</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <div>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1">Data source</MudText>
+                <MudToggleGroup T="ColumnSource" Value="_source" ValueChanged="OnSourceChanged"
+                                Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary">
+                    <MudToggleItem Value="ColumnSource.BrokerProperty" Text="Broker Property"/>
+                    <MudToggleItem Value="ColumnSource.AppProperty" Text="Application Property"/>
+                </MudToggleGroup>
+            </div>
+
+            @if (_source == ColumnSource.BrokerProperty)
+            {
+                <MudSelect T="string" Label="Property" Value="_selectedBrokerKey"
+                           ValueChanged="@OnBrokerKeyChanged" Variant="Variant.Outlined">
+                    @foreach (var key in AvailableBrokerKeys)
+                    {
+                        <MudSelectItem Value="@key">@key</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else
+            {
+                <MudTextField T="string" Label="Property key" Value="_appPropertyKey"
+                              ValueChanged="@OnAppKeyChanged" Variant="Variant.Outlined"
+                              HelperText="Shows empty if key is absent in message"
+                              OnKeyDown="@(e => { if (e.Key == "Enter" && CanConfirm) Confirm(); })"/>
+            }
+
+            <MudTextField T="string" Label="Column title (optional)" @bind-Value="_title"
+                          Variant="Variant.Outlined"
+                          HelperText="Leave blank to use property name"
+                          OnKeyDown="@(e => { if (e.Key == "Enter" && CanConfirm) Confirm(); })"/>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancel" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton OnClick="@Confirm" Variant="Variant.Filled" Color="Color.Primary"
+                   Disabled="@(!CanConfirm)">Add Column</MudButton>
+    </DialogActions>
+</MudDialog>

@@ -1,5 +1,7 @@
 using Fluxor;
 using Mediator;
+using Messentra.Features.Explorer.MessageGrid;
+using Messentra.Features.Explorer.MessageGrid.State;
 using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Messages.ActionProgress;
 using Messentra.Features.Explorer.Messages.FetchQueueMessages;
@@ -10,9 +12,11 @@ using Messentra.Features.Jobs.ExportSelectedMessages;
 using Messentra.Features.Jobs.Stages;
 using Messentra.Features.Layout.State;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
 using System.Collections.Concurrent;
+using System.Globalization;
 
 namespace Messentra.Features.Explorer.Resources.Components.Details.Tabs;
 
@@ -26,6 +30,32 @@ public partial class MessageGrid : IDisposable
 
     [Parameter, EditorRequired]
     public EventCallback OnRefresh { get; set; }
+
+    [Inject] private IState<MessageGridState> _messageGridState { get; set; } = null!;
+
+    private MudMenu _columnMenu = null!;
+    private ColumnConfig? _contextMenuColumn;
+
+    private IReadOnlyList<ColumnView> Views => _messageGridState.Value.Views;
+    private string ActiveViewId => _messageGridState.Value.ActiveViewId;
+    private IReadOnlyList<ColumnConfig> Columns => _messageGridState.Value.Columns;
+
+    private static readonly HashSet<string> DlqColumnIds =
+        DefaultColumns.DlqColumns.Select(c => c.Id).ToHashSet();
+
+    private IReadOnlyList<ColumnConfig> EffectiveColumns =>
+        SubQueue == SubQueue.DeadLetter
+            ? MergeDlqColumns(Columns)
+            : Columns.Where(c => !DlqColumnIds.Contains(c.Id)).ToList();
+
+    private static IReadOnlyList<ColumnConfig> MergeDlqColumns(IReadOnlyList<ColumnConfig> columns)
+    {
+        var nonDlq = columns.Where(c => !DlqColumnIds.Contains(c.Id)).ToList();
+        var storedDlq = columns.Where(c => DlqColumnIds.Contains(c.Id)).ToList();
+        var storedDlqIds = storedDlq.Select(c => c.Id).ToHashSet();
+        var missingDlq = DefaultColumns.DlqColumns.Where(d => !storedDlqIds.Contains(d.Id));
+        return nonDlq.Concat(storedDlq).Concat(missingDlq).OrderBy(c => c.Order).ToList();
+    }
 
     private readonly IDialogService _dialogService;
     private readonly IMediator _mediator;
@@ -148,6 +178,15 @@ public partial class MessageGrid : IDisposable
         _ => null
     };
 
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _messageGridState.StateChanged += OnMessageGridStateChanged;
+    }
+
+    private void OnMessageGridStateChanged(object? sender, EventArgs e)
+        => InvokeAsync(StateHasChanged);
+
     protected override void OnParametersSet()
     {
         var currentKey  = ResourceKey(ResourceTreeNode);
@@ -158,11 +197,13 @@ public partial class MessageGrid : IDisposable
         if (currentKey != null && currentKey == previousKey)
             return;
 
+        _dispatcher.Dispatch(new SwitchMessageGridViewAction(ActiveViewId));
+
         var previousCts = _resourceOperationCts;
         _resourceOperationCts = new CancellationTokenSource();
         previousCts.Cancel();
         previousCts.Dispose();
-        
+
         _messages = [];
         _selectedMessages = [];
         _lastSelected = null;
@@ -311,6 +352,7 @@ public partial class MessageGrid : IDisposable
 
     public void Dispose()
     {
+        _messageGridState.StateChanged -= OnMessageGridStateChanged;
         _resourceOperationCts.Cancel();
         _resourceOperationCts.Dispose();
     }
@@ -330,7 +372,7 @@ public partial class MessageGrid : IDisposable
 
         if (b.SequenceNumber.ToString().Contains(t, StringComparison.OrdinalIgnoreCase)) return true;
         if (b.DeliveryCount.ToString().Contains(t, StringComparison.OrdinalIgnoreCase)) return true;
-        if (b.EnqueuedTimeUtc.ToString(System.Globalization.CultureInfo.InvariantCulture).Contains(t, StringComparison.OrdinalIgnoreCase)) return true;
+        if (b.EnqueuedTimeUtc.ToString(CultureInfo.InvariantCulture).Contains(t, StringComparison.OrdinalIgnoreCase)) return true;
 
         var strings = new[]
         {
@@ -669,5 +711,174 @@ public partial class MessageGrid : IDisposable
         RemoveSuccessful(successful);
         LogActivity("Info", $"Dead-lettered {successful.Count}/{messages.Count} message(s) from '{ResourceName}'.");
         await OnRefresh.InvokeAsync();
+    }
+
+    internal static string GetCellValue(ServiceBusMessage msg, ColumnConfig col)
+    {
+        if (col.Source == ColumnSource.AppProperty)
+        {
+            msg.Message.ApplicationProperties.TryGetValue(col.PropertyKey, out var appVal);
+            return appVal?.ToString() ?? string.Empty;
+        }
+
+        var b = msg.Message.BrokerProperties;
+        return col.PropertyKey switch
+        {
+            "SequenceNumber" => b.SequenceNumber.ToString(),
+            "MessageId" => b.MessageId ?? string.Empty,
+            "Label" => b.Label ?? string.Empty,
+            "EnqueuedTimeUtc" => b.EnqueuedTimeUtc.ToString(CultureInfo.InvariantCulture),
+            "DeliveryCount" => b.DeliveryCount.ToString(),
+            "CorrelationId" => b.CorrelationId ?? string.Empty,
+            "SessionId" => b.SessionId ?? string.Empty,
+            "ReplyToSessionId" => b.ReplyToSessionId ?? string.Empty,
+            "ScheduledEnqueueTimeUtc" => b.ScheduledEnqueueTimeUtc.ToString(CultureInfo.InvariantCulture),
+            "TimeToLive" => b.TimeToLive.ToString(),
+            "LockedUntilUtc" => b.LockedUntilUtc.ToString(CultureInfo.InvariantCulture),
+            "ExpiresAtUtc" => b.ExpiresAtUtc.ToString(CultureInfo.InvariantCulture),
+            "To" => b.To ?? string.Empty,
+            "ReplyTo" => b.ReplyTo ?? string.Empty,
+            "PartitionKey" => b.PartitionKey ?? string.Empty,
+            "ContentType" => b.ContentType ?? string.Empty,
+            "DeadLetterReason" => b.DeadLetterReason ?? string.Empty,
+            "DeadLetterErrorDescription" => b.DeadLetterErrorDescription ?? string.Empty,
+            _ => string.Empty
+        };
+    }
+
+    internal static object GetSortValue(ServiceBusMessage msg, ColumnConfig col)
+    {
+        if (col.Source == ColumnSource.AppProperty)
+        {
+            msg.Message.ApplicationProperties.TryGetValue(col.PropertyKey, out var raw);
+            
+            switch (raw)
+            {
+                case DateTime dt:
+                    return dt;
+                case DateTimeOffset dto:
+                    return dto.UtcDateTime;
+            }
+
+            var str = raw?.ToString() ?? string.Empty;
+
+            if (DateTime.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsedDt))
+                return parsedDt;
+            
+            if (long.TryParse(str, out var l)) 
+                return l;
+            
+            if (double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out var d))
+                return d;
+            
+            return str;
+        }
+
+        var b = msg.Message.BrokerProperties;
+        
+        return col.PropertyKey switch
+        {
+            "SequenceNumber" => b.SequenceNumber,
+            "DeliveryCount" => b.DeliveryCount,
+            "EnqueuedTimeUtc" => b.EnqueuedTimeUtc,
+            "ScheduledEnqueueTimeUtc" => b.ScheduledEnqueueTimeUtc,
+            "LockedUntilUtc" => b.LockedUntilUtc,
+            "ExpiresAtUtc" => b.ExpiresAtUtc,
+            "TimeToLive" => b.TimeToLive,
+            _ => GetCellValue(msg, col)
+        };
+    }
+
+    private async Task OnColumnHeaderRightClick(MouseEventArgs e, ColumnConfig col)
+    {
+        _contextMenuColumn = col;
+        await _columnMenu.OpenMenuAsync(e);
+    }
+
+    private async Task OnAddColumnMenuItemClicked()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var parameters = new DialogParameters
+        {
+            [nameof(AddColumnDialog.ExistingColumns)] = EffectiveColumns
+        };
+        var dialog = await _dialogService.ShowAsync<AddColumnDialog>("Add Column", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result is { Canceled: false, Data: ColumnConfig newCol })
+            _dispatcher.Dispatch(new AddMessageGridColumnAction(newCol));
+    }
+
+    private void OnRemoveColumnMenuItemClicked()
+    {
+        if (_contextMenuColumn is { IsRemovable: true })
+            _dispatcher.Dispatch(new RemoveMessageGridColumnAction(_contextMenuColumn.Id));
+    }
+
+    private void OnSwitchViewClicked(string viewId)
+        => _dispatcher.Dispatch(new SwitchMessageGridViewAction(viewId));
+
+    private IReadOnlyList<ColumnConfig> GetColumnsInGridOrder()
+    {
+        var effectiveColumns = EffectiveColumns;
+        var columnById = effectiveColumns.ToDictionary(c => c.Id);
+
+        var orderedIds = _grid.RenderedColumns
+            .Select(c => c.HeaderClass)
+            .Where(h => h is not null && h.StartsWith("col-"))
+            .Select(h => h["col-".Length..])
+            .ToList();
+
+        if (orderedIds.Count == 0)
+            return effectiveColumns;
+
+        var ordered = orderedIds
+            .Where(columnById.ContainsKey)
+            .Select((id, i) => columnById[id] with { Order = i })
+            .ToList();
+
+        return ordered.Count > 0 ? ordered : effectiveColumns;
+    }
+
+    private void OnSaveCurrentViewClicked()
+    {
+        var currentOrder = GetColumnsInGridOrder();
+        
+        if (currentOrder.Count > 0)
+            _dispatcher.Dispatch(new ReorderMessageGridColumnsAction(currentOrder));
+        
+        _dispatcher.Dispatch(new SaveCurrentMessageGridViewAction());
+    }
+
+    private async Task OnSaveViewAsClicked()
+    {
+        var existingNames = Views.Select(v => v.Name).ToList();
+        var activeView = Views.FirstOrDefault(v => v.Id == ActiveViewId);
+        var activeViewName = activeView is { IsBuiltIn: false } ? activeView.Name : string.Empty;
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true, DefaultFocus = DefaultFocus.FirstChild };
+        var parameters = new DialogParameters
+        {
+            [nameof(SaveViewAsDialog.InitialName)] = activeViewName,
+            [nameof(SaveViewAsDialog.ExistingNames)] = existingNames
+        };
+        var dialog = await _dialogService.ShowAsync<SaveViewAsDialog>("Save View As", parameters, options);
+        var result = await dialog.Result;
+        
+        if (result is { Canceled: false, Data: string name })
+            _dispatcher.Dispatch(new SaveMessageGridViewAsAction(name));
+    }
+
+    private async Task OnDeleteViewClicked()
+    {
+        var viewName = Views.FirstOrDefault(v => v.Id == ActiveViewId)?.Name ?? ActiveViewId;
+        var confirm = await _dialogService.ShowMessageBoxAsync(
+            "Delete View",
+            $"Delete view \"{viewName}\"? This cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+        
+        if (confirm == true)
+            _dispatcher.Dispatch(new DeleteMessageGridViewAction(ActiveViewId));
     }
 }
