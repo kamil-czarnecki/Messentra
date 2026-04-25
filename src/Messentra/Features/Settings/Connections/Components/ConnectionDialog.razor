@@ -36,7 +36,11 @@
                                       MaxLength="5000"
                                       Immediate="true"
                                       Validation="@(new Func<string, string?>(ValidateConnectionString))"
-                                      Lines="3" />
+                                      InputType="@(_showConnectionString ? InputType.Text : InputType.Password)"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@(_showConnectionString ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                      OnAdornmentClick="@ToggleConnectionStringVisibility"
+                                      AdornmentAriaLabel="Toggle connection string visibility" />
                         break;
                     case ConnectionType.EntraId:
                         <MudTextField @bind-Value="_namespace"

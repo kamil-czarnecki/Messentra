@@ -37,6 +37,7 @@ public partial class ConnectionDialog
     
     // Connection String fields
     private string _connectionString = string.Empty;
+    private bool _showConnectionString;
     
     // Entra ID fields
     private string _namespace = string.Empty;
@@ -71,6 +72,11 @@ public partial class ConnectionDialog
     private void Cancel()
     {
         MudDialog.Cancel();
+    }
+
+    private void ToggleConnectionStringVisibility()
+    {
+        _showConnectionString = !_showConnectionString;
     }
 
     private async Task Submit()
