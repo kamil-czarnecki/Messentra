@@ -87,6 +87,13 @@
                                 ShowColumnOptions="true"
                                 DragAndDropEnabled="@(col.Id != "seq")"
                                 HeaderClass="@($"col-{col.Id}")">
+                    <HeaderTemplate>
+                        <div class="col-header-trigger"
+                             @oncontextmenu="@(e => OnColumnHeaderRightClick(e, col))"
+                             @oncontextmenu:preventDefault="true">
+                            @col.Title
+                        </div>
+                    </HeaderTemplate>
                     <CellTemplate>
                         <span>@GetCellValue(context.Item, col)</span>
                     </CellTemplate>
@@ -129,15 +136,15 @@
             <MudDivider Class="my-1"/>
             <MudMenuItem OnClick="@OnSaveCurrentViewClicked"
                          Disabled="@(Views.FirstOrDefault(v => v.Id == ActiveViewId)?.IsBuiltIn == true)">
-                Save current view
+                <MudText Typo="Typo.body2">Save current view</MudText>
             </MudMenuItem>
             <MudMenuItem OnClick="@(async () => await OnSaveViewAsClicked())">
-                Save view as…
+                <MudText Typo="Typo.body2">Save view as…</MudText>
             </MudMenuItem>
             <MudMenuItem OnClick="@(async () => await OnDeleteViewClicked())"
                          Disabled="@(Views.FirstOrDefault(v => v.Id == ActiveViewId)?.IsBuiltIn == true)"
-                         Class="menu-item-danger">
-                Delete "@(Views.FirstOrDefault(v => v.Id == ActiveViewId)?.Name)"
+                         Class="mud-error-text">
+                <MudText Typo="Typo.body2">Delete "@(Views.FirstOrDefault(v => v.Id == ActiveViewId)?.Name)"</MudText>
             </MudMenuItem>
             <MudDivider Class="my-1"/>
             <MudText Typo="Typo.caption" Class="px-3 pt-1 mud-text-secondary menu-section-label">Column</MudText>
@@ -149,9 +156,9 @@
             </MudMenuItem>
             @if (_contextMenuColumn is not null)
             {
-                <MudMenuItem OnClick="OnRemoveColumnMenuItemClicked"
+                <MudMenuItem OnClick="@OnRemoveColumnMenuItemClicked"
                              Disabled="@(!_contextMenuColumn.IsRemovable)"
-                             Class="@(_contextMenuColumn.IsRemovable ? "menu-item-danger" : string.Empty)">
+                             Class="@(_contextMenuColumn.IsRemovable ? "mud-error-text" : string.Empty)">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                         <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small"/>
                         <MudText Typo="Typo.body2">

@@ -24,6 +24,7 @@ public partial class SaveViewAsDialog
     private void Save()
     {
         var finalName = _name.Trim();
+        
         if (ExistingNames.Contains(finalName, StringComparer.OrdinalIgnoreCase))
         {
             var suffix = 2;
@@ -31,6 +32,7 @@ public partial class SaveViewAsDialog
                 suffix++;
             finalName = $"{finalName} ({suffix})";
         }
+        
         MudDialog.Close(DialogResult.Ok(finalName));
     }
 
