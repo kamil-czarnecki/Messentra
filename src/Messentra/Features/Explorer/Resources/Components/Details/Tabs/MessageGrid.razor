@@ -76,15 +76,15 @@
         <Columns>
             <HierarchyColumn T="ServiceBusMessage" Hidden="true"/>
             <SelectColumn T="ServiceBusMessage" Resizable="false"/>
-            <PropertyColumn Property="x => x.Message.BrokerProperties.SequenceNumber" Title="SEQ #"/>
-            <PropertyColumn Property="x => x.Message.BrokerProperties.MessageId" Title="MESSAGE ID"/>
-            <PropertyColumn Property="x => x.Message.BrokerProperties.Label" Title="LABEL"/>
-            <PropertyColumn Property="x => x.Message.BrokerProperties.EnqueuedTimeUtc" Title="ENQUEUED TIME"/>
-            <PropertyColumn Property="x => x.Message.BrokerProperties.DeliveryCount" Title="DELIVERY COUNT"/>
+            <PropertyColumn Property="x => x.Message.BrokerProperties.SequenceNumber" Title="SEQ #" Sortable="true"/>
+            <PropertyColumn Property="x => x.Message.BrokerProperties.MessageId" Title="MESSAGE ID" Sortable="true"/>
+            <PropertyColumn Property="x => x.Message.BrokerProperties.Label" Title="LABEL" Sortable="true"/>
+            <PropertyColumn Property="x => x.Message.BrokerProperties.EnqueuedTimeUtc" Title="ENQUEUED TIME" Sortable="true"/>
+            <PropertyColumn Property="x => x.Message.BrokerProperties.DeliveryCount" Title="DELIVERY COUNT" Sortable="true"/>
             @if (SubQueue == SubQueue.DeadLetter)
             {
-                <PropertyColumn Property="x => x.Message.BrokerProperties.DeadLetterReason" Title="REASON"/>
-                <PropertyColumn Property="x => x.Message.BrokerProperties.DeadLetterErrorDescription" Title="ERROR DESCRIPTION"/>
+                <PropertyColumn Property="x => x.Message.BrokerProperties.DeadLetterReason" Title="REASON" Sortable="true"/>
+                <PropertyColumn Property="x => x.Message.BrokerProperties.DeadLetterErrorDescription" Title="ERROR DESCRIPTION" Sortable="true"/>
             }
         </Columns>
         <ChildRowContent>
