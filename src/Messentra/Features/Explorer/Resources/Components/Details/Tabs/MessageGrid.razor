@@ -10,9 +10,9 @@
     <MudHotkey Key="JsKey.ArrowDown" OnHotkeyPressed="OnKeyDownPressed"/>
     <MudDataGrid Loading="@_isGridLoading" @ref="_grid" T="ServiceBusMessage" Dense="true" Elevation="0" Virtualize="true"
                  Square="true" Items="@FilteredMessages" @bind-SelectedItems="@SelectedItems" FixedHeader="true" Height="100%"
-                 Class="message-grid" MultiSelection="true" ColumnResizeMode="ResizeMode.Container" SortMode="SortMode.None"
+                 Class="message-grid" MultiSelection="true" ColumnResizeMode="ResizeMode.Container" SortMode="SortMode.Single"
                  SelectOnRowClick="false" RowClassFunc="@((x, _) => GetRowClass(x))" ExpandSingleRow="true"
-                 RowClick="@(x => OnRowClick(x.Item))">
+                 RowClick="@(x => OnRowClick(x.Item))" DragDropColumnReordering="true">
         <ToolBarContent>
             <MudStack Class="mud-width-full" Spacing="1">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mud-width-full">
