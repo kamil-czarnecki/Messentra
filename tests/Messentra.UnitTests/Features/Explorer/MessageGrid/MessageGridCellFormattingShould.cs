@@ -128,7 +128,7 @@ public sealed class MessageGridCellFormattingShould
     }
 
     [Fact]
-    public void ReturnStringForAppPropertySortValue()
+    public void ReturnStringForAppPropertySortValueWhenNotParseable()
     {
         var appProps = new Dictionary<string, object> { ["priority"] = "high" };
         var msg = BuildMessage(DefaultBroker(), appProps);
@@ -138,6 +138,46 @@ public sealed class MessageGridCellFormattingShould
 
         result.ShouldBeOfType<string>();
         result.ShouldBe("high");
+    }
+
+    [Fact]
+    public void ReturnDateTimeForAppPropertySortValueWhenDateString()
+    {
+        var date = new DateTime(2026, 4, 25, 9, 0, 0);
+        var appProps = new Dictionary<string, object> { ["created-at"] = date.ToString("O") };
+        var msg = BuildMessage(DefaultBroker(), appProps);
+        var col = new ColumnConfig("created", "CREATED AT", ColumnSource.AppProperty, "created-at", true, 10);
+
+        var result = MessageGridComponent.GetSortValue(msg, col);
+
+        result.ShouldBeOfType<DateTime>();
+    }
+
+    [Fact]
+    public void ReturnTypedDateTimeDirectlyForAppPropertyWhenStoredAsDateTime()
+    {
+        var date = new DateTime(2026, 4, 25, 9, 0, 0);
+        var appProps = new Dictionary<string, object> { ["created-at"] = date };
+        var msg = BuildMessage(DefaultBroker(), appProps);
+        var col = new ColumnConfig("created", "CREATED AT", ColumnSource.AppProperty, "created-at", true, 10);
+
+        var result = MessageGridComponent.GetSortValue(msg, col);
+
+        result.ShouldBeOfType<DateTime>();
+        ((DateTime)result).ShouldBe(date);
+    }
+
+    [Fact]
+    public void ReturnLongForAppPropertySortValueWhenNumericString()
+    {
+        var appProps = new Dictionary<string, object> { ["retry-count"] = "42" };
+        var msg = BuildMessage(DefaultBroker(), appProps);
+        var col = new ColumnConfig("retry", "RETRY COUNT", ColumnSource.AppProperty, "retry-count", true, 10);
+
+        var result = MessageGridComponent.GetSortValue(msg, col);
+
+        result.ShouldBeOfType<long>();
+        ((long)result).ShouldBe(42L);
     }
 
     [Fact]

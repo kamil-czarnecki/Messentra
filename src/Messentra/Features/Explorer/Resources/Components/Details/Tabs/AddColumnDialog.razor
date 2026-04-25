@@ -18,7 +18,7 @@
             @if (_source == ColumnSource.BrokerProperty)
             {
                 <MudSelect T="string" Label="Property" Value="_selectedBrokerKey"
-                           ValueChanged="OnBrokerKeyChanged" Variant="Variant.Outlined">
+                           ValueChanged="@OnBrokerKeyChanged" Variant="Variant.Outlined">
                     @foreach (var key in AvailableBrokerKeys)
                     {
                         <MudSelectItem Value="@key">@key</MudSelectItem>
@@ -28,13 +28,15 @@
             else
             {
                 <MudTextField T="string" Label="Property key" Value="_appPropertyKey"
-                              ValueChanged="OnAppKeyChanged" Variant="Variant.Outlined"
-                              HelperText="Shows empty if key is absent in message"/>
+                              ValueChanged="@OnAppKeyChanged" Variant="Variant.Outlined"
+                              HelperText="Shows empty if key is absent in message"
+                              OnKeyDown="@(e => { if (e.Key == "Enter" && CanConfirm) Confirm(); })"/>
             }
 
             <MudTextField T="string" Label="Column title (optional)" @bind-Value="_title"
                           Variant="Variant.Outlined"
-                          HelperText="Leave blank to use property name"/>
+                          HelperText="Leave blank to use property name"
+                          OnKeyDown="@(e => { if (e.Key == "Enter" && CanConfirm) Confirm(); })"/>
         </MudStack>
     </DialogContent>
     <DialogActions>

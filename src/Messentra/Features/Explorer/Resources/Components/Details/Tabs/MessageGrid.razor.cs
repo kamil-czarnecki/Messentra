@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
 using System.Collections.Concurrent;
+using System.Globalization;
 
 namespace Messentra.Features.Explorer.Resources.Components.Details.Tabs;
 
@@ -184,11 +185,13 @@ public partial class MessageGrid : IDisposable
         if (currentKey != null && currentKey == previousKey)
             return;
 
+        _dispatcher.Dispatch(new SwitchMessageGridViewAction(ActiveViewId));
+
         var previousCts = _resourceOperationCts;
         _resourceOperationCts = new CancellationTokenSource();
         previousCts.Cancel();
         previousCts.Dispose();
-        
+
         _messages = [];
         _selectedMessages = [];
         _lastSelected = null;
@@ -357,7 +360,7 @@ public partial class MessageGrid : IDisposable
 
         if (b.SequenceNumber.ToString().Contains(t, StringComparison.OrdinalIgnoreCase)) return true;
         if (b.DeliveryCount.ToString().Contains(t, StringComparison.OrdinalIgnoreCase)) return true;
-        if (b.EnqueuedTimeUtc.ToString(System.Globalization.CultureInfo.InvariantCulture).Contains(t, StringComparison.OrdinalIgnoreCase)) return true;
+        if (b.EnqueuedTimeUtc.ToString(CultureInfo.InvariantCulture).Contains(t, StringComparison.OrdinalIgnoreCase)) return true;
 
         var strings = new[]
         {
@@ -709,44 +712,68 @@ public partial class MessageGrid : IDisposable
         var b = msg.Message.BrokerProperties;
         return col.PropertyKey switch
         {
-            "SequenceNumber"             => b.SequenceNumber.ToString(),
-            "MessageId"                  => b.MessageId ?? string.Empty,
-            "Label"                      => b.Label ?? string.Empty,
-            "EnqueuedTimeUtc"            => b.EnqueuedTimeUtc.ToString(),
-            "DeliveryCount"              => b.DeliveryCount.ToString(),
-            "CorrelationId"              => b.CorrelationId ?? string.Empty,
-            "SessionId"                  => b.SessionId ?? string.Empty,
-            "ReplyToSessionId"           => b.ReplyToSessionId ?? string.Empty,
-            "ScheduledEnqueueTimeUtc"    => b.ScheduledEnqueueTimeUtc.ToString(),
-            "TimeToLive"                 => b.TimeToLive.ToString(),
-            "LockedUntilUtc"             => b.LockedUntilUtc.ToString(),
-            "ExpiresAtUtc"               => b.ExpiresAtUtc.ToString(),
-            "To"                         => b.To ?? string.Empty,
-            "ReplyTo"                    => b.ReplyTo ?? string.Empty,
-            "PartitionKey"               => b.PartitionKey ?? string.Empty,
-            "ContentType"                => b.ContentType ?? string.Empty,
-            "DeadLetterReason"           => b.DeadLetterReason ?? string.Empty,
+            "SequenceNumber" => b.SequenceNumber.ToString(),
+            "MessageId" => b.MessageId ?? string.Empty,
+            "Label" => b.Label ?? string.Empty,
+            "EnqueuedTimeUtc" => b.EnqueuedTimeUtc.ToString(CultureInfo.InvariantCulture),
+            "DeliveryCount" => b.DeliveryCount.ToString(),
+            "CorrelationId" => b.CorrelationId ?? string.Empty,
+            "SessionId" => b.SessionId ?? string.Empty,
+            "ReplyToSessionId" => b.ReplyToSessionId ?? string.Empty,
+            "ScheduledEnqueueTimeUtc" => b.ScheduledEnqueueTimeUtc.ToString(CultureInfo.InvariantCulture),
+            "TimeToLive" => b.TimeToLive.ToString(),
+            "LockedUntilUtc" => b.LockedUntilUtc.ToString(CultureInfo.InvariantCulture),
+            "ExpiresAtUtc" => b.ExpiresAtUtc.ToString(CultureInfo.InvariantCulture),
+            "To" => b.To ?? string.Empty,
+            "ReplyTo" => b.ReplyTo ?? string.Empty,
+            "PartitionKey" => b.PartitionKey ?? string.Empty,
+            "ContentType" => b.ContentType ?? string.Empty,
+            "DeadLetterReason" => b.DeadLetterReason ?? string.Empty,
             "DeadLetterErrorDescription" => b.DeadLetterErrorDescription ?? string.Empty,
-            _                            => string.Empty
+            _ => string.Empty
         };
     }
 
     internal static object GetSortValue(ServiceBusMessage msg, ColumnConfig col)
     {
         if (col.Source == ColumnSource.AppProperty)
-            return GetCellValue(msg, col);
+        {
+            msg.Message.ApplicationProperties.TryGetValue(col.PropertyKey, out var raw);
+            
+            switch (raw)
+            {
+                case DateTime dt:
+                    return dt;
+                case DateTimeOffset dto:
+                    return dto.UtcDateTime;
+            }
+
+            var str = raw?.ToString() ?? string.Empty;
+
+            if (DateTime.TryParse(str, out var parsedDt))
+                return parsedDt;
+            
+            if (long.TryParse(str, out var l)) 
+                return l;
+            
+            if (double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out var d))
+                return d;
+            
+            return str;
+        }
 
         var b = msg.Message.BrokerProperties;
+        
         return col.PropertyKey switch
         {
-            "SequenceNumber"          => (object)b.SequenceNumber,
-            "DeliveryCount"           => (object)b.DeliveryCount,
-            "EnqueuedTimeUtc"         => (object)b.EnqueuedTimeUtc,
-            "ScheduledEnqueueTimeUtc" => (object)b.ScheduledEnqueueTimeUtc,
-            "LockedUntilUtc"          => (object)b.LockedUntilUtc,
-            "ExpiresAtUtc"            => (object)b.ExpiresAtUtc,
-            "TimeToLive"              => (object)b.TimeToLive,
-            _                         => GetCellValue(msg, col)
+            "SequenceNumber" => b.SequenceNumber,
+            "DeliveryCount" => b.DeliveryCount,
+            "EnqueuedTimeUtc" => b.EnqueuedTimeUtc,
+            "ScheduledEnqueueTimeUtc" => b.ScheduledEnqueueTimeUtc,
+            "LockedUntilUtc" => b.LockedUntilUtc,
+            "ExpiresAtUtc" => b.ExpiresAtUtc,
+            "TimeToLive" => b.TimeToLive,
+            _ => GetCellValue(msg, col)
         };
     }
 
@@ -761,10 +788,11 @@ public partial class MessageGrid : IDisposable
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         var parameters = new DialogParameters
         {
-            [nameof(AddColumnDialog.ExistingColumns)] = (IReadOnlyList<ColumnConfig>)EffectiveColumns
+            [nameof(AddColumnDialog.ExistingColumns)] = EffectiveColumns
         };
         var dialog = await _dialogService.ShowAsync<AddColumnDialog>("Add Column", parameters, options);
         var result = await dialog.Result;
+        
         if (result is { Canceled: false, Data: ColumnConfig newCol })
             _dispatcher.Dispatch(new AddMessageGridColumnAction(newCol));
     }
@@ -783,8 +811,10 @@ public partial class MessageGrid : IDisposable
     private void OnSaveCurrentViewClicked()
     {
         var currentOrder = GetColumnsInGridOrder();
+        
         if (currentOrder.Count > 0)
             _dispatcher.Dispatch(new ReorderMessageGridColumnsAction(currentOrder));
+        
         _dispatcher.Dispatch(new SaveCurrentMessageGridViewAction());
     }
 
@@ -797,10 +827,11 @@ public partial class MessageGrid : IDisposable
         var parameters = new DialogParameters
         {
             [nameof(SaveViewAsDialog.InitialName)] = activeViewName,
-            [nameof(SaveViewAsDialog.ExistingNames)] = (IReadOnlyList<string>)existingNames
+            [nameof(SaveViewAsDialog.ExistingNames)] = existingNames
         };
         var dialog = await _dialogService.ShowAsync<SaveViewAsDialog>("Save View As", parameters, options);
         var result = await dialog.Result;
+        
         if (result is { Canceled: false, Data: string name })
             _dispatcher.Dispatch(new SaveMessageGridViewAsAction(name));
     }
@@ -813,6 +844,7 @@ public partial class MessageGrid : IDisposable
             $"Delete view \"{viewName}\"? This cannot be undone.",
             yesText: "Delete",
             cancelText: "Cancel");
+        
         if (confirm == true)
             _dispatcher.Dispatch(new DeleteMessageGridViewAction(ActiveViewId));
     }

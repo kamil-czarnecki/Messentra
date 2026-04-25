@@ -105,3 +105,19 @@
     outline: none;
 }
 
+::deep .menu-section-label {
+    text-transform: uppercase;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .1em;
+}
+
+::deep .view-checkmark-spacer {
+    width: 20px;
+    display: inline-block;
+}
+
+::deep .menu-item-danger {
+    color: var(--mud-palette-error);
+}
+

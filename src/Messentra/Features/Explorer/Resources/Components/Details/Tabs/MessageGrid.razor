@@ -83,14 +83,10 @@
                                 Title="@col.Title"
                                 Sortable="true"
                                 SortBy="@(x => GetSortValue(x, col))"
-                                Resizable="true">
-                    <HeaderTemplate>
-                        <div @oncontextmenu="@(e => OnColumnHeaderRightClick(e, col))"
-                             @oncontextmenu:preventDefault="true"
-                             style="width:100%;height:100%;display:flex;align-items:center;cursor:default">
-                            @col.Title
-                        </div>
-                    </HeaderTemplate>
+                                Resizable="true"
+                                ShowColumnOptions="true"
+                                DragAndDropEnabled="@(col.Id != "seq")"
+                                HeaderClass="@($"col-{col.Id}")">
                     <CellTemplate>
                         <span>@GetCellValue(context.Item, col)</span>
                     </CellTemplate>
@@ -113,7 +109,7 @@
     </MudDataGrid>
     <MudMenu @ref="_columnMenu" PositionAtCursor="true">
         <ChildContent>
-            <MudText Typo="Typo.caption" Class="px-3 pt-2 mud-text-secondary" Style="text-transform:uppercase;font-size:9px;font-weight:800;letter-spacing:.1em">View</MudText>
+            <MudText Typo="Typo.caption" Class="px-3 pt-2 mud-text-secondary menu-section-label">View</MudText>
             @foreach (var view in Views)
             {
                 <MudMenuItem OnClick="@(() => OnSwitchViewClicked(view.Id))">
@@ -124,7 +120,7 @@
                         }
                         else
                         {
-                            <span style="width:20px;display:inline-block"/>
+                            <span class="view-checkmark-spacer"/>
                         }
                         <MudText Typo="Typo.body2">@view.Name</MudText>
                     </MudStack>
@@ -140,11 +136,11 @@
             </MudMenuItem>
             <MudMenuItem OnClick="@(async () => await OnDeleteViewClicked())"
                          Disabled="@(Views.FirstOrDefault(v => v.Id == ActiveViewId)?.IsBuiltIn == true)"
-                         Style="color:var(--mud-palette-error)">
+                         Class="menu-item-danger">
                 Delete "@(Views.FirstOrDefault(v => v.Id == ActiveViewId)?.Name)"
             </MudMenuItem>
             <MudDivider Class="my-1"/>
-            <MudText Typo="Typo.caption" Class="px-3 pt-1 mud-text-secondary" Style="text-transform:uppercase;font-size:9px;font-weight:800;letter-spacing:.1em">Column</MudText>
+            <MudText Typo="Typo.caption" Class="px-3 pt-1 mud-text-secondary menu-section-label">Column</MudText>
             <MudMenuItem OnClick="@(async () => await OnAddColumnMenuItemClicked())">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                     <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Small"/>
@@ -155,7 +151,7 @@
             {
                 <MudMenuItem OnClick="OnRemoveColumnMenuItemClicked"
                              Disabled="@(!_contextMenuColumn.IsRemovable)"
-                             Style="@(_contextMenuColumn.IsRemovable ? "color:var(--mud-palette-error)" : string.Empty)">
+                             Class="@(_contextMenuColumn.IsRemovable ? "menu-item-danger" : string.Empty)">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                         <MudIcon Icon="@Icons.Material.Filled.Close" Size="Size.Small"/>
                         <MudText Typo="Typo.body2">
