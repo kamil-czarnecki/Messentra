@@ -16,8 +16,11 @@ public partial class SaveViewAsDialog
 
     private string _name = string.Empty;
 
-    protected override void OnParametersSet()
-        => _name = InitialName;
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _name = InitialName;
+    }
 
     private bool IsDuplicate => ExistingNames.Contains(_name.Trim(), StringComparer.OrdinalIgnoreCase);
     private bool CanSave => !string.IsNullOrWhiteSpace(_name) && !IsDuplicate;

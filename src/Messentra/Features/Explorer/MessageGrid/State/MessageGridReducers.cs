@@ -24,10 +24,16 @@ public static class MessageGridReducers
     [ReducerMethod]
     public static MessageGridState OnRemoveColumn(MessageGridState state, RemoveMessageGridColumnAction action)
     {
+        var targetColumn = state.Columns.FirstOrDefault(c => c.Id == action.ColumnId);
+        
+        if (targetColumn is null || !targetColumn.IsRemovable)
+            return state;
+
         var newColumns = state.Columns
             .Where(c => c.Id != action.ColumnId)
             .Select((c, i) => c with { Order = i })
             .ToList();
+        
         return state with { Columns = newColumns };
     }
 

@@ -762,7 +762,7 @@ public partial class MessageGrid : IDisposable
 
             var str = raw?.ToString() ?? string.Empty;
 
-            if (DateTime.TryParse(str, out var parsedDt))
+            if (DateTime.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsedDt))
                 return parsedDt;
             
             if (long.TryParse(str, out var l)) 

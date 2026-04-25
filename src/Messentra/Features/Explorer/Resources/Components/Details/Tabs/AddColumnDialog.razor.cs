@@ -57,6 +57,9 @@ public partial class AddColumnDialog
 
     private void Confirm()
     {
+        if (!CanConfirm)
+            return;
+
         var key = _source == ColumnSource.BrokerProperty ? _selectedBrokerKey : _appPropertyKey;
         var title = string.IsNullOrWhiteSpace(_title) ? key : _title;
 
