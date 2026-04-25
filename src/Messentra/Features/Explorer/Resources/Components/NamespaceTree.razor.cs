@@ -301,9 +301,13 @@ public partial class NamespaceTree
                 connection.ConnectionConfig.Namespace!,
                 connection.ConnectionConfig.TenantId!,
                 connection.ConnectionConfig.ClientId!),
+            ConnectionType.Corrupted => null,
             _ => throw new NotSupportedException(
                 $"Unsupported connection type: {connection.ConnectionConfig.ConnectionType}")
         };
+
+        if (connectionConfig is null)
+            return;
 
         _dispatcher.Dispatch(new FetchResourcesAction(connection.Id, connection.Name, connectionConfig));
     }

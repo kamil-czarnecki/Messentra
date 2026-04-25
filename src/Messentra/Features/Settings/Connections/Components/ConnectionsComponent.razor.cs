@@ -107,6 +107,7 @@ public partial class ConnectionsComponent
         {
             ConnectionType.ConnectionString => $"{connection.ConnectionConfig.GetNamespace()} ***",
             ConnectionType.EntraId => connection.ConnectionConfig.Namespace ?? "",
+            ConnectionType.Corrupted => "Connection data is unreadable — encryption key may be missing",
             _ => ""
         };
     }

@@ -33,13 +33,21 @@ public class ConnectionConfiguration : IEntityTypeConfiguration<Connection>
     {
         try
         {
-            return JsonSerializer.Deserialize<ConnectionConfig>(
-                ConnectionStringProtection.Unprotect(v), JsonSerializerOptions.Default)!;
+            try
+            {
+                return JsonSerializer.Deserialize<ConnectionConfig>(
+                    ConnectionStringProtection.Unprotect(v), JsonSerializerOptions.Default)!;
+            }
+            catch (CryptographicException)
+            {
+                // Plain-text fallback for rows not yet migrated
+                return JsonSerializer.Deserialize<ConnectionConfig>(v, JsonSerializerOptions.Default)!;
+            }
         }
-        catch (CryptographicException)
+        catch
         {
-            // Plain-text fallback for rows not yet migrated
-            return JsonSerializer.Deserialize<ConnectionConfig>(v, JsonSerializerOptions.Default)!;
+            // Key was lost or data is irrecoverably corrupted
+            return ConnectionConfig.CreateCorrupted();
         }
     }
 }

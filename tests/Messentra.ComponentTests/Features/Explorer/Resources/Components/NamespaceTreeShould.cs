@@ -39,6 +39,31 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         cut.Markup.ShouldContain("No connection selected");
     }
 
+    private static ConnectionDto BuildCorruptedConnection(string name = "Corrupted Namespace") =>
+        new(
+            Id: 99,
+            Name: name,
+            ConnectionConfig: new ConnectionConfigDto(
+                ConnectionType.Corrupted,
+                null, null, null, null));
+
+    [Fact]
+    public void NotDispatchFetchResourcesActionForCorruptedConnection()
+    {
+        // Arrange — corrupted connection passed directly to simulate a guard bypass
+        var corrupted = BuildCorruptedConnection();
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, [])
+            .Add(x => x.Connections, [corrupted]));
+
+        // Act
+        cut.Find(".mud-menu button").Click();
+        MudPopover.Find(".mud-menu-item:last-child").Click();
+
+        // Assert
+        MockDispatcher.Verify(x => x.Dispatch(It.IsAny<FetchResourcesAction>()), Times.Never);
+    }
+
     [Fact]
     public void ShowSavedConnectionsInMenu()
     {

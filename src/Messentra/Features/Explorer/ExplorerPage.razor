@@ -1,4 +1,5 @@
 @page "/explorer"
+@using Messentra.Domain
 @using Messentra.Features.Explorer.Resources.Components
 @using Messentra.Features.Explorer.Resources.Components.Details
 
@@ -13,7 +14,7 @@
         <FirstPanel>
             <NamespaceTree Resources="@_resourceSelector.TreeItems.Value"
                            ExpandedKeys="@_resourceSelector.ExpandedKeys.Value"
-                           Connections="@_connectionState.Value.Connections.ToList()"
+                           Connections="@_connectionState.Value.Connections.Where(c => c.ConnectionConfig.ConnectionType != ConnectionType.Corrupted).ToList()"
                            SelectedResource="@_resourceSelector.SelectedResource.Value"
                            SearchPhrase="@_resourceSelector.SearchPhrase.Value"/>
         </FirstPanel>

@@ -28,10 +28,25 @@ public record ConnectionConfigDto(
     {
         return ConnectionType switch
         {
-            ConnectionType.ConnectionString => ServiceBusConnectionStringProperties.Parse(ConnectionString)
-                .FullyQualifiedNamespace,
+            ConnectionType.ConnectionString => ParseNamespace(ConnectionString),
             ConnectionType.EntraId => Namespace!,
+            ConnectionType.Corrupted => string.Empty,
             _ => throw new ArgumentOutOfRangeException()
         };
+    }
+
+    private static string ParseNamespace(string? connectionString)
+    {
+        if (string.IsNullOrEmpty(connectionString))
+            return string.Empty;
+
+        try
+        {
+            return ServiceBusConnectionStringProperties.Parse(connectionString).FullyQualifiedNamespace;
+        }
+        catch (FormatException)
+        {
+            return connectionString;
+        }
     }
 }

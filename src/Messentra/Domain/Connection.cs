@@ -18,12 +18,16 @@ public record ConnectionConfig(
     
     public static ConnectionConfig CreateEntraId(string @namespace, string tenantId, string clientId) =>
         new(ConnectionType.EntraId, null, new EntraIdConfig(@namespace, tenantId, clientId));
+
+    public static ConnectionConfig CreateCorrupted() =>
+        new(ConnectionType.Corrupted, null, null);
 }
 
 public enum ConnectionType
 {
     ConnectionString,
-    EntraId
+    EntraId,
+    Corrupted = 99
 }
 
 public record ConnectionStringConfig(string ConnectionString);

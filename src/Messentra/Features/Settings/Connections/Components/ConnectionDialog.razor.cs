@@ -64,6 +64,9 @@ public partial class ConnectionDialog
                 _tenantId = ExistingConnection.ConnectionConfig.TenantId ?? string.Empty;
                 _clientId = ExistingConnection.ConnectionConfig.ClientId ?? string.Empty;
                 break;
+            case ConnectionType.Corrupted:
+                _selectedConnectionType = ConnectionType.ConnectionString;
+                break;
             default:
                 throw new ArgumentOutOfRangeException();
         }
