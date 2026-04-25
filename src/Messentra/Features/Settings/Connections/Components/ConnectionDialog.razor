@@ -36,7 +36,6 @@
                                       MaxLength="5000"
                                       Immediate="true"
                                       Validation="@(new Func<string, string?>(ValidateConnectionString))"
-                                      OnlyValidateIfDirty="true"
                                       Lines="3" />
                         break;
                     case ConnectionType.EntraId:

@@ -41,8 +41,11 @@ public partial class AddColumnDialog
         _appPropertyKey = string.Empty;
     }
 
-    private void OnBrokerKeyChanged(string key)
+    private void OnBrokerKeyChanged(string? key)
     {
+        if (key is null)
+            return;
+        
         _selectedBrokerKey = key;
         if (string.IsNullOrWhiteSpace(_title))
             _title = key;

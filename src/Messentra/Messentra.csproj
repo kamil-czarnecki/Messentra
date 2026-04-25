@@ -31,7 +31,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Azure.Identity" Version="1.17.1" />
+      <PackageReference Include="Azure.Identity" Version="1.21.0" />
       <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.20.1" />
       <PackageReference Include="ElectronNET.Core" Version="0.4.1" />
       <PackageReference Include="ElectronNET.Core.AspNet" Version="0.4.1" />
@@ -39,18 +39,18 @@
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
       <PackageReference Include="Fluxor.Blazor.Web" Version="6.9.0" />
       <PackageReference Include="Fluxor.Blazor.Web.ReduxDevTools" Version="6.9.0" />
-      <PackageReference Include="Mediator.Abstractions" Version="3.0.1" />
-      <PackageReference Include="Mediator.SourceGenerator" Version="3.0.1">
+      <PackageReference Include="Mediator.Abstractions" Version="3.0.2" />
+      <PackageReference Include="Mediator.SourceGenerator" Version="3.0.2">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.3" />
-      <PackageReference Include="Microsoft.Identity.Client" Version="4.82.1" />
-      <PackageReference Include="MudBlazor" Version="9.0.0" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.7" />
+      <PackageReference Include="Microsoft.Identity.Client" Version="4.83.3" />
+      <PackageReference Include="MudBlazor" Version="9.4.0" />
       <PackageReference Include="OneOf" Version="3.0.271" />
       <PackageReference Include="OneOf.SourceGenerator" Version="3.0.271">
           <PrivateAssets>all</PrivateAssets>

@@ -826,7 +826,7 @@ public partial class MessageGrid : IDisposable
         var orderedIds = _grid.RenderedColumns
             .Select(c => c.HeaderClass)
             .Where(h => h is not null && h.StartsWith("col-"))
-            .Select(h => h["col-".Length..])
+            .Select(h => h?["col-".Length..])
             .ToList();
 
         if (orderedIds.Count == 0)
