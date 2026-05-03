@@ -12,7 +12,7 @@ namespace Messentra.Features.Mcp.Tools;
 public sealed class ResourcesMcpTool(IMediator mediator, McpHelpers mcpHelpers)
 {
     [McpServerTool, Description(
-        "Returns queues and subscriptions with message counts. " +
+        "Returns queues and subscriptions with message counts, status, and DLQ settings (MaxDeliveryCount, DeadLetteringOnMessageExpiration, ForwardDeadLetteredMessagesTo). " +
         "If folderName is omitted, returns all resources in the namespace without duplicates. " +
         "nameFilter is a case-insensitive substring match. hasDlq restricts to resources with dead-letter messages.")]
     public async Task<object> ListResources(
@@ -45,7 +45,7 @@ public sealed class ResourcesMcpTool(IMediator mediator, McpHelpers mcpHelpers)
     }
 
     [McpServerTool, Description(
-        "Fetches live data for a single queue or subscription, updates the cache, and returns its ResourceSummary. " +
+        "Fetches live data for a single queue or subscription, updates the cache, and returns its full ResourceSummary including status and DLQ settings. " +
         "For a subscription, provide both resourceName (subscription name) and topicName.")]
     public async Task<object> GetResource(
         [Description("Connection name (case-insensitive)")] string connectionName,
@@ -73,22 +73,24 @@ public sealed class ResourcesMcpTool(IMediator mediator, McpHelpers mcpHelpers)
         [Description("Connection name (case-insensitive)")] string connectionName,
         [Description("Queue name, or subscription name when topicName is also provided")] string resourceName,
         [Description("Topic name — required when peeking a subscription")] string? topicName = null,
-        [Description("Subqueue to peek from: 'active' or 'dlq'")] string subqueue = "active",
+        [Description("Subqueue to peek from: 'active' or 'dlq'")] string subQueue = "dlq",
         [Description("Maximum number of messages to return (1–100)")] int maxMessages = 20,
         [Description("Sequence number to start from; omit to start from the beginning")] long? fromSequenceNumber = null,
         CancellationToken ct = default)
     {
         var connection = await mcpHelpers.ResolveConnection(connectionName, ct);
+        
         if (connection is null)
             return new McpError($"Connection '{connectionName}' not found.");
 
-        var sq = subqueue.Equals("dlq", StringComparison.OrdinalIgnoreCase)
+        var sq = subQueue.Equals("dlq", StringComparison.OrdinalIgnoreCase)
             ? SubQueue.DeadLetter
             : SubQueue.Active;
         var count = Math.Clamp(maxMessages, 1, 100);
 
         var result = await mediator.Send(
-            new PeekMessagesQuery(connection.Id, connection.ConnectionConfig, resourceName, topicName, sq, count, fromSequenceNumber), ct);
+            new PeekMessagesQuery(connection.Id, connection.ConnectionConfig, resourceName, topicName, sq, count, fromSequenceNumber),
+            ct);
 
         return result.Value;
     }
