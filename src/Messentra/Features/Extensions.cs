@@ -12,7 +12,7 @@ public static class Extensions
         {
             services.AddSingleton<ICacheClearConfirmationService, CacheClearConfirmationService>();
             services.AddSingleton<IApplicationLifecycleService, ApplicationLifecycleService>();
-            services.AddScoped<McpHelpers>();
+            services.AddScoped<IMcpHelpers, McpHelpers>();
         }
     }
     

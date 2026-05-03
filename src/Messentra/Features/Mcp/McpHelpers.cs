@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Messentra.Features.Mcp;
 
-public sealed class McpHelpers(IDbContextFactory<MessentraDbContext> contextFactory)
+public sealed class McpHelpers(IDbContextFactory<MessentraDbContext> contextFactory) : IMcpHelpers
 {
     public async Task<Connection?> ResolveConnection(string name, CancellationToken ct)
     {
