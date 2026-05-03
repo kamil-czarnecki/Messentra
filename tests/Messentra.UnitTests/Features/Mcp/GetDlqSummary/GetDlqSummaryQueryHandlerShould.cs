@@ -49,9 +49,9 @@ public sealed class GetDlqSummaryQueryHandlerShould
 
         var groups = result.AsT0.Groups;
         groups.Count.ShouldBe(2);
-        groups[0].DeadLetterReason.ShouldBe("MaxDeliveryCountExceeded");
+        groups[0].GroupKey["deadLetterReason"].ShouldBe("MaxDeliveryCountExceeded");
         groups[0].Count.ShouldBe(2);
-        groups[1].DeadLetterReason.ShouldBe("Expired");
+        groups[1].GroupKey["deadLetterReason"].ShouldBe("Expired");
         groups[1].Count.ShouldBe(1);
     }
 
@@ -68,9 +68,9 @@ public sealed class GetDlqSummaryQueryHandlerShould
         var result = await _sut.Handle(MakeQuery("orders"), CancellationToken.None);
 
         var groups = result.AsT0.Groups;
-        groups[0].DeadLetterReason.ShouldBe("Common");
-        groups[1].DeadLetterReason.ShouldBe("SomewhatCommon");
-        groups[2].DeadLetterReason.ShouldBe("Rare");
+        groups[0].GroupKey["deadLetterReason"].ShouldBe("Common");
+        groups[1].GroupKey["deadLetterReason"].ShouldBe("SomewhatCommon");
+        groups[2].GroupKey["deadLetterReason"].ShouldBe("Rare");
     }
 
     [Fact]
@@ -193,21 +193,59 @@ public sealed class GetDlqSummaryQueryHandlerShould
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task GroupByApplicationProperty_WhenGroupByIsSpecified()
+    {
+        _queueProvider.Setup(p => p.Get(It.IsAny<ConnectionInfo>(), It.IsAny<string>(), It.IsAny<FetchMessagesOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                MakeMessage(appProperties: new Dictionary<string, object> { ["PayloadTypeId"] = "OrderPlaced" }),
+                MakeMessage(appProperties: new Dictionary<string, object> { ["PayloadTypeId"] = "OrderPlaced" }),
+                MakeMessage(appProperties: new Dictionary<string, object> { ["PayloadTypeId"] = "OrderCancelled" })
+            ]);
+
+        var result = await _sut.Handle(MakeQuery("orders", groupBy: ["PayloadTypeId"]), CancellationToken.None);
+
+        var groups = result.AsT0.Groups;
+        groups.Count.ShouldBe(2);
+        groups[0].GroupKey["PayloadTypeId"].ShouldBe("OrderPlaced");
+        groups[0].Count.ShouldBe(2);
+        groups[1].GroupKey["PayloadTypeId"].ShouldBe("OrderCancelled");
+        groups[1].Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task GroupKeyContainsAllRequestedFields_WhenGroupByHasMultipleFields()
+    {
+        _queueProvider.Setup(p => p.Get(It.IsAny<ConnectionInfo>(), It.IsAny<string>(), It.IsAny<FetchMessagesOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                MakeMessage(deadLetterReason: "MaxDeliveryCountExceeded", appProperties: new Dictionary<string, object> { ["PayloadTypeId"] = "OrderPlaced" }),
+                MakeMessage(deadLetterReason: "MaxDeliveryCountExceeded", appProperties: new Dictionary<string, object> { ["PayloadTypeId"] = "OrderCancelled" })
+            ]);
+
+        var result = await _sut.Handle(MakeQuery("orders", groupBy: ["deadLetterReason", "PayloadTypeId"]), CancellationToken.None);
+
+        var groups = result.AsT0.Groups;
+        groups.Count.ShouldBe(2);
+        groups[0].GroupKey.Keys.ShouldBe(["deadLetterReason", "PayloadTypeId"], ignoreOrder: true);
+    }
+
     private static GetDlqSummaryQuery MakeQuery(
         string resourceName,
         string? topicName = null,
         int sampleSize = 200,
-        long? fromSequenceNumber = null)
+        long? fromSequenceNumber = null,
+        string[]? groupBy = null)
     {
         var config = ConnectionConfig.CreateConnectionString("Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=test");
-        return new GetDlqSummaryQuery(config, resourceName, topicName, sampleSize, fromSequenceNumber);
+        return new GetDlqSummaryQuery(config, resourceName, topicName, sampleSize, fromSequenceNumber, groupBy);
     }
 
     private static ServiceBusMessage MakeMessage(
         string? deadLetterReason = null,
         string? deadLetterErrorDescription = null,
         string body = "{}",
-        long sequenceNumber = 1)
+        long sequenceNumber = 1,
+        Dictionary<string, object>? appProperties = null)
         => new(
             new MessageDto(
                 Body: body,
@@ -230,6 +268,6 @@ public sealed class GetDlqSummaryQueryHandlerShould
                     ContentType: "application/json",
                     DeadLetterReason: deadLetterReason,
                     DeadLetterErrorDescription: deadLetterErrorDescription),
-                ApplicationProperties: new Dictionary<string, object>()),
+                ApplicationProperties: appProperties ?? new Dictionary<string, object>()),
             new Mock<IServiceBusMessageContext>().Object);
 }

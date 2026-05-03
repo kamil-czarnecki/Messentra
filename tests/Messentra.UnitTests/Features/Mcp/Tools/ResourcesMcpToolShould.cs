@@ -107,7 +107,7 @@ public sealed class ResourcesMcpToolShould
         _helpers.Setup(h => h.ResolveConnection("unknown", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Connection?)null);
 
-        var result = await _sut.GetResource("unknown", "orders");
+        var result = await _sut.GetResource("unknown", "orders", ct: TestContext.Current.CancellationToken);
 
         result.IsError.ShouldBeTrue();
         result.AsError.Message.ShouldContain("unknown");
@@ -123,7 +123,7 @@ public sealed class ResourcesMcpToolShould
         _mediator.Setup(m => m.Send(It.IsAny<GetResourceQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(handlerResult);
 
-        var result = await _sut.GetResource("prod", "orders");
+        var result = await _sut.GetResource("prod", "orders", ct: TestContext.Current.CancellationToken);
 
         result.IsError.ShouldBeFalse();
         result.AsSuccess.ShouldBe(summary);
@@ -139,7 +139,7 @@ public sealed class ResourcesMcpToolShould
         _mediator.Setup(m => m.Send(It.IsAny<GetResourceQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(handlerResult);
 
-        var result = await _sut.GetResource("prod", "missing");
+        var result = await _sut.GetResource("prod", "missing", ct: TestContext.Current.CancellationToken);
 
         result.IsError.ShouldBeTrue();
         result.AsError.Message.ShouldContain("missing");
@@ -153,7 +153,7 @@ public sealed class ResourcesMcpToolShould
         _helpers.Setup(h => h.ResolveConnection("unknown", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Connection?)null);
 
-        var result = await _sut.PeekMessages("unknown", "orders");
+        var result = await _sut.PeekMessages("unknown", "orders", ct: TestContext.Current.CancellationToken);
 
         result.IsError.ShouldBeTrue();
         result.AsError.Message.ShouldContain("unknown");
@@ -168,7 +168,7 @@ public sealed class ResourcesMcpToolShould
         _mediator.Setup(m => m.Send(It.IsAny<PeekMessagesQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(handlerResult);
 
-        await _sut.PeekMessages("prod", "orders", subQueue: "dlq");
+        await _sut.PeekMessages("prod", "orders", subQueue: "dlq", ct: TestContext.Current.CancellationToken);
 
         _mediator.Verify(m => m.Send(
             It.Is<PeekMessagesQuery>(q => q.Subqueue == SubQueue.DeadLetter),
@@ -184,7 +184,7 @@ public sealed class ResourcesMcpToolShould
         _mediator.Setup(m => m.Send(It.IsAny<PeekMessagesQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(handlerResult);
 
-        await _sut.PeekMessages("prod", "orders", subQueue: "active");
+        await _sut.PeekMessages("prod", "orders", subQueue: "active", ct: TestContext.Current.CancellationToken);
 
         _mediator.Verify(m => m.Send(
             It.Is<PeekMessagesQuery>(q => q.Subqueue == SubQueue.Active),
@@ -200,7 +200,7 @@ public sealed class ResourcesMcpToolShould
         _mediator.Setup(m => m.Send(It.IsAny<PeekMessagesQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(handlerResult);
 
-        await _sut.PeekMessages("prod", "orders", maxMessages: 999);
+        await _sut.PeekMessages("prod", "orders", maxMessages: 999, ct: TestContext.Current.CancellationToken);
 
         _mediator.Verify(m => m.Send(
             It.Is<PeekMessagesQuery>(q => q.MaxMessages == 100),
@@ -216,7 +216,7 @@ public sealed class ResourcesMcpToolShould
         _mediator.Setup(m => m.Send(It.IsAny<PeekMessagesQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(handlerResult);
 
-        var result = await _sut.PeekMessages("prod", "orders");
+        var result = await _sut.PeekMessages("prod", "orders", ct: TestContext.Current.CancellationToken);
 
         result.IsError.ShouldBeTrue();
     }
@@ -229,7 +229,7 @@ public sealed class ResourcesMcpToolShould
         _helpers.Setup(h => h.ResolveConnection("unknown", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Connection?)null);
 
-        var result = await _sut.GetDlqSummary("unknown", "orders");
+        var result = await _sut.GetDlqSummary("unknown", "orders", ct: TestContext.Current.CancellationToken);
 
         result.IsError.ShouldBeTrue();
         result.AsError.Message.ShouldContain("unknown");
@@ -244,7 +244,7 @@ public sealed class ResourcesMcpToolShould
         _mediator.Setup(m => m.Send(It.IsAny<GetDlqSummaryQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(handlerResult);
 
-        await _sut.GetDlqSummary("prod", "orders", sampleSize: 9999);
+        await _sut.GetDlqSummary("prod", "orders", sampleSize: 9999, ct: TestContext.Current.CancellationToken);
 
         _mediator.Verify(m => m.Send(
             It.Is<GetDlqSummaryQuery>(q => q.SampleSize == 2000),
@@ -255,13 +255,13 @@ public sealed class ResourcesMcpToolShould
     public async Task GetDlqSummary_ReturnsDlqSummary_OnSuccess()
     {
         var connection = MakeConnection();
-        var summary = new DlqSummaryResult(10, null, [new DlqReasonGroup("MaxDeliveryCountExceeded", null, 10, "{}")]);
+        var summary = new DlqSummaryResult(10, null, [new DlqReasonGroup(new Dictionary<string, string?> { ["deadLetterReason"] = "MaxDeliveryCountExceeded" }, 10, "{}")]);
         _helpers.Setup(h => h.ResolveConnection("prod", It.IsAny<CancellationToken>())).ReturnsAsync(connection);
         GetDlqSummaryQueryResult handlerResult = summary;
         _mediator.Setup(m => m.Send(It.IsAny<GetDlqSummaryQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(handlerResult);
 
-        var result = await _sut.GetDlqSummary("prod", "orders");
+        var result = await _sut.GetDlqSummary("prod", "orders", ct: TestContext.Current.CancellationToken);
 
         result.IsError.ShouldBeFalse();
         result.AsSuccess.ShouldBe(summary);
@@ -276,12 +276,12 @@ public sealed class ResourcesMcpToolShould
         _mediator.Setup(m => m.Send(It.IsAny<GetDlqSummaryQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(handlerResult);
 
-        var result = await _sut.GetDlqSummary("prod", "orders");
+        var result = await _sut.GetDlqSummary("prod", "orders", ct: TestContext.Current.CancellationToken);
 
         result.IsError.ShouldBeTrue();
     }
 
-    private static Connection MakeConnection(long id = 1) => new()
+    private static Connection MakeConnection() => new()
     {
         Name = "prod",
         ConnectionConfig = ConnectionConfig.CreateConnectionString(

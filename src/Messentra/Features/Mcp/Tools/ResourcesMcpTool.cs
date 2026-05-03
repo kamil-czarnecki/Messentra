@@ -113,8 +113,11 @@ public sealed class ResourcesMcpTool(IMediator mediator, IMcpHelpers mcpHelpers)
 
     [McpServerTool, Description(
         "Peeks up to sampleSize messages from the DLQ of a queue or subscription and returns a grouped breakdown " +
-        "of dead-letter reasons ordered by frequency. " +
-        "Use this to quickly identify why messages are failing without reading individual messages. " +
+        "ordered by frequency. Each group's key is returned as a dictionary of field name → value. " +
+        "Use groupBy to control which fields form the group key — supported broker properties: " +
+        "label/subject, deadLetterReason, deadLetterErrorDescription, correlationId, messageId, contentType, sessionId, to, replyTo. " +
+        "Any other name is matched against application properties (e.g. PayloadTypeId, EventType). " +
+        "Defaults to [deadLetterReason, deadLetterErrorDescription, label] when omitted. " +
         "SampledCount shows how many messages were inspected — the actual DLQ may contain more. " +
         "NextSequenceNumber is set when a full batch was returned; pass it as fromSequenceNumber to continue sampling. " +
         "For the total DLQ count, use GetResource or ListResources. For raw message content, use PeekMessages with subQueue='dlq'.")]
@@ -124,6 +127,7 @@ public sealed class ResourcesMcpTool(IMediator mediator, IMcpHelpers mcpHelpers)
         [Description("Topic name — required when targeting a subscription")] string? topicName = null,
         [Description("Number of DLQ messages to sample (1–2000)")] int sampleSize = 500,
         [Description("Sequence number to continue from; omit to start from the beginning")] long? fromSequenceNumber = null,
+        [Description("Fields to group by (broker property names or application property keys). Defaults to [deadLetterReason, deadLetterErrorDescription, label].")] string[]? groupBy = null,
         CancellationToken ct = default)
     {
         var connection = await mcpHelpers.ResolveConnection(connectionName, ct);
@@ -133,7 +137,7 @@ public sealed class ResourcesMcpTool(IMediator mediator, IMcpHelpers mcpHelpers)
 
         var count = Math.Clamp(sampleSize, 1, 2000);
         var result = await mediator.Send(
-            new GetDlqSummaryQuery(connection.ConnectionConfig, resourceName, topicName, count, fromSequenceNumber), ct);
+            new GetDlqSummaryQuery(connection.ConnectionConfig, resourceName, topicName, count, fromSequenceNumber, groupBy), ct);
 
         return result.Match<McpToolResult<DlqSummaryResult>>(
             r => r,

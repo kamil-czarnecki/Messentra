@@ -1,7 +1,6 @@
 namespace Messentra.Features.Mcp.GetDlqSummary;
 
 public sealed record DlqReasonGroup(
-    string? DeadLetterReason,
-    string? DeadLetterErrorDescription,
+    IReadOnlyDictionary<string, string?> GroupKey,
     int Count,
     string SampleBody);

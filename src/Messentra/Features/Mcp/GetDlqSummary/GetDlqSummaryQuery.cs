@@ -8,4 +8,5 @@ public sealed record GetDlqSummaryQuery(
     string ResourceName,
     string? TopicName,
     int SampleSize,
-    long? FromSequenceNumber) : IQuery<GetDlqSummaryQueryResult>;
+    long? FromSequenceNumber,
+    IReadOnlyList<string>? GroupBy = null) : IQuery<GetDlqSummaryQueryResult>;
