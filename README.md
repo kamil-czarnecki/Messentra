@@ -94,6 +94,20 @@ Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;Share
 
 The port in `Endpoint` (e.g. `:5300`) is required for emulator management operations. Supported: viewing resources, sending messages, fetching messages. Active and dead-letter message counts are not available with the emulator.
 
+### 🤖 MCP Server
+Messentra exposes a **Model Context Protocol server** so AI agents and tools (e.g. Claude, GitHub Copilot, Cursor) can query your Azure Service Bus namespaces directly. Enable it in **Settings → MCP** — the endpoint URL is shown there and can be copied with one click.
+
+> **Note:** All tools are currently read-only (peek only, no message settlement or sending).
+
+| Tool | Description |
+|------|-------------|
+| `ListConnections` | Returns all saved connections with their namespace. Call this first — all other tools require a connection name. |
+| `ListFolders` | Returns all user-defined folders for a connection. Use to discover available folders before scoping `ListResources`. |
+| `ListResources` | Lists queues and subscriptions with message counts, status, and DLQ settings. Supports optional folder filter, name substring filter, and `hasDlq` to restrict to resources with dead-letter messages. Results are served from a 5-minute cache. |
+| `GetResource` | Fetches live data for a single queue or subscription, bypassing the cache. Use when accurate current counts are needed. For a subscription, provide both `resourceName` and `topicName`. |
+| `PeekMessages` | Peeks messages from the active or dead-letter subqueue without consuming them. Supports pagination via `fromSequenceNumber`. Returns up to 100 messages per call. |
+| `GetDlqSummary` | Samples up to 2 000 DLQ messages and returns a grouped frequency breakdown. Group key fields are configurable (broker properties or application property keys). Supports pagination to continue sampling across large DLQs. |
+
 ### Other
 - **Activity Log** - persistent panel at the bottom showing connection and fetch events across all namespaces
 - **Dark Mode** - built-in dark theme
