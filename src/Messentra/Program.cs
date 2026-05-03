@@ -36,8 +36,13 @@ LoggingConfiguration.ConfigureLogging(builder.Host);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddMcpServer()
+    .WithHttpTransport(opts => opts.Stateless = true)
+    .WithToolsFromAssembly();
+
 builder.Services.AddElectron();
 builder.Services.AddMudServices();
+builder.Services.AddMemoryCache();
 builder.Services.AddFluxor(x =>
 {
     x.ScanAssemblies(typeof(Program).Assembly);
@@ -156,6 +161,14 @@ using (var scope = app.Services.CreateScope())
     await dbContext.Database.MigrateAsync();
 }
 
+bool isMcpEnabled;
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<MessentraDbContext>();
+    var settings = await dbContext.Set<Messentra.Domain.UserSettings>().AsNoTracking().FirstOrDefaultAsync();
+    isMcpEnabled = settings?.IsMcpEnabled ?? false;
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -171,6 +184,8 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+if (isMcpEnabled)
+    app.MapMcp("mcp");
 
 try
 {

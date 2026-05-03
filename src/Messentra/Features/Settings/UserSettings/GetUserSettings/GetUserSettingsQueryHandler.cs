@@ -14,7 +14,7 @@ public sealed class GetUserSettingsQueryHandler(MessentraDbContext db)
             .FirstOrDefaultAsync(cancellationToken);
 
         return settings is null
-            ? new UserSettingsDto(IsDarkMode: false)
-            : new UserSettingsDto(IsDarkMode: settings.IsDarkMode);
+            ? new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: false)
+            : new UserSettingsDto(IsDarkMode: settings.IsDarkMode, IsMcpEnabled: settings.IsMcpEnabled);
     }
 }

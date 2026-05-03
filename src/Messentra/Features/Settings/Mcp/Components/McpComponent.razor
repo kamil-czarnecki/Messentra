@@ -1,0 +1,40 @@
+<div>
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudStack Spacing="4">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h5">MCP Server</MudText>
+                <MudSwitch T="bool"
+                           Value="_isMcpEnabled"
+                           ValueChanged="OnToggled"
+                           Color="Color.Primary"
+                           Label="@(_isMcpEnabled ? "Enabled" : "Disabled")" />
+            </MudStack>
+
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Exposes tools for AI assistants (Claude, Cursor, etc.) via the Model Context Protocol.
+                Only read-only actions are currently available. Changes take effect after restarting the application.
+            </MudText>
+
+            @if (_isMcpEnabled)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudText Typo="Typo.body2">Endpoint:</MudText>
+                    <code>@McpEndpoint</code>
+                    <MudTooltip Text="@(_copied ? "Copied!" : "Copy")">
+                        <MudIconButton Icon="@(_copied ? Icons.Material.Filled.Check : Icons.Material.Outlined.ContentCopy)"
+                                       Size="Size.Small"
+                                       Color="@(_copied ? Color.Success : Color.Default)"
+                                       OnClick="CopyEndpoint" />
+                    </MudTooltip>
+                </MudStack>
+            }
+
+            @if (_saved)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    Setting saved. Restart the application to apply the change.
+                </MudAlert>
+            }
+        </MudStack>
+    </MudPaper>
+</div>
