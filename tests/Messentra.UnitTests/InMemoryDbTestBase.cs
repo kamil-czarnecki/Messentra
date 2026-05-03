@@ -42,6 +42,42 @@ public abstract class InMemoryDbTestBase : IDisposable
         return connection;
     }
 
+    protected async Task<Connection> SeedConnectionAsync(string name, string connectionString)
+    {
+        var connection = new Connection
+        {
+            Name = name,
+            ConnectionConfig = ConnectionConfig.CreateConnectionString(connectionString)
+        };
+        await DbContext.Set<Connection>().AddAsync(connection);
+        await DbContext.SaveChangesAsync();
+        return connection;
+    }
+
+    protected async Task<Connection> SeedConnectionAsync(string name, string entraIdNamespace, string tenantId = "tenant-id", string clientId = "client-id")
+    {
+        var connection = new Connection
+        {
+            Name = name,
+            ConnectionConfig = ConnectionConfig.CreateEntraId(entraIdNamespace, tenantId, clientId)
+        };
+        await DbContext.Set<Connection>().AddAsync(connection);
+        await DbContext.SaveChangesAsync();
+        return connection;
+    }
+
+    protected async Task<Connection> SeedCorruptedConnectionAsync(string name)
+    {
+        var connection = new Connection
+        {
+            Name = name,
+            ConnectionConfig = ConnectionConfig.CreateCorrupted()
+        };
+        await DbContext.Set<Connection>().AddAsync(connection);
+        await DbContext.SaveChangesAsync();
+        return connection;
+    }
+
     public void Dispose()
     {
         DbContext.Dispose();

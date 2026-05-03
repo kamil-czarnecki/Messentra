@@ -36,8 +36,13 @@ LoggingConfiguration.ConfigureLogging(builder.Host);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddMcpServer()
+    .WithHttpTransport(opts => opts.Stateless = true)
+    .WithToolsFromAssembly();
+
 builder.Services.AddElectron();
 builder.Services.AddMudServices();
+builder.Services.AddMemoryCache();
 builder.Services.AddFluxor(x =>
 {
     x.ScanAssemblies(typeof(Program).Assembly);
@@ -171,6 +176,7 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+app.MapMcp("mcp");
 
 try
 {
