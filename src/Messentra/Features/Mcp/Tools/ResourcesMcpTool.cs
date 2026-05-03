@@ -93,6 +93,10 @@ public sealed class ResourcesMcpTool(IMediator mediator, IMcpHelpers mcpHelpers)
         if (connection is null)
             return new McpError($"Connection '{connectionName}' not found.");
 
+        if (!subQueue.Equals("active", StringComparison.OrdinalIgnoreCase) &&
+            !subQueue.Equals("dlq", StringComparison.OrdinalIgnoreCase))
+            return new McpError($"Invalid subQueue '{subQueue}'. Accepted values are 'active' or 'dlq'.");
+
         var sq = subQueue.Equals("dlq", StringComparison.OrdinalIgnoreCase)
             ? SubQueue.DeadLetter
             : SubQueue.Active;

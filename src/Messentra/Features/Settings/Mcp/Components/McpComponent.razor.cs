@@ -23,14 +23,7 @@ public partial class McpComponent
         _js = js;
     }
 
-    private string McpEndpoint
-    {
-        get
-        {
-            var port = new Uri(_navigation.BaseUri).Port;
-            return $"http://localhost:{port}/mcp";
-        }
-    }
+    private string McpEndpoint => $"{_navigation.BaseUri}/mcp";
 
     protected override async Task OnInitializedAsync()
     {

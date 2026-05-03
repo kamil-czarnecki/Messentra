@@ -9,22 +9,24 @@ public sealed class McpHelpers(IDbContextFactory<MessentraDbContext> contextFact
     public async Task<Connection?> ResolveConnection(string name, CancellationToken ct)
     {
         await using var ctx = await contextFactory.CreateDbContextAsync(ct);
-        var connections = await ctx.Set<Connection>().AsNoTracking().ToListAsync(ct);
-        
-        return connections.FirstOrDefault(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        return await ctx
+            .Set<Connection>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Name == name, ct);
     }
 
     public async Task<IReadOnlySet<string>?> ResolveFolderResourceUrls(
         long connectionId, string folderName, CancellationToken ct)
     {
         await using var ctx = await contextFactory.CreateDbContextAsync(ct);
-        var folders = await ctx.Set<Folder>()
+        var folder = await ctx
+            .Set<Folder>()
             .AsNoTracking()
             .Include(f => f.Resources)
-            .Where(f => f.ConnectionId == connectionId)
-            .ToListAsync(ct);
-        var folder = folders.FirstOrDefault(f => f.Name.Equals(folderName, StringComparison.OrdinalIgnoreCase));
-        
+            .FirstOrDefaultAsync(
+                f => f.ConnectionId == connectionId && EF.Functions.Collate(f.Name, "NOCASE") == folderName,
+                ct);
+
         return folder?.Resources.Select(r => r.ResourceUrl).ToHashSet();
     }
 }
