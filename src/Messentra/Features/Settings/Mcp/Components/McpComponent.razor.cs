@@ -23,7 +23,7 @@ public partial class McpComponent
         _js = js;
     }
 
-    private string McpEndpoint => $"{_navigation.BaseUri}/mcp";
+    private string McpEndpoint => _navigation.ToAbsoluteUri("mcp").ToString();
 
     protected override async Task OnInitializedAsync()
     {

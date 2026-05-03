@@ -37,7 +37,9 @@ public sealed class GetDlqSummaryQueryHandler(
                 ? messages.Last().Message.BrokerProperties.SequenceNumber + 1
                 : (long?)null;
 
-            var effectiveGroupBy = query.GroupBy is { Count: > 0 } gb ? gb : DefaultGroupBy;
+            var effectiveGroupBy = query.GroupBy is { Count: > 0 } gb
+                ? gb.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                : DefaultGroupBy;
 
             var groups = messages
                 .GroupBy(
