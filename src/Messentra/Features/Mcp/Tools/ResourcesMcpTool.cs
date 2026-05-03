@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using Mediator;
+using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Mcp.GetResource;
 using Messentra.Features.Mcp.ListResources;
+using Messentra.Features.Mcp.PeekMessages;
 using ModelContextProtocol.Server;
 
 namespace Messentra.Features.Mcp.Tools;
@@ -60,6 +62,34 @@ public sealed class ResourcesMcpTool(IMediator mediator, McpHelpers mcpHelpers)
             new GetResourceQuery(connection.Id, connection.ConnectionConfig, resourceName, topicName),
             ct);
         
+        return result.Value;
+    }
+
+    [McpServerTool, Description(
+        "Peeks messages from a queue or subscription without consuming them. " +
+        "Supports active and dead-letter subqueues. " +
+        "Returns messages and a nextSequenceNumber for pagination — pass it as fromSequenceNumber to fetch the next batch.")]
+    public async Task<object> PeekMessages(
+        [Description("Connection name (case-insensitive)")] string connectionName,
+        [Description("Queue name, or subscription name when topicName is also provided")] string resourceName,
+        [Description("Topic name — required when peeking a subscription")] string? topicName = null,
+        [Description("Subqueue to peek from: 'active' or 'dlq'")] string subqueue = "active",
+        [Description("Maximum number of messages to return (1–100)")] int maxMessages = 20,
+        [Description("Sequence number to start from; omit to start from the beginning")] long? fromSequenceNumber = null,
+        CancellationToken ct = default)
+    {
+        var connection = await mcpHelpers.ResolveConnection(connectionName, ct);
+        if (connection is null)
+            return new McpError($"Connection '{connectionName}' not found.");
+
+        var sq = subqueue.Equals("dlq", StringComparison.OrdinalIgnoreCase)
+            ? SubQueue.DeadLetter
+            : SubQueue.Active;
+        var count = Math.Clamp(maxMessages, 1, 100);
+
+        var result = await mediator.Send(
+            new PeekMessagesQuery(connection.Id, connection.ConnectionConfig, resourceName, topicName, sq, count, fromSequenceNumber), ct);
+
         return result.Value;
     }
 }
