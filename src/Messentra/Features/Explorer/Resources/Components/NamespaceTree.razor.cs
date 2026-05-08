@@ -7,11 +7,12 @@ using Messentra.Features.Settings.Connections.GetConnections;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using MudBlazor;
 
 namespace Messentra.Features.Explorer.Resources.Components;
 
-public partial class NamespaceTree
+public partial class NamespaceTree : IAsyncDisposable
 {
     private bool _isFocused;
     private bool _reopenAutocomplete;
@@ -37,6 +38,14 @@ public partial class NamespaceTree
     private Dictionary<string, List<FolderTreeNode>> _foldersByConnection = [];
     private List<ResourceTreeItemData>? _lastFolderResources;
 
+    private readonly IJSRuntime _jsRuntime;
+    private readonly ILogger<NamespaceTree> _logger;
+    private IJSObjectReference? _jsModule;
+    private DotNetObjectReference<NamespaceTree>? _dotNetRef;
+    private ElementReference _treeScrollEl;
+    private string? _stickyNamespace;
+    private HashSet<string> _lastFilteredNamespaceKeys = [];
+
     protected override void OnParametersSet()
     {
         base.OnParametersSet();
@@ -57,11 +66,13 @@ public partial class NamespaceTree
     private readonly IDispatcher _dispatcher;
     private readonly IDialogService _dialogService;
 
-    public NamespaceTree(NavigationManager navigationManager, IDispatcher dispatcher, IDialogService dialogService)
+    public NamespaceTree(NavigationManager navigationManager, IDispatcher dispatcher, IDialogService dialogService, IJSRuntime jsRuntime, ILogger<NamespaceTree> logger)
     {
         _navigationManager = navigationManager;
         _dispatcher = dispatcher;
         _dialogService = dialogService;
+        _jsRuntime = jsRuntime;
+        _logger = logger;
     }
 
     private bool IsSelected(ResourceTreeNode? node) =>
@@ -494,6 +505,30 @@ public partial class NamespaceTree
             _reopenAutocomplete = false;
             await _autocomplete.OpenMenuAsync();
         }
+
+        if (firstRender)
+        {
+            try
+            {
+                _dotNetRef = DotNetObjectReference.Create(this);
+                _jsModule = await _jsRuntime.InvokeAsync<IJSObjectReference>("import", "./namespace-sticky.js");
+                await ObserveNamespaceKeysAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to initialise namespace-sticky JS module. Sticky namespace header will be unavailable.");
+            }
+            return;
+        }
+
+        var currentKeys = FilteredResources
+            .Select(r => r.Value)
+            .OfType<NamespaceTreeNode>()
+            .Select(n => n.ConnectionName)
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (_jsModule is not null && !currentKeys.SetEquals(_lastFilteredNamespaceKeys))
+            await ObserveNamespaceKeysAsync();
     }
 
     private Task<IEnumerable<string>> SuggestSearchPhrases(string? value, CancellationToken ct) =>
@@ -537,5 +572,48 @@ public partial class NamespaceTree
         return presenter.ParentFolderNode is null
             ? baseKey
             : $"{baseKey}|folder:{presenter.ParentFolderNode.ConnectionName}:{presenter.ParentFolderNode.FolderId}";
+    }
+
+    private async Task ObserveNamespaceKeysAsync()
+    {
+        if (_jsModule is null || _dotNetRef is null) return;
+        _lastFilteredNamespaceKeys = FilteredResources
+            .Select(r => r.Value)
+            .OfType<NamespaceTreeNode>()
+            .Select(n => n.ConnectionName)
+            .ToHashSet(StringComparer.Ordinal);
+        try
+        {
+            await _jsModule.InvokeVoidAsync("observe", _treeScrollEl, _dotNetRef);
+        }
+        catch { }
+    }
+
+    [JSInvokable]
+    public void SetStickyNamespace(string? connectionName)
+    {
+        _stickyNamespace = connectionName;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ScrollToNamespace(string connectionName)
+    {
+        if (_jsModule is null) return;
+        try
+        {
+            await _jsModule.InvokeVoidAsync("scrollToNamespace", _treeScrollEl, connectionName);
+        }
+        catch { }
+    }
+
+    public new async ValueTask DisposeAsync()
+    {
+        if (_jsModule is not null)
+        {
+            try { await _jsModule.InvokeVoidAsync("dispose"); } catch { }
+            await _jsModule.DisposeAsync();
+        }
+        _dotNetRef?.Dispose();
+        await base.DisposeAsync();
     }
 }

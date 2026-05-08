@@ -1,0 +1,8 @@
+@if (Namespace is not null)
+{
+    <div class="sticky-namespace-header" @onclick="@HandleClick">
+        <MudIcon Icon="@Icons.Material.Filled.Cloud" Size="Size.Small" Color="Color.Primary" />
+        <MudText Typo="Typo.caption" Class="flex-grow-1 sticky-ns-text">@Namespace</MudText>
+        <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowUp" Size="Size.Small"/>
+    </div>
+}

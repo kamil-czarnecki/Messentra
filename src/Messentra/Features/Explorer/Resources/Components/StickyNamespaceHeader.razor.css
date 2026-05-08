@@ -1,0 +1,25 @@
+.sticky-namespace-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--mud-palette-divider);
+    background: var(--mud-palette-surface);
+    min-height: 28px;
+    flex-shrink: 0;
+    flex-grow: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.sticky-namespace-header:hover {
+    background: var(--mud-palette-action-default-hover);
+}
+
+::deep .sticky-ns-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
