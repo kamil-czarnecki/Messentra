@@ -1,41 +1,46 @@
-let observer = null;
+let elements = [];
 let dotNetRef = null;
-const elementStates = new Map();
+let currentStickyKey = undefined;
+let scrollHandler = null;
+let treeScrollRoot = null;
 
 export function observe(treeScrollEl, dotNet) {
-    if (observer) {
-        observer.disconnect();
-        elementStates.clear();
-    }
+    dispose();
     dotNetRef = dotNet;
+    treeScrollRoot = treeScrollEl;
+    elements = [...treeScrollEl.querySelectorAll('[data-namespace-key]')];
 
-    observer = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-            const aboveFold =
-                !entry.isIntersecting &&
-                entry.rootBounds != null &&
-                entry.boundingClientRect.top < entry.rootBounds.top;
-            elementStates.set(entry.target, {
-                key: entry.target.dataset.namespaceKey,
-                aboveFold,
-                top: entry.boundingClientRect.top
+    let ticking = false;
+    scrollHandler = () => {
+        if (!ticking) {
+            ticking = true;
+            requestAnimationFrame(() => {
+                updateSticky();
+                ticking = false;
             });
         }
+    };
+    treeScrollEl.addEventListener('scroll', scrollHandler, { passive: true });
+    updateSticky();
+}
 
-        let stickyKey = null;
-        let highestTop = -Infinity;
-        for (const [, state] of elementStates) {
-            if (state.aboveFold && state.top > highestTop) {
-                highestTop = state.top;
-                stickyKey = state.key;
-            }
+function updateSticky() {
+    if (!treeScrollRoot || !dotNetRef) return;
+    const rootTop = treeScrollRoot.getBoundingClientRect().top;
+    let stickyKey = null;
+    let highestTop = -Infinity;
+
+    for (const el of elements) {
+        const top = el.getBoundingClientRect().top;
+        if (top < rootTop && top >= highestTop) {
+            highestTop = top;
+            stickyKey = el.dataset.namespaceKey;
         }
+    }
 
-        dotNetRef?.invokeMethodAsync('SetStickyNamespace', stickyKey).catch(() => {});
-    }, { root: treeScrollEl, threshold: 0 });
-
-    for (const el of treeScrollEl.querySelectorAll('[data-namespace-key]')) {
-        observer.observe(el);
+    if (stickyKey !== currentStickyKey) {
+        currentStickyKey = stickyKey;
+        dotNetRef.invokeMethodAsync('SetStickyNamespace', stickyKey).catch(() => {});
     }
 }
 
@@ -45,8 +50,12 @@ export function scrollToNamespace(treeScrollEl, key) {
 }
 
 export function dispose() {
-    observer?.disconnect();
-    observer = null;
+    if (scrollHandler && treeScrollRoot) {
+        treeScrollRoot.removeEventListener('scroll', scrollHandler);
+    }
+    scrollHandler = null;
     dotNetRef = null;
-    elementStates.clear();
+    currentStickyKey = undefined;
+    elements = [];
+    treeScrollRoot = null;
 }
