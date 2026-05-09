@@ -23,6 +23,8 @@ public partial class NamespaceTree : IAsyncDisposable
     [Parameter, EditorRequired]
     public List<ConnectionDto> Connections { get; init; } = [];
     [Parameter]
+    public bool Loading { get; init; }
+    [Parameter]
     public ResourceTreeNode? SelectedResource { get; init; }
     [Parameter]
     public HashSet<string> ExpandedKeys { get; init; } = [];

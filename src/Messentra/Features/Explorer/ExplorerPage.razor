@@ -16,7 +16,8 @@
                            ExpandedKeys="@_resourceSelector.ExpandedKeys.Value"
                            Connections="@_connectionState.Value.Connections.Where(c => c.ConnectionConfig.ConnectionType != ConnectionType.Corrupted).ToList()"
                            SelectedResource="@_resourceSelector.SelectedResource.Value"
-                           SearchPhrase="@_resourceSelector.SearchPhrase.Value"/>
+                           SearchPhrase="@_resourceSelector.SearchPhrase.Value"
+                           Loading="@(!_treeReady)"/>
         </FirstPanel>
         <SecondPanel>
             <ResourceDetails SelectedResource="@_resourceSelector.SelectedResource.Value"/>

@@ -8,6 +8,7 @@ public partial class ExplorerPage : IDisposable
 {
     private readonly ResourceSelector _resourceSelector;
     private readonly IState<ConnectionState> _connectionState;
+    private bool _treeReady;
 
     public ExplorerPage(ResourceSelector resourceSelector, IState<ConnectionState> connectionState)
     {
@@ -15,13 +16,18 @@ public partial class ExplorerPage : IDisposable
         _connectionState = connectionState;
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        base.OnInitialized();
-        _resourceSelector.TreeItems.SelectedValueChanged += OnStateChanged;
-        _resourceSelector.SelectedResource.SelectedValueChanged += OnStateChanged;
-        _resourceSelector.SearchPhrase.SelectedValueChanged += OnStateChanged;
-        _resourceSelector.ExpandedKeys.SelectedValueChanged += OnStateChanged;
+        if (firstRender)
+        {
+            _resourceSelector.TreeItems.SelectedValueChanged += OnStateChanged;
+            _resourceSelector.SelectedResource.SelectedValueChanged += OnStateChanged;
+            _resourceSelector.SearchPhrase.SelectedValueChanged += OnStateChanged;
+            _resourceSelector.ExpandedKeys.SelectedValueChanged += OnStateChanged;
+            
+            _treeReady = true;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private void OnStateChanged<T>(object? sender, T _) => InvokeAsync(StateHasChanged);
