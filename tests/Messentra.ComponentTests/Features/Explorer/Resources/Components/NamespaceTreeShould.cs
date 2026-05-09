@@ -50,7 +50,7 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     [Fact]
     public void NotDispatchFetchResourcesActionForCorruptedConnection()
     {
-        // Arrange — corrupted connection passed directly to simulate a guard bypass
+        // Arrange
         var corrupted = BuildCorruptedConnection();
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, [])
@@ -264,10 +264,10 @@ public sealed class NamespaceTreeShould : ComponentTestBase
 
         var autocomplete = cut.FindComponent<MudAutocomplete<string>>();
 
-        // Act – simulate selecting a keyword suggestion (ValueChanged fires with "folders:")
+        // Act
         await cut.InvokeAsync(() => autocomplete.Instance.ValueChanged.InvokeAsync("folders:"));
 
-        // Assert – autocomplete menu is open after the next render cycle
+        // Assert
         cut.WaitForAssertion(() => autocomplete.Instance.Open.ShouldBeTrue());
     }
 
@@ -616,7 +616,7 @@ public sealed class NamespaceTreeShould : ComponentTestBase
             .Add(x => x.Connections, [])
             .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
 
-        // Act - filter then clear
+        // Act
         cut.Find("input").Input("queue2");
         cut.WaitForAssertion(() => cut.Markup.ShouldNotContain("queue1"));
 
@@ -1028,7 +1028,7 @@ public sealed class NamespaceTreeShould : ComponentTestBase
     [Fact]
     public void OnParametersSet_WhenSearchPhraseChangesExternally_SyncsLocalPhrase()
     {
-        // Arrange — render with an initial phrase
+        // Arrange
         var cut = Render<NamespaceTree>(p => p
             .Add(x => x.Resources, BuildNamespaceTree(["queue1", "queue2"]))
             .Add(x => x.Connections, [])
@@ -1045,5 +1045,40 @@ public sealed class NamespaceTreeShould : ComponentTestBase
         // Assert
         cut.Markup.ShouldContain("queue1");
         cut.Markup.ShouldContain("queue2");
+    }
+
+    [Fact]
+    public async Task ShowStickyHeaderWhenSetStickyNamespaceIsInvoked()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
+
+        // Act
+        await cut.InvokeAsync(() => cut.Instance.SetStickyNamespace("TestNamespace"));
+
+        // Assert
+        cut.Find(".sticky-namespace-header").TextContent.ShouldContain("TestNamespace");
+    }
+
+    [Fact]
+    public async Task HideStickyHeaderWhenSetStickyNamespaceIsCalledWithNull()
+    {
+        // Arrange
+        var cut = Render<NamespaceTree>(p => p
+            .Add(x => x.Resources, BuildRefreshableNamespaceTree(["queue1"]))
+            .Add(x => x.Connections, [])
+            .Add(x => x.ExpandedKeys, DefaultExpandedKeys()));
+
+        await cut.InvokeAsync(() => cut.Instance.SetStickyNamespace("TestNamespace"));
+        cut.Find(".sticky-namespace-header").ShouldNotBeNull();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Instance.SetStickyNamespace(null));
+
+        // Assert
+        cut.FindAll(".sticky-namespace-header").ShouldBeEmpty();
     }
 }

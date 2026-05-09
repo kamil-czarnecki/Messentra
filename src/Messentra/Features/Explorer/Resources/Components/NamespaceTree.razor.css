@@ -92,3 +92,7 @@
     height: 100%;
 }
 
+.namespace-tree-scroll {
+    overflow-y: auto;
+}
+
