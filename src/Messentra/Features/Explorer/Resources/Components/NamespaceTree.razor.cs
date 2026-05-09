@@ -586,7 +586,10 @@ public partial class NamespaceTree : IAsyncDisposable
         {
             await _jsModule.InvokeVoidAsync("observe", _treeScrollEl, _dotNetRef);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to observe namespace keys in sticky JS module.");
+        }
     }
 
     [JSInvokable]
@@ -603,16 +606,28 @@ public partial class NamespaceTree : IAsyncDisposable
         {
             await _jsModule.InvokeVoidAsync("scrollToNamespace", _treeScrollEl, connectionName);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to scroll to namespace '{ConnectionName}'.", connectionName);
+        }
     }
 
     public new async ValueTask DisposeAsync()
     {
         if (_jsModule is not null)
         {
-            try { await _jsModule.InvokeVoidAsync("dispose"); } catch { }
+            try
+            {
+                await _jsModule.InvokeVoidAsync("dispose");
+            }
+            catch
+            {
+                // ignored
+            }
+
             await _jsModule.DisposeAsync();
         }
+        
         _dotNetRef?.Dispose();
         await base.DisposeAsync();
     }
