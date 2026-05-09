@@ -95,13 +95,21 @@ Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;Share
 The port in `Endpoint` (e.g. `:5300`) is required for emulator management operations. Supported: viewing resources, sending messages, fetching messages. Active and dead-letter message counts are not available with the emulator.
 
 ### 🤖 MCP Server
-Messentra exposes a **Model Context Protocol server** so AI agents and tools (e.g. Claude, GitHub Copilot, Cursor) can query your Azure Service Bus namespaces directly. Enable it in **Settings → MCP** — the endpoint URL is shown there and can be copied with one click.
+Messentra exposes a **Model Context Protocol server** so AI agents and tools (e.g. Claude, GitHub Copilot, Cursor) can query and manage your Azure Service Bus namespaces directly. Enable it in **Settings → MCP** — the endpoint URL is shown there and can be copied with one click.
 
-> **Note:** All tools are currently read-only (peek only, no message settlement or sending).
+**Connection management**
 
 | Tool | Description |
 |------|-------------|
 | `ListConnections` | Returns all saved connections with their namespace. Call this first — all other tools require a connection name. |
+| `AddConnection` | Adds a new connection. `connectionType` must be `ConnectionString` or `EntraId`. For `EntraId`, all three of `namespace`, `tenantId`, and `clientId` are required. |
+| `UpdateConnection` | Updates an existing connection by its current name. Supports renaming — pass `newName` equal to `connectionName` to update config only. For `EntraId`, all three of `namespace`, `tenantId`, and `clientId` are required. |
+| `DeleteConnection` | Deletes a connection by name. This action is irreversible. |
+
+**Namespace exploration**
+
+| Tool | Description |
+|------|-------------|
 | `ListFolders` | Returns all user-defined folders for a connection. Use to discover available folders before scoping `ListResources`. |
 | `ListResources` | Lists queues and subscriptions with message counts, status, and DLQ settings. Supports optional folder filter, name substring filter, and `hasDlq` to restrict to resources with dead-letter messages. Results are served from a 5-minute cache. |
 | `GetResource` | Fetches live data for a single queue or subscription, bypassing the cache. Use when accurate current counts are needed. For a subscription, provide both `resourceName` and `topicName`. |
