@@ -15,7 +15,7 @@ public sealed class McpComponentShould : ComponentTestBase
     {
         MockMediator
             .Setup(m => m.Send(It.IsAny<GetUserSettingsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: false));
+            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: false, DefaultMessageCount: 100));
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed class McpComponentShould : ComponentTestBase
     {
         MockMediator
             .Setup(m => m.Send(It.IsAny<GetUserSettingsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: true));
+            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: true, DefaultMessageCount: 100));
 
         var cut = Render<McpComponent>();
 
@@ -71,7 +71,7 @@ public sealed class McpComponentShould : ComponentTestBase
     {
         MockMediator
             .Setup(m => m.Send(It.IsAny<GetUserSettingsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: true));
+            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: true, DefaultMessageCount: 100));
 
         var cut = Render<McpComponent>();
 
@@ -106,7 +106,7 @@ public sealed class McpComponentShould : ComponentTestBase
     {
         MockMediator
             .Setup(m => m.Send(It.IsAny<GetUserSettingsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: true));
+            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: true, DefaultMessageCount: 100));
 
         var cut = Render<McpComponent>();
         var copyButton = cut.FindComponent<MudIconButton>();
@@ -123,7 +123,7 @@ public sealed class McpComponentShould : ComponentTestBase
     {
         MockMediator
             .Setup(m => m.Send(It.IsAny<GetUserSettingsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: true));
+            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: true, DefaultMessageCount: 100));
 
         var cut = Render<McpComponent>();
         var copyButton = cut.FindComponent<MudIconButton>();

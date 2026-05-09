@@ -2,6 +2,7 @@ using Bunit;
 using Messentra.Features.Settings;
 using Messentra.Features.Settings.Cache.Components;
 using Messentra.Features.Settings.Connections.Components;
+using Messentra.Features.Settings.FetchOptions.Components;
 using Messentra.Features.Settings.Mcp.Components;
 using Messentra.Features.Settings.UserSettings.GetUserSettings;
 using Moq;
@@ -16,7 +17,7 @@ public sealed class SettingsPageShould : ComponentTestBase
     {
         MockMediator
             .Setup(m => m.Send(It.IsAny<GetUserSettingsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: false));
+            .ReturnsAsync(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: false, DefaultMessageCount: 100));
     }
 
     [Fact]
@@ -37,6 +38,16 @@ public sealed class SettingsPageShould : ComponentTestBase
 
         // Assert
         cut.FindComponent<CacheComponent>().ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void RenderFetchOptionsComponent()
+    {
+        // Arrange and Act
+        var cut = Render<SettingsPage>();
+
+        // Assert
+        cut.FindComponent<FetchOptionsComponent>().ShouldNotBeNull();
     }
 
     [Fact]

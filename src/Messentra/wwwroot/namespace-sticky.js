@@ -6,6 +6,7 @@ let treeScrollRoot = null;
 
 export function observe(treeScrollEl, dotNet) {
     dispose();
+    if (!treeScrollEl || typeof treeScrollEl.querySelectorAll !== 'function') return;
     dotNetRef = dotNet;
     treeScrollRoot = treeScrollEl;
     elements = [...treeScrollEl.querySelectorAll('[data-namespace-key]')];

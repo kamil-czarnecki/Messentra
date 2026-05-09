@@ -53,7 +53,7 @@ public sealed class McpHelpersShould : InMemoryDbTestBase
             ConnectionId = connection.Id,
             Name = "Squad",
             Resources = [new FolderResource { ResourceUrl = "queue:orders" }]
-        });
+        }, TestContext.Current.CancellationToken);
         await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _sut.ResolveFolderResourceUrls(connection.Id, "squad", CancellationToken.None);
@@ -71,7 +71,7 @@ public sealed class McpHelpersShould : InMemoryDbTestBase
             ConnectionId = connection.Id,
             Name = "SQUAD",
             Resources = []
-        });
+        }, TestContext.Current.CancellationToken);
         await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _sut.ResolveFolderResourceUrls(connection.Id, "squad", CancellationToken.None);

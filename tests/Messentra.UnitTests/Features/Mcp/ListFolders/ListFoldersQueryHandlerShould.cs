@@ -18,7 +18,7 @@ public sealed class ListFoldersQueryHandlerShould : InMemoryDbTestBase
     public async Task ReturnFolderNames_ForConnection()
     {
         var connection = await SeedConnectionAsync("PROD");
-        await DbContext.Set<Folder>().AddAsync(new Folder { ConnectionId = connection.Id, Name = "Squad" });
+        await DbContext.Set<Folder>().AddAsync(new Folder { ConnectionId = connection.Id, Name = "Squad" }, TestContext.Current.CancellationToken);
         await DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var result = await _sut.Handle(new ListFoldersQuery(connection.Id), TestContext.Current.CancellationToken);
