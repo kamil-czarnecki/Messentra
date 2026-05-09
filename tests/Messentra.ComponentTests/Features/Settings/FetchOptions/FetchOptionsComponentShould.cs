@@ -42,9 +42,10 @@ public sealed class FetchOptionsComponentShould : ComponentTestBase
         await input.InputAsync(new ChangeEventArgs { Value = "75" });
 
         // Assert
-        MockMediator.Verify(
-            m => m.Send(new SaveFetchOptionsCommand(DefaultMessageCount: 75), It.IsAny<CancellationToken>()),
-            Times.Once);
+        await cut.WaitForAssertionAsync(() =>
+            MockMediator.Verify(
+                m => m.Send(new SaveFetchOptionsCommand(DefaultMessageCount: 75), It.IsAny<CancellationToken>()),
+                Times.Once));
     }
 
 
