@@ -8,6 +8,7 @@ using Messentra.Features.Explorer.Resources;
 using Messentra.Features.Explorer.Resources.Components.Details.Tabs;
 using Messentra.Features.Jobs;
 using Messentra.Features.Jobs.ExportSelectedMessages;
+using Messentra.Features.Settings.UserSettings.GetUserSettings;
 using Messentra.Infrastructure.AzureServiceBus;
 using Microsoft.AspNetCore.Components;
 using Moq;
@@ -19,6 +20,13 @@ namespace Messentra.ComponentTests.Features.Explorer.Resources.Components.Detail
 
 public sealed class MessageGridShould : ComponentTestBase
 {
+    public MessageGridShould()
+    {
+        MockMediator
+            .Setup(x => x.Send(It.IsAny<GetUserSettingsQuery>(), It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.FromResult(new UserSettingsDto(IsDarkMode: false, IsMcpEnabled: false, DefaultMessageCount: 100)));
+    }
+
     private static QueueTreeNode BuildQueueNode(string connectionName = "TestNS", string queueName = "my-queue")
     {
         var overview = new ResourceOverview(

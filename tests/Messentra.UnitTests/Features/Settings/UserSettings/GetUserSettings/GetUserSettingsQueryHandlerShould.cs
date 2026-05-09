@@ -50,9 +50,32 @@ public sealed class GetUserSettingsQueryHandlerShould : InMemoryDbTestBase
         result.IsDarkMode.ShouldBeFalse();
     }
 
-    private async Task GivenUserSettings(bool isDarkMode)
+    [Fact]
+    public async Task ReturnDefaultMessageCountOf100WhenNoSettingsExist()
     {
-        DbContext.Set<Messentra.Domain.UserSettings>().Add(new Messentra.Domain.UserSettings { Id = 1, IsDarkMode = isDarkMode });
+        // Act
+        var result = await _sut.Handle(new GetUserSettingsQuery(), CancellationToken.None);
+
+        // Assert
+        result.DefaultMessageCount.ShouldBe(100);
+    }
+
+    [Fact]
+    public async Task ReturnSavedDefaultMessageCount()
+    {
+        // Arrange
+        await GivenUserSettings(isDarkMode: false, defaultMessageCount: 250);
+
+        // Act
+        var result = await _sut.Handle(new GetUserSettingsQuery(), CancellationToken.None);
+
+        // Assert
+        result.DefaultMessageCount.ShouldBe(250);
+    }
+
+    private async Task GivenUserSettings(bool isDarkMode, int defaultMessageCount = 100)
+    {
+        DbContext.Set<Messentra.Domain.UserSettings>().Add(new Messentra.Domain.UserSettings { Id = 1, IsDarkMode = isDarkMode, DefaultMessageCount = defaultMessageCount });
         await DbContext.SaveChangesAsync();
     }
 }

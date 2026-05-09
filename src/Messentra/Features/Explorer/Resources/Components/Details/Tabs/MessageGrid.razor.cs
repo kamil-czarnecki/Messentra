@@ -1,6 +1,7 @@
 using Fluxor;
 using Mediator;
 using Messentra.Features.Explorer.MessageGrid;
+using Messentra.Features.Settings.UserSettings.GetUserSettings;
 using Messentra.Features.Explorer.MessageGrid.State;
 using Messentra.Features.Explorer.Messages;
 using Messentra.Features.Explorer.Messages.ActionProgress;
@@ -443,10 +444,16 @@ public partial class MessageGrid : IDisposable
 
     private async Task OnFetchMessagesClicked()
     {
+        var settings = await _mediator.Send(new GetUserSettingsQuery());
         var options = CreateFetchDialogOptions();
 
-        var dialogReference = await _dialogService.ShowAsync<FetchMessagesOptionsDialog>("Fetch Messages", options);
-        var result = await dialogReference.Result;
+        var parameters = new DialogParameters
+        {
+            [nameof(FetchMessagesOptionsDialog.DefaultMessageCount)] = settings.DefaultMessageCount
+        };
+
+        var dialogRef = await _dialogService.ShowAsync<FetchMessagesOptionsDialog>("Fetch Messages", parameters, options);
+        var result = await dialogRef.Result;
 
         if (result is { Canceled: false, Data: FetchMessagesOptions optionsData })
         {

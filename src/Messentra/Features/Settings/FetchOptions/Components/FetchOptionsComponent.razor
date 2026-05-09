@@ -1,0 +1,19 @@
+<div>
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h5">Fetch Options</MudText>
+
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4">
+                <MudText Typo="Typo.body1" Class="fetch-options-label">Default Message Count</MudText>
+                <MudNumericField T="int"
+                                 Value="_defaultMessageCount"
+                                 ValueChanged="OnValueChanged"
+                                 Margin="Margin.Dense"
+                                 Min="1"
+                                 Immediate="true"
+                                 Variant="Variant.Outlined"
+                                 Class="fetch-options-input" />
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+</div>

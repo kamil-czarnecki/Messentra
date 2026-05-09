@@ -1,0 +1,7 @@
+::deep .fetch-options-label {
+    min-width: 200px;
+}
+
+::deep .fetch-options-input {
+    max-width: 150px;
+}
