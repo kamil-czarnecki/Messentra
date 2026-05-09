@@ -5,8 +5,8 @@ let scrollHandler = null;
 let treeScrollRoot = null;
 
 export function observe(treeScrollEl, dotNet) {
-    if (!treeScrollEl || typeof treeScrollEl.querySelectorAll !== 'function') return;
     dispose();
+    if (!treeScrollEl || typeof treeScrollEl.querySelectorAll !== 'function') return;
     dotNetRef = dotNet;
     treeScrollRoot = treeScrollEl;
     elements = [...treeScrollEl.querySelectorAll('[data-namespace-key]')];
